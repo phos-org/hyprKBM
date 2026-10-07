@@ -1,0 +1,18 @@
+# Starts hyprkbm-watch with the graphical session, so hyprKBM's keybinds are
+# applied at login and after every Hyprland reload without a line in
+# hyprland.lua. hyprKBM needs it: without it, binds made in hyprKBM vanish at
+# the next reload. install.sh links and enables it.
+[Unit]
+Description=Keep hyprKBM's keybinds applied to Hyprland
+Documentation=https://github.com/phos-org/hyprKBM
+PartOf=graphical-session.target
+After=graphical-session.target
+ConditionEnvironment=HYPRLAND_INSTANCE_SIGNATURE
+
+[Service]
+ExecStart=%h/.local/bin/hyprkbm-watch
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target
