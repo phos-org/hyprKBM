@@ -1,0 +1,23 @@
+{
+  "same": [
+    ["SUPER + F", "SUPER+f"],
+    ["super + f", "SUPER+f"],
+    ["WIN + f", "SUPER+f"],
+    ["MOD4 + F", "SUPER+f"],
+    ["LOGO + F", "SUPER+f"],
+    ["SHIFT + SUPER + F", "SUPER+SHIFT+f"],
+    ["SUPER + ALT +  SHIFT + P", "SUPER+ALT+SHIFT+p"],
+    ["CONTROL + MOD1 + Delete", "CTRL+ALT+delete"],
+    ["SUPER + SUPER + F", "SUPER+f"],
+    ["XF86AudioMute", "xf86audiomute"],
+    ["SUPER + mouse:272", "SUPER+mouse:272"],
+    ["Print", "print"],
+    ["SHIFT + Print", "SHIFT+print"],
+    ["SUPER + 0", "SUPER+0"]
+  ],
+  "display": [
+    ["shift + win + f", "SUPER + SHIFT + f"],
+    ["SUPER + ALT +  SHIFT + P", "SUPER + ALT + SHIFT + P"]
+  ],
+  "invalid": ["", "   ", " + ", "SUPER + BOGUS + F", "F + G"]
+}
