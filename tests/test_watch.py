@@ -66,3 +66,46 @@ def test_an_old_marker_is_removed_but_does_not_skip(paths):
 
     assert watch.consume_marker(paths) is False
     assert not paths.marker.exists()
+
+
+def feed(chunks):
+    ours, theirs = socket.socketpair()
+    for chunk in chunks:
+        theirs.sendall(chunk)
+    theirs.shutdown(socket.SHUT_WR)
+    return ours, theirs
+
+
+def test_every_connect_runs_the_catch_up(paths, monkeypatch):
+    calls = []
+    monkeypatch.setattr(watch, "run_live", lambda command: calls.append(command))
+    for _ in range(2):
+        ours, theirs = feed([])
+        with ours:
+            watch.serve(ours, "apply", paths)
+        theirs.close()
+
+    assert calls == ["apply", "apply"]
+
+
+def test_a_failing_subprocess_does_not_escape_run_live(monkeypatch):
+    def boom(*args, **kwargs):
+        raise OSError("not executable")
+
+    monkeypatch.setattr(watch.subprocess, "run", boom)
+
+    watch.run_live("apply")
+
+
+def test_serve_skips_reloads_apply_made_and_answers_the_rest(paths, monkeypatch):
+    calls = []
+    monkeypatch.setattr(watch, "run_live", lambda command: calls.append(command))
+    marker.expect_reload(paths)
+    marker.expect_reload(paths)
+    ours, theirs = feed([b"configreloaded>>\n" * 3])
+    with ours:
+        watch.serve(ours, "apply", paths)
+    theirs.close()
+
+    assert calls == ["apply", "apply"]  # catch-up, then the third reload
+    assert not paths.marker.exists()

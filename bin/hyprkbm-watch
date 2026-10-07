@@ -67,8 +67,13 @@ def socket_path():
 
 
 def run_live(command):
-    res = subprocess.run([command, "--live"], capture_output=True, text=True)
     stamp = time.strftime("%Y-%m-%dT%H:%M:%S%z")
+    try:
+        res = subprocess.run([command, "--live"], capture_output=True, text=True)
+    except Exception as exc:
+        # A failed apply must not end event processing.
+        print("%s apply --live failed to run: %s" % (stamp, exc), file=sys.stderr, flush=True)
+        return
     print("%s apply --live rc=%d %s" % (stamp, res.returncode,
                                         (res.stdout + res.stderr).strip()), flush=True)
 
@@ -93,11 +98,10 @@ def read_events(sock, on_reload):
                 on_reload()
 
 
-def main():
-    paths = Paths.from_env()
-    _lock = claim_single_instance(paths)
-    command = apply_command()
-    path = socket_path()
+def serve(sock, command, paths):
+    """One connection's work. At login, and after any gap in the connection,
+    hyprland.lua may have run without hyprKBM's binds, so apply first."""
+    run_live(command)
 
     def on_reload():
         if consume_marker(paths):
@@ -105,18 +109,21 @@ def main():
         else:
             run_live(command)
 
-    started = False
+    read_events(sock, on_reload)
+
+
+def main():
+    paths = Paths.from_env()
+    _lock = claim_single_instance(paths)
+    command = apply_command()
+    path = socket_path()
+
     while True:
         try:
             with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
                 sock.connect(path)
                 print("watching %s" % path, flush=True)
-                if not started:
-                    # At login hyprland.lua has run, and hyprKBM's binds are
-                    # not in it.
-                    run_live(command)
-                    started = True
-                read_events(sock, on_reload)
+                serve(sock, command, paths)
         except OSError as exc:
             print("socket error: %s" % exc, file=sys.stderr, flush=True)
         time.sleep(RECONNECT_SECONDS)
