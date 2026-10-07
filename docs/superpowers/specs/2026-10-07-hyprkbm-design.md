@@ -96,9 +96,11 @@ hyprKBM never parses its own Lua back; it renders from JSON.
 - Every other `hl.*` call is a no-op; `hl.get_*` return `nil` or `{}`;
   `hl.on` callbacks are recorded and never run; `hl.config` and friends are
   ignored.
-- The environment has no `os`, `io`, `package.loadlib`, `debug` (beyond the
-  harness's own use) or `dofile`/`loadfile` outside `~/.config/hypr`.
-  `require` resolves only under `~/.config/hypr`.
+- The environment has no `io`, `package`, `debug` or `loadfile`; `os` is
+  limited to `getenv`, `time`, `date` and `clock` (configs commonly build
+  paths from `os.getenv("HOME")`). `dofile` and `require` load only files
+  under the config directory, and skip hyprKBM's own `keybinds.lua` so a
+  config that sources it does not read hyprKBM's binds back as hand-written.
 - The run has a 2 second timeout (enforced by the Python caller).
 - Output is JSON on stdout: `{ binds, submaps, unbinds, error }`. On a Lua
   error, binds recorded before it are kept and `error` carries the message
@@ -124,9 +126,9 @@ takes its "nothing there" path.
     "flags": { "repeating": false, "locked": false, "release": false,
                "long_press": false, "non_consuming": false,
                "transparent": false, "ignore_mods": false, "mouse": false },
-    "replaces": { "keys": "SUPER + F", "submap": "", "fingerprint": "exec_cmd:dolphin" }
+    "replaces": { "keys": "SUPER + F", "submap": "", "fingerprint": "exec_cmd:[\"dolphin\"]" }
   }],
-  "unbinds": [{ "keys": "SUPER + P", "submap": "", "fingerprint": "window.pseudo" }]
+  "unbinds": [{ "keys": "SUPER + P", "submap": "", "fingerprint": "window.pseudo:[]" }]
 }
 ```
 
@@ -136,7 +138,9 @@ takes its "nothing there" path.
   "keep both" choice); it is excluded from the conflict count.
 - `replaces` is present on an override and identifies the hand-written bind
   it supersedes. `unbinds` deletes hand-written binds.
-- A **fingerprint** is the dispatcher name plus its canonicalised args. Hand
+- A **fingerprint** is the dispatcher path, a colon, and its arguments as
+  compact JSON with sorted keys: `focus:[{"workspace":3}]`. A function
+  dispatcher's is `function:<file>:<line>`. Hand
   binds are matched by `keys + submap + fingerprint`, never by line number,
   so overrides survive edits elsewhere in `hyprland.lua`.
 - `submap: ""` is the global map.
@@ -176,9 +180,13 @@ stale unbind renders nothing.
 `hyprkbm-apply` takes the staged model on stdin:
 
 1. Validate: schema, known action kinds and required args, normalised keys,
-   no conflicts unless the bind has `"allowConflict": true`, raw Lua compiles
-   (`load` in a throwaway `lua` process).
-2. Render to a temp file and compile it.
+   no conflicts involving a hyprKBM bind unless it has `"allowConflict": true`
+   (duplicates purely within `hyprland.lua` are shown, not blocking).
+2. Render to a staged file and **dry-run** it inside Hyprland: `hyprctl eval`
+   loads it with `hl.bind`, `hl.unbind` and `hl.define_submap` stubbed, so
+   every dispatcher's arguments are checked (Hyprland validates them when a
+   dispatcher is constructed) without a bind changing. Syntax errors in raw
+   Lua surface here too.
 3. Back up the current JSON and Lua to
    `~/.local/state/hyprkbm/backups/<ISO timestamp>/`; prune to 30.
 4. Write both files atomically (temp + rename).
@@ -283,6 +291,8 @@ hypr-displays since there is no shared phos library yet. Inter, 13/11 px.
 | Situation | Behaviour |
 |---|---|
 | Reader errors or times out | Panel opens with hyprKBM's binds and a banner with the error and line; partial hand binds kept. |
+| Apply while the reader errors | Refused: overrides and conflict checks depend on a complete read. |
+| Dry run fails | Nothing written; Hyprland's message shown. |
 | `keybinds.json` invalid | Panel opens read-only with a banner; offers restoring the latest backup. |
 | Apply validation fails | Nothing written; errors shown against the offending binds. |
 | Eval fails after write | Automatic rollback to the backup; error shown and sent via `notify-send`. |
