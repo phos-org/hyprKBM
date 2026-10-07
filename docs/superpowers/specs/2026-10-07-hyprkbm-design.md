@@ -94,13 +94,15 @@ hyprKBM never parses its own Lua back; it renders from JSON.
 - A dispatcher that is a Lua function is recorded as
   `{ kind = "function", where = "file:line" }`; such binds are read-only.
 - Every other `hl.*` call is a no-op; `hl.get_*` return `nil` or `{}`;
-  `hl.on` callbacks are recorded and never run; `hl.config` and friends are
+  `hl.on` callbacks are never run (binds made in them are not seen); `hl.config` and friends are
   ignored.
 - The environment has no `io`, `package`, `debug` or `loadfile`; `os` is
   limited to `getenv`, `time`, `date` and `clock` (configs commonly build
   paths from `os.getenv("HOME")`). `dofile` and `require` load only files
   under the config directory, and skip hyprKBM's own `keybinds.lua` so a
-  config that sources it does not read hyprKBM's binds back as hand-written.
+  config that sources it does not read hyprKBM's binds back as hand-written. Symlinks are followed:
+  the check is on the path as written, so a config directory symlinked into a
+  dotfiles repo keeps working.
 - The run has a 2 second timeout (enforced by the Python caller).
 - Output is JSON on stdout: `{ binds, submaps, unbinds, error }`. On a Lua
   error, binds recorded before it are kept and `error` carries the message
