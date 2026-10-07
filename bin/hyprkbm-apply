@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+"""Apply hyprKBM's keybinds to Hyprland.
+
+  hyprkbm-apply          validate the model on stdin, back up, write, apply
+  hyprkbm-apply --live   re-apply keybinds.lua to the running Hyprland as it is
+
+Prints a JSON result. Exits 1 when nothing was applied.
+"""
+import json
+import os
+import sys
+
+sys.path.insert(0, os.path.join(
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "lib"))
+
+from hyprkbm.apply import apply, live  # noqa: E402
+from hyprkbm.paths import Paths  # noqa: E402
+
+
+def main(argv):
+    paths = Paths.from_env()
+    if argv == ["--live"]:
+        result = live(paths)
+    elif not argv:
+        try:
+            model = json.load(sys.stdin)
+        except ValueError as exc:
+            result = {"ok": False, "errors": [{
+                "id": None, "message": "the model on stdin is not JSON: %s" % exc}]}
+        else:
+            result = apply(model, paths)
+    else:
+        print(__doc__.strip(), file=sys.stderr)
+        return 2
+    print(json.dumps(result))
+    return 0 if result["ok"] else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
