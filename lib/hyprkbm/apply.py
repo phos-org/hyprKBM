@@ -3,8 +3,8 @@ code that hands them to Hyprland.
 
 An apply reloads Hyprland first, so the new binds always go onto what
 hyprland.lua alone produces rather than on top of the previous apply's.
-A reload emits configreloaded; the marker file tells hyprkbm-watch that this
-one was ours and already handled.
+A reload emits configreloaded; the marker counter tells hyprkbm-watch that
+this one was ours and already handled.
 """
 import json
 import os
@@ -13,6 +13,7 @@ import subprocess
 import tempfile
 from datetime import datetime
 
+from . import marker
 from .catalogue import load_catalogue
 from .luaval import string
 from .model import validate
@@ -83,20 +84,16 @@ def backup(paths, now=None):
 def _restore(paths, saved):
     for p in (paths.model, paths.lua):
         if saved is not None and (saved / p.name).exists():
-            shutil.copy2(saved / p.name, p)
+            write_atomic(p, (saved / p.name).read_text())
         elif p.exists():
             p.unlink()
 
 
-def _mark_self_reload(paths):
-    paths.runtime_dir.mkdir(parents=True, exist_ok=True)
-    paths.marker.touch()
-
-
 def _load(paths):
-    _mark_self_reload(paths)
+    marker.expect_reload(paths)
     ok, out = hyprctl("reload")
     if not ok:
+        marker.cancel_reload(paths)  # no configreloaded will come
         return False, "hyprctl reload failed: " + out
     if not paths.lua.exists():
         return True, ""
@@ -124,15 +121,26 @@ def apply(model, paths, catalogue=None):
         return _failure("Hyprland rejected the new keybinds, so nothing was changed: " + out)
 
     saved = backup(paths)
-    write_atomic(paths.model, json.dumps(model, indent=2, ensure_ascii=False) + "\n")
-    write_atomic(paths.lua, text)
-    ok, out = _load(paths)
+    try:
+        write_atomic(paths.model, json.dumps(model, indent=2, ensure_ascii=False) + "\n")
+        write_atomic(paths.lua, text)
+        ok, out = _load(paths)
+    except BaseException:
+        # Whatever went wrong, the two files must not be left disagreeing.
+        _restore(paths, saved)
+        _load(paths)
+        raise
     if ok:
         return {"ok": True, "backup": str(saved) if saved else None}
 
     _restore(paths, saved)
-    _load(paths)
-    message = "Hyprland refused the new keybinds, and the previous ones were put back: " + out
+    back, back_out = _load(paths)
+    if back:
+        message = ("Hyprland refused the new keybinds, and the previous ones were put back: "
+                   + out)
+    else:
+        message = ("Hyprland refused the new keybinds, and the previous ones could not be "
+                   "restored either. Refused: %s. Restore failed: %s" % (out, back_out))
     notify(message)
     return _failure(message)
 

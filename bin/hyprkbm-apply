@@ -19,21 +19,29 @@ from hyprkbm.paths import Paths  # noqa: E402
 
 def main(argv):
     paths = Paths.from_env()
-    if argv == ["--live"]:
-        result = live(paths)
-    elif not argv:
-        try:
-            model = json.load(sys.stdin)
-        except ValueError as exc:
-            result = {"ok": False, "errors": [{
-                "id": None, "message": "the model on stdin is not JSON: %s" % exc}]}
-        else:
-            result = apply(model, paths)
-    else:
+    try:
+        result = run(argv, paths)
+    except Exception as exc:
+        result = {"ok": False, "errors": [{
+            "id": None, "message": "%s: %s" % (type(exc).__name__, exc)}]}
+    if result is None:
         print(__doc__.strip(), file=sys.stderr)
         return 2
     print(json.dumps(result))
     return 0 if result["ok"] else 1
+
+
+def run(argv, paths):
+    if argv == ["--live"]:
+        return live(paths)
+    if not argv:
+        try:
+            model = json.load(sys.stdin)
+        except ValueError as exc:
+            return {"ok": False, "errors": [{
+                "id": None, "message": "the model on stdin is not JSON: %s" % exc}]}
+        return apply(model, paths)
+    return None
 
 
 if __name__ == "__main__":

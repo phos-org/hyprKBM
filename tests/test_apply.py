@@ -5,6 +5,8 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import pytest
+
 from hyprkbm import apply as applying
 from hyprkbm.apply import apply, backup, live
 
@@ -26,7 +28,7 @@ def test_first_apply_dry_runs_writes_reloads_and_loads(paths, stubs):
     assert stubs.hyprctl_kinds() == ["dry", "reload", "load"]
     load = [c for c in stubs.calls() if c[:2] == ["hyprctl", "eval"]][-1]
     assert load[2] == 'dofile("%s")' % paths.lua
-    assert paths.marker.exists(), "the watcher must be told this reload was ours"
+    assert paths.marker.read_text().strip() == "1", "the watcher must be told this reload was ours"
     assert not list(paths.config_dir.glob(".keybinds.lua.staged*"))
 
 
@@ -151,3 +153,45 @@ def test_the_executable_rejects_garbage(home_env, stubs):
 
     assert res.returncode == 1
     assert "not JSON" in json.loads(res.stdout)["errors"][0]["message"]
+
+
+def test_a_failing_reload_leaves_no_marker(paths, stubs):
+    stubs.respond(reload=["error: no socket", "error: no socket"])
+
+    result = apply(GOOD, paths)
+
+    assert result["ok"] is False
+    assert not paths.marker.exists()
+
+
+def test_a_failed_rollback_says_so_and_shows_both_outputs(paths, stubs):
+    apply(GOOD, paths)
+    stubs.respond(load=["error: a", "error: b"])
+
+    result = apply(OTHER, paths)
+
+    message = result["errors"][0]["message"]
+    assert "could not be restored" in message
+    assert "error: a" in message and "error: b" in message
+    assert "were put back" not in message
+    assert any(c[0] == "notify-send" and "could not be restored" in c[-1]
+               for c in stubs.calls())
+
+
+def test_an_exception_after_the_dry_run_restores_the_previous_files(paths, stubs, monkeypatch):
+    apply(GOOD, paths)
+    before = (paths.model.read_text(), paths.lua.read_text())
+    real = applying.write_atomic
+
+    def flaky(path, text):
+        if path == paths.lua:
+            raise OSError("disk full")
+        return real(path, text)
+
+    monkeypatch.setattr(applying, "write_atomic", flaky)
+    with pytest.raises(OSError):
+        apply(OTHER, paths)
+    monkeypatch.setattr(applying, "write_atomic", real)
+
+    assert json.loads(paths.model.read_text()) == GOOD
+    assert (paths.model.read_text(), paths.lua.read_text()) == before
