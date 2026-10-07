@@ -85,6 +85,8 @@ def test_dispatchers_become_lua():
     ({"kind": "window.cycle_next", "args": {"next": "yes"}}, "true or false"),
     ({"kind": "raw", "lua": "  "}, "needs some Lua"),
     ("exec_cmd", "must be an object"),
+    ({"kind": []}, "unknown action"),
+    ({"kind": {}}, "unknown action"),
 ])
 def test_bad_actions_are_explained(action, problem):
     errors = action_errors(action, CAT)

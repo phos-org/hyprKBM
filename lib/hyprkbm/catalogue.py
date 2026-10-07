@@ -37,7 +37,7 @@ def action_errors(action, catalogue):
     if kind == "raw":
         lua = action.get("lua")
         return [] if isinstance(lua, str) and lua.strip() else ["raw action needs some Lua"]
-    entry = catalogue.get(kind)
+    entry = catalogue.get(kind) if isinstance(kind, str) else None
     if entry is None:
         return ["unknown action %r" % (kind,)]
     args = action.get("args", {})
@@ -86,7 +86,7 @@ def dispatcher_lua(dispatcher):
     if "dsp" not in dispatcher:
         raise NotReproducible(dispatcher.get("__function") or "an hl object")
     return "hl.dsp.%s(%s)" % (dispatcher["dsp"],
-                              ", ".join(to_lua(a) for a in dispatcher["args"]))
+                              ", ".join(to_lua(a) for a in dispatcher.get("args", [])))
 
 
 def _plain(value):
@@ -107,7 +107,7 @@ def describe(dispatcher, catalogue):
         return "Lua function (%s)" % os.path.basename(dispatcher["__function"])
     if "dsp" not in dispatcher:
         return "Unknown action"
-    args = dispatcher["args"]
+    args = dispatcher.get("args", [])
     entry = next((e for e in catalogue.values() if e["dsp"] == dispatcher["dsp"]), None)
     if entry is None:
         try:
