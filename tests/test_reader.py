@@ -178,3 +178,49 @@ def test_fingerprints_sort_table_keys():
                      "args": [{"action": "toggle", "mode": "fullscreen"}]})
     assert a == b == 'window.fullscreen:[{"action":"toggle","mode":"fullscreen"}]'
     assert fingerprint({"raw": "hl.dsp.exit()"}) == "raw:hl.dsp.exit()"
+
+
+def test_a_config_cannot_swap_string_find_to_escape_the_config_dir(paths):
+    outside = paths.entry.parent.parent / "outside.lua"
+    outside.write_text('hl.bind("SUPER + X", hl.dsp.exec_cmd("evil"))\n')
+
+    result = read(paths, """\
+        string.find = function() return nil end
+        dofile("../outside.lua")
+    """)
+
+    assert result.binds == []
+    assert "refusing to load" in result.error
+
+
+def test_a_config_cannot_swap_the_shared_string_metatable_to_escape(paths, tmp_path):
+    outside = tmp_path / "outside.lua"
+    outside.write_text('hl.bind("SUPER + X", hl.dsp.exec_cmd("evil"))\n')
+    prefix = str(paths.entry.parent) + "/"
+
+    result = read(paths, """\
+        local mt = getmetatable("")
+        if type(mt) == "table" then
+            mt.__index.sub = function() return "PREFIX" end
+        end
+        dofile("OUTSIDE")
+    """.replace("PREFIX", prefix).replace("OUTSIDE", str(outside)))
+
+    assert result.binds == []
+    assert "refusing" in result.error
+
+
+def test_unbind_can_be_chained_like_bind(paths):
+    result = read(paths, 'hl.unbind("SUPER + Q"):whatever()\n')
+
+    assert result.error is None
+
+
+def test_a_reader_that_prints_garbage_is_an_error(paths, tmp_path, monkeypatch):
+    fake = tmp_path / "fake.lua"
+    fake.write_text('io.write("}{")\n')
+    monkeypatch.setattr(reader, "READER", fake)
+
+    result = read_config(paths)
+
+    assert "not JSON" in result.error

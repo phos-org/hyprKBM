@@ -95,7 +95,13 @@ def read_config(paths):
     if res.returncode != 0:
         return ReadResult(error="the reader failed: "
                                 + res.stderr.decode("utf-8", "replace").strip())
-    return _result(json.loads(res.stdout.decode("utf-8", "replace")))
+    text = res.stdout.decode("utf-8", "replace")
+    try:
+        raw = json.loads(text)
+    except ValueError:
+        return ReadResult(error="the reader printed something that is not JSON: "
+                                + text[:200])
+    return _result(raw)
 
 
 def _combo(keys):

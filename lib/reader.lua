@@ -15,6 +15,16 @@ local entry, confdir, own = arg[1], arg[2], arg[3] or ""
 local getinfo = debug.getinfo
 local mtype = math.type
 
+-- Everything the reader itself needs from the libraries is captured here and
+-- called as a plain function, never as a string method. Methods on a string go
+-- through the string metatable, which belongs to the whole Lua state: a config
+-- that replaced string.find, or the __index of getmetatable(""), would
+-- otherwise change what the path checks below decide.
+local sub, find, gsub, byte = string.sub, string.find, string.gsub, string.byte
+local format = string.format
+local insert, pack, concat, sort = table.insert, table.pack, table.concat, table.sort
+local huge = math.huge
+
 local out = { binds = {}, unbinds = {}, submaps = {} }
 local seq = 0
 local current_submap = ""
@@ -25,7 +35,7 @@ local function next_seq()
 end
 
 local function source_of(info)
-    if info.source:sub(1, 1) == "@" then return info.source:sub(2) end
+    if sub(info.source, 1, 1) == "@" then return sub(info.source, 2) end
     return info.short_src
 end
 
@@ -55,7 +65,7 @@ local function dsp_node(path)
             return dsp_node(path == "" and name or (path .. "." .. name))
         end,
         __call = function(_, ...)
-            local d = { dsp = path, args = table.pack(...) }
+            local d = { dsp = path, args = pack(...) }
             is_dispatcher[d] = true
             return d
         end,
@@ -76,20 +86,21 @@ function hl.bind(keys, dispatcher, opts)
     else
         record.dispatcher = { __opaque = true }
     end
-    table.insert(out.binds, record)
+    insert(out.binds, record)
     return INERT
 end
 
 function hl.unbind(keys)
     local file, line = where()
-    table.insert(out.unbinds, { seq = next_seq(), keys = keys, file = file, line = line })
+    insert(out.unbinds, { seq = next_seq(), keys = keys, file = file, line = line })
+    return INERT
 end
 
 function hl.define_submap(name, reset_or_fn, fn)
     local reset = reset_or_fn
     if type(reset_or_fn) == "function" then fn, reset = reset_or_fn, nil end
     local file, line = where()
-    table.insert(out.submaps, { name = name, reset = reset, file = file, line = line })
+    insert(out.submaps, { name = name, reset = reset, file = file, line = line })
     if fn then
         local saved = current_submap
         current_submap = name
@@ -109,7 +120,7 @@ end
 
 setmetatable(hl, {
     __index = function(_, name)
-        if type(name) == "string" and name:sub(1, 4) == "get_" then
+        if type(name) == "string" and sub(name, 1, 4) == "get_" then
             return function() return nil end
         end
         return INERT
@@ -121,12 +132,12 @@ setmetatable(hl, {
 local env
 
 local function inside_confdir(path)
-    return path:sub(1, #confdir + 1) == confdir .. "/"
-        and not path:find("/%.%./") and not path:find("/%.%.$")
+    return sub(path, 1, #confdir + 1) == confdir .. "/"
+        and not find(path, "/%.%./") and not find(path, "/%.%.$")
 end
 
 local function resolve(path)
-    if path:sub(1, 1) ~= "/" then return confdir .. "/" .. path end
+    if sub(path, 1, 1) ~= "/" then return confdir .. "/" .. path end
     return path
 end
 
@@ -144,13 +155,21 @@ end
 
 local loaded = {}
 
+-- The config gets its own copy of each library, so changing one changes it for
+-- the config only and never for the reader's own calls.
+local function copy(lib)
+    local c = {}
+    for k, v in pairs(lib) do c[k] = v end
+    return c
+end
+
 env = {
     assert = assert, error = error, ipairs = ipairs, pairs = pairs, next = next,
     pcall = pcall, xpcall = xpcall, select = select, tonumber = tonumber,
     tostring = tostring, type = type, rawequal = rawequal, rawget = rawget,
     rawset = rawset, rawlen = rawlen, setmetatable = setmetatable,
-    getmetatable = getmetatable, string = string, table = table, math = math,
-    utf8 = utf8, _VERSION = _VERSION,
+    getmetatable = getmetatable, string = copy(string), table = copy(table),
+    math = copy(math), utf8 = copy(utf8), _VERSION = _VERSION,
     print = function() end,
     os = { getenv = os.getenv, time = os.time, date = os.date, clock = os.clock },
     hl = hl,
@@ -167,10 +186,10 @@ end
 
 env.require = function(name)
     if loaded[name] ~= nil then return loaded[name] end
-    if type(name) ~= "string" or name:find("%.%.") or name:find("/") then
+    if type(name) ~= "string" or find(name, "%.%.") or find(name, "/") then
         error("hyprkbm reader: bad module name " .. tostring(name), 2)
     end
-    local base = confdir .. "/" .. (name:gsub("%.", "/"))
+    local base = confdir .. "/" .. (gsub(name, "%.", "/"))
     local path
     for _, candidate in ipairs({ base .. ".lua", base .. "/init.lua" }) do
         local handle = io.open(candidate, "r")
@@ -192,9 +211,9 @@ local ESCAPES = { ['"'] = '\\"', ["\\"] = "\\\\", ["\n"] = "\\n", ["\r"] = "\\r"
                   ["\t"] = "\\t", ["\b"] = "\\b", ["\f"] = "\\f" }
 
 local function quote(s)
-    return '"' .. s:gsub('[%c"\\]', function(c)
-        return ESCAPES[c] or string.format("\\u%04x", c:byte())
-    end) .. '"'
+    return '"' .. (gsub(s, '[%c"\\]', function(c)
+        return ESCAPES[c] or format("\\u%04x", byte(c))
+    end)) .. '"'
 end
 
 local function array_length(t)
@@ -214,7 +233,7 @@ local encode
 local function encode_list(values, n, depth)
     local parts = {}
     for i = 1, n do parts[i] = encode(values[i], depth + 1) end
-    return "[" .. table.concat(parts, ",") .. "]"
+    return "[" .. concat(parts, ",") .. "]"
 end
 
 encode = function(v, depth)
@@ -224,9 +243,9 @@ encode = function(v, depth)
     if depth > 32 then return '{"__opaque":true}' end
     if kind == "boolean" then return tostring(v) end
     if kind == "number" then
-        if mtype(v) == "integer" then return string.format("%d", v) end
-        if v ~= v or v == math.huge or v == -math.huge then return "null" end
-        return string.format("%.17g", v)
+        if mtype(v) == "integer" then return format("%d", v) end
+        if v ~= v or v == huge or v == -huge then return "null" end
+        return format("%.17g", v)
     end
     if kind == "string" then return quote(v) end
     if kind == "function" then
@@ -240,16 +259,20 @@ encode = function(v, depth)
     local n = array_length(v)
     if n and n > 0 then return encode_list(v, n, depth) end
     local keys = {}
-    for k in pairs(v) do table.insert(keys, k) end
-    table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+    for k in pairs(v) do insert(keys, k) end
+    sort(keys, function(a, b) return tostring(a) < tostring(b) end)
     local parts = {}
     for _, k in ipairs(keys) do
-        table.insert(parts, quote(tostring(k)) .. ":" .. encode(rawget(v, k), depth + 1))
+        insert(parts, quote(tostring(k)) .. ":" .. encode(rawget(v, k), depth + 1))
     end
-    return "{" .. table.concat(parts, ",") .. "}"
+    return "{" .. concat(parts, ",") .. "}"
 end
 
 -- ------------------------------------------------------------------- run
+
+-- Hides the real string table from getmetatable(""): methods on strings go
+-- through it, and the config must not be able to reach and edit them.
+getmetatable("").__metatable = false
 
 local ok, err = xpcall(function() load_config_file(entry)() end,
                        function(e) return tostring(e) end)
