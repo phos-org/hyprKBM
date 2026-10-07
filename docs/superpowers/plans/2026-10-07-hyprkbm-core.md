@@ -2767,7 +2767,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 **Interfaces:**
 - Consumes: `Paths.marker`, `Paths.lock`, `Paths.runtime_dir`; `bin/hyprkbm-apply --live`.
-- Produces: module functions (loaded in tests via importlib): `consume_marker(paths, now=None) -> bool`, `read_events(sock, on_reload) -> None` (returns when the socket closes), `MARKER_MAX_AGE = 10.0`.
+- Consumes: `hyprkbm.marker` (`expect_reload(paths)`, `consume(paths, now=None) -> bool`, `MAX_AGE = 10.0`), added as a fix to Task 7.
+- Produces: module functions (loaded in tests via importlib): `consume_marker(paths, now=None) -> bool` (delegates to `marker.consume`), `read_events(sock, on_reload) -> None` (returns when the socket closes).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -2786,6 +2787,8 @@ import os
 import socket
 import time
 from pathlib import Path
+
+from hyprkbm import marker
 
 WATCH = Path(__file__).resolve().parents[1] / "bin" / "hyprkbm-watch"
 
@@ -2826,8 +2829,7 @@ def test_an_event_split_across_reads_still_counts():
 
 
 def test_a_fresh_marker_is_consumed_and_skips_the_reapply(paths):
-    paths.runtime_dir.mkdir(parents=True)
-    paths.marker.touch()
+    marker.expect_reload(paths)
 
     assert watch.consume_marker(paths) is True
     assert not paths.marker.exists()
@@ -2835,9 +2837,8 @@ def test_a_fresh_marker_is_consumed_and_skips_the_reapply(paths):
 
 
 def test_an_old_marker_is_removed_but_does_not_skip(paths):
-    paths.runtime_dir.mkdir(parents=True)
-    paths.marker.touch()
-    old = time.time() - watch.MARKER_MAX_AGE - 5
+    marker.expect_reload(paths)
+    old = time.time() - marker.MAX_AGE - 5
     os.utime(paths.marker, (old, old))
 
     assert watch.consume_marker(paths) is False
@@ -2878,10 +2879,10 @@ import time
 sys.path.insert(0, os.path.join(
     os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "lib"))
 
+from hyprkbm import marker  # noqa: E402
 from hyprkbm.paths import Paths  # noqa: E402
 
 RELOADED = "configreloaded"
-MARKER_MAX_AGE = 10.0
 RECONNECT_SECONDS = 2.0
 SELF_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -2931,17 +2932,9 @@ def run_live(command):
 
 def consume_marker(paths, now=None):
     """True when the reload was hyprkbm-apply's own, which applies the binds
-    itself. A marker too old to belong to this reload is a leftover from an
-    apply made while no watcher ran, and is dropped."""
-    try:
-        age = (now or time.time()) - paths.marker.stat().st_mtime
-    except FileNotFoundError:
-        return False
-    try:
-        paths.marker.unlink()
-    except FileNotFoundError:
-        pass
-    return age <= MARKER_MAX_AGE
+    itself. The marker is a count, kept by hyprkbm.marker, because an apply
+    that rolls back reloads twice."""
+    return marker.consume(paths, now)
 
 
 def read_events(sock, on_reload):
