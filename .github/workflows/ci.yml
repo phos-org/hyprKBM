@@ -30,3 +30,13 @@ jobs:
 
       - name: Run tests
         run: python3 -m pytest tests/ -q
+
+  shell:
+    name: ShellCheck
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      # shellcheck ships with the GitHub runner image.
+      - name: Lint the installer
+        run: shellcheck install.sh
