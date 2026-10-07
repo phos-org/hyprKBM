@@ -20,7 +20,9 @@ binds without editing your config.
 - **Hand-written binds are read by running your config** in a sandbox,
   against a stand-in for `hl` that records each bind. That is what gets
   loops, helper functions and `mainMod ..` right. The sandbox cannot run
-  commands, write files or load anything outside `~/.config/hypr`.
+  commands or write files, and it refuses to load files whose path lies
+  outside `~/.config/hypr`. Symlinks inside that directory are followed, so
+  a config directory managed by stow or chezmoi keeps working.
 - **Overriding a bind from `hyprland.lua`** unbinds its keys and re-creates
   the other binds on them, because `hl.unbind` removes a key combo in every
   submap at once. A bind whose action is a Lua function cannot be
@@ -47,7 +49,9 @@ git clone https://github.com/phos-org/hyprKBM.git ~/src/hyprKBM
 ```
 
 The install is symlinks back into the clone, so keep it; `git pull` is the
-upgrade. `install.sh --uninstall` removes the links and keeps your binds.
+upgrade. An existing symlink at any of the install paths is re-pointed to
+this clone (that is what makes re-installing from a moved clone work); a real
+file is never touched. `install.sh --uninstall` removes the links and keeps your binds.
 
 Without `graphical-session.target`, start the watcher from `hyprland.lua`:
 

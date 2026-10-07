@@ -39,22 +39,33 @@ have_lua() {
 }
 
 link() {
-    local src="$REPO/$1" dst="$2"
-    mkdir -p "$(dirname "$dst")"
+    local src="$REPO/$1" dst="$2" err old
+    if ! err=$(mkdir -p "$(dirname "$dst")" 2>&1); then
+        warn "  failed    $dst: ${err:-could not create the link}"
+        failed=1
+        return
+    fi
     if [ -L "$dst" ]; then
-        if [ "$(readlink "$dst")" = "$src" ]; then
+        old="$(readlink "$dst")"
+        if [ "$old" = "$src" ]; then
             say "  ok        $dst"
             return
         fi
         # A link is somebody's earlier install of this; a file is not.
-        ln -sfn "$src" "$dst"
-        say "  replaced  $dst"
+        if err=$(ln -sfn "$src" "$dst" 2>&1); then
+            say "  replaced  $dst (was -> $old)"
+        else
+            warn "  failed    $dst: ${err:-could not create the link}"
+            failed=1
+        fi
     elif [ -e "$dst" ]; then
         warn "  skipped   $dst: a file is already there, not a link; move it and run again"
         failed=1
-    else
-        ln -s "$src" "$dst"
+    elif err=$(ln -s "$src" "$dst" 2>&1); then
         say "  linked    $dst"
+    else
+        warn "  failed    $dst: ${err:-could not create the link}"
+        failed=1
     fi
 }
 
@@ -103,7 +114,11 @@ install() {
     while read -r src dst; do
         [ -n "$src" ] && link "$src" "$dst"
     done <<<"$LINKS"
-    enable_watcher
+    if [ -L "$BIN_DIR/hyprkbm-watch" ]; then
+        enable_watcher
+    else
+        warn "The watcher was not enabled: its link $BIN_DIR/hyprkbm-watch is missing."
+    fi
     case ":$PATH:" in
         *":$BIN_DIR:"*) ;;
         *) warn "warning: $BIN_DIR is not on your PATH; add it to run hyprkbm yourself" ;;

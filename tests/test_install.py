@@ -108,3 +108,32 @@ def test_uninstall_removes_only_its_own_links(tmp_path):
     assert not any(dst.exists() or dst.is_symlink() for dst in links(home))
     assert keep.exists()
     assert ["--user", "disable", "--now", UNIT] in calls
+
+
+def test_a_link_that_cannot_be_made_fails_and_the_watcher_is_not_enabled(tmp_path):
+    if os.geteuid() == 0:
+        import pytest
+        pytest.skip("root ignores directory permissions")
+    bindir = tmp_path / "home/.local/bin"
+    bindir.mkdir(parents=True)
+    bindir.chmod(0o500)
+    try:
+        home, res, calls = run(tmp_path)
+    finally:
+        bindir.chmod(0o700)
+
+    assert res.returncode == 1
+    assert "failed" in res.stderr
+    assert ["--user", "enable", "--now", UNIT] not in calls
+
+
+def test_an_existing_link_is_re_pointed_and_says_what_it_was(tmp_path):
+    bindir = tmp_path / "home/.local/bin"
+    bindir.mkdir(parents=True)
+    (bindir / "hyprkbm").symlink_to("/nonexistent/elsewhere")
+
+    home, res, _ = run(tmp_path)
+
+    assert res.returncode == 0, res.stderr
+    assert Path(os.readlink(bindir / "hyprkbm")) == ROOT / "bin/hyprkbm"
+    assert "was -> /nonexistent/elsewhere" in res.stdout
