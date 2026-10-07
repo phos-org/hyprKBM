@@ -1,4 +1,3 @@
-import json
 import textwrap
 
 import pytest
@@ -38,6 +37,19 @@ def test_a_missing_model_is_empty(paths):
 def test_a_broken_model_says_so(paths):
     paths.model.parent.mkdir(parents=True)
     paths.model.write_text("{oops")
+    with pytest.raises(ModelError):
+        load_model(paths.model)
+
+
+def test_a_directory_as_model_raises_error(paths):
+    paths.model.mkdir(parents=True, exist_ok=True)
+    with pytest.raises(ModelError):
+        load_model(paths.model)
+
+
+def test_invalid_utf8_in_model_raises_error(paths):
+    paths.model.parent.mkdir(parents=True)
+    paths.model.write_bytes(b"\xff\xfe{")
     with pytest.raises(ModelError):
         load_model(paths.model)
 
@@ -109,6 +121,7 @@ def test_valid_models_pass(paths):
     ({"binds": [bind("b1", "SUPER + B"), bind("b1", "SUPER + N")]}, "used twice"),
     ({"binds": [bind("b1", "SUPER + BOGUS + B")]}, "not a modifier"),
     ({"binds": [bind("b1", "SUPER + B", submap="nowhere")]}, "no submap called 'nowhere'"),
+    ({"binds": [bind("b1", "SUPER + B", submap=[])]}, "submap must be text"),
     ({"binds": [{"id": "b1", "keys": "SUPER + B", "action": {"kind": "nope"}}]}, "unknown action"),
     ({"binds": [bind("b1", "SUPER + B", flags={"sticky": True})]}, "flags must map"),
     ({"binds": [bind("b1", "SUPER + B", description=3)]}, "description must be text"),

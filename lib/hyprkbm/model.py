@@ -26,10 +26,14 @@ def load_model(path):
         text = path.read_text()
     except FileNotFoundError:
         return copy.deepcopy(EMPTY)
+    except (OSError, UnicodeDecodeError) as exc:
+        raise ModelError("%s could not be read: %s" % (path, exc)) from exc
     try:
         return json.loads(text)
     except ValueError as exc:
         raise ModelError("%s is not valid JSON: %s" % (path, exc)) from exc
+    except RecursionError as exc:
+        raise ModelError("%s could not be read: %s" % (path, exc)) from exc
 
 
 @dataclass
@@ -189,8 +193,11 @@ def structure_errors(model, hand, catalogue):
             parse(b.get("keys"))
         except KeyParseError as exc:
             err("%s: %s" % (label, exc), bid)
-        if b.get("submap", "") not in known_submaps:
-            err("%s: no submap called %r" % (label, b.get("submap")), bid)
+        submap = b.get("submap", "")
+        if not isinstance(submap, str):
+            err("%s: submap must be text" % label, bid)
+        elif submap not in known_submaps:
+            err("%s: no submap called %r" % (label, submap), bid)
         for problem in action_errors(b.get("action"), catalogue):
             err("%s: %s" % (label, problem), bid)
         if not isinstance(b.get("description", ""), str):
