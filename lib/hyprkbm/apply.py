@@ -6,6 +6,7 @@ hyprland.lua alone produces rather than on top of the previous apply's.
 A reload emits configreloaded; the marker counter tells hyprkbm-watch that
 this one was ours and already handled.
 """
+import fcntl
 import json
 import os
 import shutil
@@ -66,12 +67,45 @@ def notify(message):
                        capture_output=True)
 
 
-def write_atomic(path, text):
+def _stage(path, text):
+    """Write text to a fresh temp file beside path and return its name. The
+    temp file is gone again if the write fails, so ENOSPC leaves no litter."""
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix="." + path.name + ".")
-    with os.fdopen(fd, "w") as handle:
-        handle.write(text)
-    os.replace(tmp, path)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except FileNotFoundError:
+            pass
+        raise
+    return tmp
+
+
+def write_files(files):
+    """Replace several files together: every temp file is written before any
+    is renamed into place, so a write that fails (a full disk) changes none of
+    them. Leftover temp files are always removed."""
+    staged = []
+    try:
+        for path, text in files:
+            staged.append((_stage(path, text), path))
+        while staged:
+            tmp, path = staged[0]
+            os.replace(tmp, path)
+            staged.pop(0)
+    finally:
+        for tmp, _ in staged:
+            try:
+                os.unlink(tmp)
+            except FileNotFoundError:
+                pass
+
+
+def write_atomic(path, text):
+    write_files([(path, text)])
 
 
 def backup(paths, now=None):
@@ -88,11 +122,13 @@ def backup(paths, now=None):
 
 
 def _restore(paths, saved):
+    files = []
     for p in (paths.model, paths.lua):
         if saved is not None and (saved / p.name).exists():
-            write_atomic(p, (saved / p.name).read_text())
+            files.append((p, (saved / p.name).read_text(encoding="utf-8")))
         elif p.exists():
             p.unlink()
+    write_files(files)
 
 
 def _load(paths):
@@ -107,7 +143,15 @@ def _load(paths):
 
 
 def apply(model, paths, catalogue=None):
-    catalogue = catalogue or load_catalogue()
+    # Two applies at once (the panel and the CLI, say) would interleave their
+    # backups, writes and rollbacks, so only one runs at a time.
+    paths.runtime_dir.mkdir(parents=True, exist_ok=True)
+    with open(paths.runtime_dir / "apply.lock", "a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        return _apply(model, paths, catalogue or load_catalogue())
+
+
+def _apply(model, paths, catalogue):
     hand = read_config(paths)
     if hand.error:
         return _failure("%s could not be read, so nothing was changed: %s"
@@ -117,19 +161,25 @@ def apply(model, paths, catalogue=None):
         return {"ok": False, "errors": errors}
 
     text = render(model, hand, catalogue)
-    staged = paths.config_dir / ".keybinds.lua.staged"
-    write_atomic(staged, text)
+    # A name of its own per call, so nothing else can ever swap or delete it.
+    paths.config_dir.mkdir(parents=True, exist_ok=True)
+    fd, staged = tempfile.mkstemp(dir=paths.config_dir, prefix=".keybinds.lua.staged.")
     try:
-        ok, out = hyprctl("eval", DRY_RUN % string(str(staged)))
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+        ok, out = hyprctl("eval", DRY_RUN % string(staged))
     finally:
-        staged.unlink()
+        try:
+            os.unlink(staged)
+        except FileNotFoundError:
+            pass
     if not ok:
         return _failure("Hyprland rejected the new keybinds, so nothing was changed: " + out)
 
     saved = backup(paths)
     try:
-        write_atomic(paths.model, json.dumps(model, indent=2, ensure_ascii=False) + "\n")
-        write_atomic(paths.lua, text)
+        write_files([(paths.model, json.dumps(model, indent=2, ensure_ascii=False) + "\n"),
+                     (paths.lua, text)])
         ok, out = _load(paths)
     except BaseException:
         # Whatever went wrong, the two files must not be left disagreeing.

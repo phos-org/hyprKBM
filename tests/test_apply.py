@@ -181,24 +181,64 @@ def test_a_failed_rollback_says_so_and_shows_both_outputs(paths, stubs):
 def test_an_exception_after_the_dry_run_restores_the_previous_files(paths, stubs, monkeypatch):
     apply(GOOD, paths)
     before = (paths.model.read_text(), paths.lua.read_text())
-    real = applying.write_atomic
+    real = applying._stage
 
     def flaky(path, text):
         if path == paths.lua:
             raise OSError("disk full")
         return real(path, text)
 
-    monkeypatch.setattr(applying, "write_atomic", flaky)
+    monkeypatch.setattr(applying, "_stage", flaky)
     with pytest.raises(OSError):
         apply(OTHER, paths)
-    monkeypatch.setattr(applying, "write_atomic", real)
+    monkeypatch.setattr(applying, "_stage", real)
 
     assert json.loads(paths.model.read_text()) == GOOD
     assert (paths.model.read_text(), paths.lua.read_text()) == before
+    assert not list(paths.config_dir.glob(".keybinds*."))
+    assert sorted(p.name for p in paths.config_dir.iterdir()) == ["keybinds.json", "keybinds.lua"]
 
 
-def test_the_dry_run_shadows_the_bind_list_so_it_cannot_touch_live_binds():
-    # The chunk only runs inside Hyprland, so the text is what can be checked:
-    # its env falls back to the real _G, where the preamble would otherwise
-    # find (and remove) the live binds' handles.
-    assert "__hyprkbm_binds = false" in applying.DRY_RUN
+def test_a_failed_lua_write_never_renames_the_json_into_place(paths, stubs, monkeypatch):
+    apply(GOOD, paths)
+    before = (paths.model.read_bytes(), paths.lua.read_bytes())
+    real = applying._stage
+
+    def flaky(path, text):
+        staged = real(path, text)
+        if path == paths.model:
+            return staged
+        os.unlink(staged)
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(applying, "_stage", flaky)
+    replaced = []
+    real_replace = os.replace
+    monkeypatch.setattr(applying.os, "replace", lambda a, b: (replaced.append(b), real_replace(a, b)))
+    with pytest.raises(OSError):
+        apply(OTHER, paths)
+
+    assert (paths.model.read_bytes(), paths.lua.read_bytes()) == before
+    assert not [t for t in replaced if t == paths.model], "json must not move before lua is staged"
+    assert [p.name for p in paths.config_dir.iterdir() if p.name.startswith(".keybinds")] == []
+
+
+def test_write_atomic_removes_its_temp_file_when_the_write_fails(tmp_path, monkeypatch):
+    target = tmp_path / "out.json"
+
+    def boom(*_a, **_k):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(applying.os, "fdopen", boom)
+    with pytest.raises(OSError):
+        applying.write_atomic(target, "x")
+
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_apply_takes_and_releases_the_apply_lock(paths, stubs):
+    apply(GOOD, paths)
+
+    assert (paths.runtime_dir / "apply.lock").exists()
+    # A second apply would block forever if the first had kept the lock.
+    assert apply(OTHER, paths)["ok"] is True
