@@ -31,7 +31,10 @@ def fail(*messages, code=1):
 
 def load_state(paths):
     """Hand binds, the model and the catalogue, or a list of reasons not."""
-    hand = read_config(paths)
+    try:
+        hand = read_config(paths)
+    except OSError as exc:  # no Lua interpreter to run the reader with
+        return None, ["the config could not be read: %s" % exc]
     if hand.error:
         print("hyprkbm: warning: %s: %s" % (paths.entry, hand.error), file=sys.stderr)
     try:
@@ -54,7 +57,10 @@ def cmd_export(paths, args):
     hand, model, catalogue = state
     text = export_markdown(merge(model, hand, catalogue), catalogue)
     if len(args) == 2:
-        Path(args[1]).write_text(text, encoding="utf-8")
+        try:
+            Path(args[1]).write_text(text, encoding="utf-8")
+        except OSError as exc:
+            return fail("%s could not be written: %s" % (args[1], exc))
     else:
         sys.stdout.write(text)
     return 0
@@ -99,10 +105,12 @@ def cmd_status(paths):
         print("  %s: %s" % (s["keys"], s["message"]))
     try:
         res = subprocess.run(["systemctl", "--user", "is-active", UNIT],
-                             capture_output=True, text=True)
+                             capture_output=True, text=True, timeout=5)
         watcher = res.stdout.strip() or "unknown"
     except OSError:
         watcher = "unknown (no systemctl)"
+    except subprocess.TimeoutExpired:
+        watcher = "unknown"
     print("watcher: %s" % watcher)
     return 0
 

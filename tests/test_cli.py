@@ -73,3 +73,19 @@ def test_no_arguments_explains_the_panel_is_missing(home_env, stubs):
 
     assert res.returncode == 2
     assert "panel" in res.stderr
+
+
+def test_export_to_an_unwritable_path_fails_cleanly(home_env, paths, stubs, tmp_path):
+    res = run(home_env, "--export", "md", str(tmp_path / "missing" / "binds.md"))
+
+    assert res.returncode == 1
+    assert res.stderr.startswith("hyprkbm:")
+    assert "Traceback" not in res.stderr
+
+
+def test_export_without_a_lua_interpreter_fails_cleanly(home_env, paths, stubs):
+    res = run(dict(home_env, HYPRKBM_LUA="/nonexistent/lua"), "--export", "md")
+
+    assert res.returncode == 1
+    assert res.stderr.startswith("hyprkbm:")
+    assert "Traceback" not in res.stderr
