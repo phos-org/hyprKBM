@@ -54,7 +54,7 @@ def cmd_export(paths, args):
     hand, model, catalogue = state
     text = export_markdown(merge(model, hand, catalogue), catalogue)
     if len(args) == 2:
-        Path(args[1]).write_text(text)
+        Path(args[1]).write_text(text, encoding="utf-8")
     else:
         sys.stdout.write(text)
     return 0

@@ -23,7 +23,7 @@ class ModelError(ValueError):
 
 def load_model(path):
     try:
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
     except FileNotFoundError:
         return copy.deepcopy(EMPTY)
     except (OSError, UnicodeDecodeError) as exc:

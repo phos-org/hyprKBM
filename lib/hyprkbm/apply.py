@@ -48,7 +48,8 @@ assert(loadfile(%s, "t", env))()
 
 def hyprctl(*args):
     try:
-        res = subprocess.run(["hyprctl", *args], capture_output=True, text=True, timeout=10)
+        res = subprocess.run(["hyprctl", *args], capture_output=True, text=True,
+                              encoding="utf-8", errors="replace", timeout=10)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return False, str(exc)
     out = (res.stdout + res.stderr).strip()

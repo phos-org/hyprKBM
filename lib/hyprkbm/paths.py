@@ -63,7 +63,7 @@ def _settings(path):
     # A broken settings file must not stop hyprKBM opening: the defaults are
     # what almost everyone uses anyway.
     try:
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
     return data if isinstance(data, dict) else {}

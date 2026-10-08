@@ -10,7 +10,7 @@ CATALOGUE = SHARE / "actions.json"
 
 
 def load_catalogue(path=CATALOGUE):
-    data = json.loads(path.read_text())
+    data = json.loads(path.read_text(encoding="utf-8"))
     return {entry["id"]: entry for entry in data["actions"]}
 
 

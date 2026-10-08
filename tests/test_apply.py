@@ -242,3 +242,25 @@ def test_apply_takes_and_releases_the_apply_lock(paths, stubs):
     assert (paths.runtime_dir / "apply.lock").exists()
     # A second apply would block forever if the first had kept the lock.
     assert apply(OTHER, paths)["ok"] is True
+
+
+def test_non_ascii_descriptions_survive_a_c_locale(home_env, stubs, paths):
+    # A systemd service can start with LC_ALL=C; the files must still be UTF-8.
+    model = json.loads(json.dumps(GOOD))
+    model["binds"][0]["description"] = "ünï"
+    env = dict(home_env, PATH=os.environ["PATH"], LC_ALL="C", LANG="C",
+               PYTHONCOERCECLOCALE="0", PYTHONUTF8="0")
+    res = subprocess.run([sys.executable, str(ROOT / "bin" / "hyprkbm-apply")],
+                         input=json.dumps(model), capture_output=True, text=True, env=env)
+
+    assert res.returncode == 0, res.stderr
+    assert "ünï" in paths.model.read_bytes().decode("utf-8")
+    assert 'description = "ünï"' in paths.lua.read_bytes().decode("utf-8")
+    again = subprocess.run([sys.executable, str(ROOT / "bin" / "hyprkbm-apply")],
+                           input=json.dumps(model), capture_output=True, text=True, env=env)
+    assert again.returncode == 0, again.stderr
+    out = paths.config_dir.parent / "cheat.md"
+    exported = subprocess.run([sys.executable, str(ROOT / "bin" / "hyprkbm"), "--export", "md",
+                               str(out)], capture_output=True, text=True, env=env)
+    assert exported.returncode == 0, exported.stderr
+    assert "ünï" in out.read_bytes().decode("utf-8")

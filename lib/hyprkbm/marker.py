@@ -24,7 +24,7 @@ MAX_AGE = 10.0
 @contextmanager
 def _locked(paths):
     paths.runtime_dir.mkdir(parents=True, exist_ok=True)
-    with open(paths.runtime_dir / "self-reload.lock", "a") as lock:
+    with open(paths.runtime_dir / "self-reload.lock", "a", encoding="utf-8") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         yield
 
@@ -34,7 +34,7 @@ def _count(paths, now):
     try:
         if now - paths.marker.stat().st_mtime > MAX_AGE:
             return 0
-        return max(0, int(paths.marker.read_text().strip()))
+        return max(0, int(paths.marker.read_text(encoding="utf-8").strip()))
     except (OSError, ValueError):
         return 0
 
@@ -46,7 +46,7 @@ def _store(paths, count):
         except FileNotFoundError:
             pass
     else:
-        paths.marker.write_text("%d\n" % count)  # also refreshes the mtime
+        paths.marker.write_text("%d\n" % count, encoding="utf-8")  # also refreshes the mtime
 
 
 def expect_reload(paths):
