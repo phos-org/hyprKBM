@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+"""hyprKBM: a keyboard-first keybind manager for Hyprland's Lua config.
+
+  hyprkbm --export md [FILE]   write a Markdown cheatsheet (stdout without FILE)
+  hyprkbm --apply [FILE]       apply keybinds.json, or FILE, to Hyprland
+  hyprkbm --status             binds, conflicts, stale edits and the watcher
+  hyprkbm --binds              hand-written binds: keys, submap, where, fingerprint
+"""
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, os.path.join(
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "lib"))
+
+from hyprkbm.apply import apply  # noqa: E402
+from hyprkbm.catalogue import load_catalogue  # noqa: E402
+from hyprkbm.export import export_markdown  # noqa: E402
+from hyprkbm.model import ModelError, load_model, merge, structure_errors  # noqa: E402
+from hyprkbm.paths import Paths  # noqa: E402
+from hyprkbm.reader import read_config  # noqa: E402
+
+UNIT = "hyprkbm-watch.service"
+
+
+def fail(*messages, code=1):
+    for m in messages:
+        print("hyprkbm: %s" % m, file=sys.stderr)
+    return code
+
+
+def load_state(paths):
+    """Hand binds, the model and the catalogue, or a list of reasons not."""
+    try:
+        hand = read_config(paths)
+    except OSError as exc:  # no Lua interpreter to run the reader with
+        return None, ["the config could not be read: %s" % exc]
+    if hand.error:
+        print("hyprkbm: warning: %s: %s" % (paths.entry, hand.error), file=sys.stderr)
+    try:
+        model = load_model(paths.model)
+    except ModelError as exc:
+        return None, [str(exc)]
+    catalogue = load_catalogue()
+    errors = structure_errors(model, hand, catalogue)
+    if errors:
+        return None, ["%s: %s" % (paths.model, e["message"]) for e in errors]
+    return (hand, model, catalogue), []
+
+
+def cmd_export(paths, args):
+    if not args or args[0] != "md" or len(args) > 2:
+        return fail("usage: hyprkbm --export md [FILE]", code=2)
+    state, errors = load_state(paths)
+    if errors:
+        return fail(*errors)
+    hand, model, catalogue = state
+    text = export_markdown(merge(model, hand, catalogue), catalogue)
+    if len(args) == 2:
+        try:
+            Path(args[1]).write_text(text, encoding="utf-8")
+        except OSError as exc:
+            return fail("%s could not be written: %s" % (args[1], exc))
+    else:
+        sys.stdout.write(text)
+    return 0
+
+
+def cmd_apply(paths, args):
+    if len(args) > 1:
+        return fail("usage: hyprkbm --apply [FILE]", code=2)
+    try:
+        model = load_model(Path(args[0]) if args else paths.model)
+    except ModelError as exc:
+        return fail(str(exc))
+    try:
+        result = apply(model, paths)
+    except Exception as exc:  # apply() restores the old files before re-raising
+        return fail("apply failed: %s" % exc)
+    if not result["ok"]:
+        return fail(*(e["message"] for e in result["errors"]))
+    print("Applied." + (" Previous keybinds saved in %s." % result["backup"]
+                        if result["backup"] else ""))
+    return 0
+
+
+def cmd_binds(paths):
+    """Every hand-written bind with what an override or unbind needs to name
+    it -- keys, submap, fingerprint -- until the panel writes those itself."""
+    try:
+        hand = read_config(paths)
+    except OSError as exc:  # no Lua interpreter to run the reader with
+        return fail("the config could not be read: %s" % exc)
+    if hand.error:
+        print("hyprkbm: warning: %s: %s" % (paths.entry, hand.error), file=sys.stderr)
+    for b in hand.binds:
+        print("\t".join((b.keys, b.submap, b.where, b.fingerprint)))
+    return 0
+
+
+def cmd_status(paths):
+    state, errors = load_state(paths)
+    if errors:
+        return fail(*errors)
+    hand, model, catalogue = state
+    merged = merge(model, hand, catalogue)
+    print("config: %s%s" % (paths.entry, " (could not be read completely)" if hand.error else ""))
+    print("hand-written binds: %d" % len(hand.binds))
+    print("hyprKBM binds: %d (%d overrides), %d unbinds" % (
+        len(model.get("binds", [])),
+        sum(1 for b in merged.binds if b.source == "override"),
+        len(model.get("unbinds", []))))
+    conflicts = merged.conflicts()
+    print("conflicts: %d" % len(conflicts))
+    for group in conflicts:
+        print("  %s: %s" % (group[0].keys, ", ".join(b.where for b in group)))
+    print("stale: %d" % len(merged.stale))
+    for s in merged.stale:
+        print("  %s: %s" % (s["keys"], s["message"]))
+    try:
+        res = subprocess.run(["systemctl", "--user", "is-active", UNIT],
+                             capture_output=True, text=True, timeout=5)
+        watcher = res.stdout.strip() or "unknown"
+    except OSError:
+        watcher = "unknown (no systemctl)"
+    except subprocess.TimeoutExpired:
+        watcher = "unknown"
+    print("watcher: %s" % watcher)
+    return 0
+
+
+def main(argv):
+    paths = Paths.from_env()
+    if argv[:1] == ["--export"]:
+        return cmd_export(paths, argv[1:])
+    if argv[:1] == ["--apply"]:
+        return cmd_apply(paths, argv[1:])
+    if argv == ["--status"]:
+        return cmd_status(paths)
+    if argv == ["--binds"]:
+        return cmd_binds(paths)
+    if argv in (["-h"], ["--help"]):
+        print(__doc__.strip())
+        return 0
+    if argv in ([], ["--cheatsheet"]):
+        return fail("the hyprKBM panel is not installed in this version yet; "
+                    "see hyprkbm --help", code=2)
+    return fail(__doc__.strip(), code=2)
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

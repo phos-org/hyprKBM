@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      # The reader runs the user's config in real Lua. Ubuntu only ships
+      # versioned names, which hyprkbm.luaval.interpreter() looks for.
+      - name: Install Lua
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends lua5.4
+
+      # The helpers import nothing outside the standard library; pytest is the
+      # only development dependency there is.
+      - name: Install pytest
+        run: python3 -m pip install --upgrade pytest
+
+      - name: Run tests
+        run: python3 -m pytest tests/ -q
+
+  shell:
+    name: ShellCheck
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      # shellcheck ships with the GitHub runner image.
+      - name: Lint the installer
+        run: shellcheck install.sh
