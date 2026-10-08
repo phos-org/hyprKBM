@@ -239,7 +239,8 @@ def validate(model, hand, catalogue):
         for b in merged.binds:
             if b.source == "hand" and b.combo == combo and not reproducible(b.dispatcher, b.opts):
                 errors.append({"id": None, "message": (
-                    "%s also has a bind at %s whose action is a Lua function. hyprKBM "
+                    "%s also has a bind at %s whose action hyprKBM cannot "
+                    "re-create (a Lua function or an unusual dispatcher). hyprKBM "
                     "replaces a bind by unbinding its keys and re-creating the others "
                     "on them, and it cannot re-create that one; change it in "
                     "hyprland.lua instead." % (keys, b.where))})

@@ -179,4 +179,4 @@ def test_a_function_bind_sharing_a_touched_combo_blocks_the_override(paths):
 
     assert len(errors) == 1
     assert "hyprland.lua:3" in errors[0]["message"]
-    assert "Lua function" in errors[0]["message"]
+    assert "cannot re-create (a Lua function or an unusual dispatcher)" in errors[0]["message"]

@@ -24,7 +24,7 @@ PREAMBLE = """\
 -- reload resets Lua, which empties this list along with everything else.
 for _, k in ipairs(__hyprkbm_binds or {}) do pcall(k.remove, k) end
 __hyprkbm_binds = {}
-local function bind(...)
+local function __hyprkbm_bind(...)
     local k = hl.bind(...)
     table.insert(__hyprkbm_binds, k)
     return k
@@ -37,7 +37,7 @@ def bind_line(keys, dispatcher, opts):
     args = [string(keys), dispatcher_lua(dispatcher)]
     if opts:
         args.append(to_lua(opts))
-    return "bind(%s)" % ", ".join(args)
+    return "__hyprkbm_bind(%s)" % ", ".join(args)
 
 
 def _by_submap(binds):
