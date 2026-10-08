@@ -21,9 +21,11 @@ someone who is using the machine.
 | Path | Holds |
 |---|---|
 | `lib/reader.lua` | the sandbox that runs a config against a recording `hl` |
-| `lib/hyprkbm/` | the Python core: keys, model, render, apply, export |
+| `lib/hyprkbm/` | the Python core: keys, model, render, apply, export, and `marker.py`, the counted lock-protected record of which reloads hyprkbm-apply made itself |
 | `share/actions.json` | the action catalogue |
 | `bin/` | `hyprkbm`, `hyprkbm-apply` (the only writer of keybinds files), `hyprkbm-watch` |
+| `systemd/` | the `hyprkbm-watch` user unit |
+| `docs/superpowers/` | the design spec and implementation plans |
 
 ## Testing against Hyprland
 
