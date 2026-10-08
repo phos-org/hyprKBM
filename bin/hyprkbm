@@ -5,7 +5,11 @@
   hyprkbm --apply [FILE]       apply keybinds.json, or FILE, to Hyprland
   hyprkbm --status             binds, conflicts, stale edits and the watcher
   hyprkbm --binds              hand-written binds: keys, submap, where, fingerprint
+  hyprkbm --state              everything the panel shows, as JSON
+  hyprkbm --backup NAME        one backup's keybinds.json and keybinds.lua, as JSON
+  hyprkbm --set-layout NAME    the panel's keyboard layout: ansi or iso
 """
+import json
 import os
 import subprocess
 import sys
@@ -20,6 +24,7 @@ from hyprkbm.export import export_markdown  # noqa: E402
 from hyprkbm.model import ModelError, load_model, merge, structure_errors  # noqa: E402
 from hyprkbm.paths import Paths  # noqa: E402
 from hyprkbm.reader import read_config  # noqa: E402
+from hyprkbm.state import build_state, read_backup, set_layout  # noqa: E402
 
 UNIT = "hyprkbm-watch.service"
 
@@ -130,6 +135,33 @@ def cmd_status(paths):
     return 0
 
 
+def cmd_state(paths):
+    print(json.dumps(build_state(paths), ensure_ascii=False))
+    return 0
+
+
+def cmd_backup(paths, args):
+    if len(args) != 1:
+        return fail("usage: hyprkbm --backup NAME", code=2)
+    found = read_backup(paths, args[0])
+    if found is None:
+        return fail("no backup called %s" % args[0])
+    print(json.dumps(found, ensure_ascii=False))
+    return 0
+
+
+def cmd_set_layout(paths, args):
+    if len(args) != 1:
+        return fail("usage: hyprkbm --set-layout ansi|iso", code=2)
+    try:
+        set_layout(paths, args[0])
+    except ValueError as exc:
+        return fail(str(exc), code=2)
+    except OSError as exc:
+        return fail("settings could not be written: %s" % exc)
+    return 0
+
+
 def main(argv):
     paths = Paths.from_env()
     if argv[:1] == ["--export"]:
@@ -140,6 +172,12 @@ def main(argv):
         return cmd_status(paths)
     if argv == ["--binds"]:
         return cmd_binds(paths)
+    if argv == ["--state"]:
+        return cmd_state(paths)
+    if argv[:1] == ["--backup"]:
+        return cmd_backup(paths, argv[1:])
+    if argv[:1] == ["--set-layout"]:
+        return cmd_set_layout(paths, argv[1:])
     if argv in (["-h"], ["--help"]):
         print(__doc__.strip())
         return 0

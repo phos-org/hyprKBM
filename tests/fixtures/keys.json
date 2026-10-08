@@ -13,7 +13,10 @@
     ["SUPER + mouse:272", "SUPER+mouse:272"],
     ["Print", "print"],
     ["SHIFT + Print", "SHIFT+print"],
-    ["SUPER + 0", "SUPER+0"]
+    ["SUPER + 0", "SUPER+0"],
+    ["SUPER + Page_Up", "SUPER+prior"],
+    ["SUPER + Prior", "SUPER+prior"],
+    ["Page_Down", "next"]
   ],
   "display": [
     ["shift + win + f", "SUPER + SHIFT + f"],
