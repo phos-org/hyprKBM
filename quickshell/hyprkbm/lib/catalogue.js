@@ -88,10 +88,21 @@ function toDispatcher(action, catalogue) {
     return { dsp: entry.dsp, args: any ? [table] : [] }
 }
 
+// Python's json.dumps(value, ensure_ascii=False): ", " and ": " separators.
+function pyJson(v) {
+    if (Array.isArray(v)) return "[" + v.map(pyJson).join(", ") + "]"
+    if (v !== null && typeof v === "object")
+        return "{" + Object.keys(v).map(function (k) {
+            return JSON.stringify(k) + ": " + pyJson(v[k])
+        }).join(", ") + "}"
+    return JSON.stringify(v)
+}
+
 function plain(v) {
     if (v === true) return "yes"
     if (v === false) return "no"
-    if (v !== null && typeof v === "object") return JSON.stringify(v)
+    if (v === null || v === undefined) return "None"
+    if (typeof v === "object") return pyJson(v)
     return String(v)
 }
 
@@ -117,6 +128,8 @@ function luaLiteral(value) {
     if (value === false) return "false"
     if (typeof value === "number") return String(value)
     if (typeof value === "string") return luaString(value)
+    if (isObject(value) && (value.__function !== undefined || value.__opaque !== undefined))
+        throw new Error("not reproducible")
     if (Array.isArray(value))
         return value.length === 0 ? "{}" : "{ " + value.map(luaLiteral).join(", ") + " }"
     var keys = Object.keys(value).sort()
@@ -127,8 +140,13 @@ function luaLiteral(value) {
     }).join(", ") + " }"
 }
 
+var DSP_PATH = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/
+
+function validDsp(dsp) { return typeof dsp === "string" && DSP_PATH.test(dsp) }
+
 function dispatcherLua(d) {
     if (d.raw !== undefined) return d.raw
+    if (d.dsp === undefined || !validDsp(d.dsp)) throw new Error("not reproducible")
     return "hl.dsp." + d.dsp + "(" + (d.args || []).map(luaLiteral).join(", ") + ")"
 }
 
@@ -141,7 +159,9 @@ function describeDispatcher(d, catalogue) {
     if (d.dsp === undefined) return "Unknown action"
     var args = d.args || []
     var entry = entryByDsp(catalogue, d.dsp)
-    if (entry === null) return dispatcherLua(d)
+    if (entry === null) {
+        try { return dispatcherLua(d) } catch (e) { return "hl.dsp." + d.dsp + "(…)" }
+    }
     if (entry.call === "table" && args.length === 1 && isObject(args[0]) && Object.keys(args[0]).length > 0) {
         var details = Object.keys(args[0]).sort().map(function (k) { return k + " " + plain(args[0][k]) })
         return entry.label + " (" + details.join(", ") + ")"
@@ -167,6 +187,7 @@ function defaultArgs(entry) {
 function actionFromDispatcher(d, catalogue) {
     if (!d || d.__function !== undefined || d.__opaque !== undefined) return null
     if (d.raw !== undefined) return { kind: "raw", lua: d.raw }
+    if (!validDsp(d.dsp)) return null
     var entry = entryByDsp(catalogue, d.dsp)
     var args = d.args || []
     var candidate = null
@@ -181,5 +202,5 @@ function actionFromDispatcher(d, catalogue) {
             candidate = { kind: entry.id, args: JSON.parse(JSON.stringify(args[0])) }
     }
     if (candidate !== null && actionErrors(candidate, catalogue).length === 0) return candidate
-    return { kind: "raw", lua: dispatcherLua(d) }
+    try { return { kind: "raw", lua: dispatcherLua(d) } } catch (e) { return null }
 }

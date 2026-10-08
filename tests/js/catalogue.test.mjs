@@ -76,3 +76,27 @@ test("default args come from the fields' defaults", () => {
   assert.deepEqual(plain(C.defaultArgs(C.entryById(CAT, "window.fullscreen"))), { mode: "fullscreen", action: "toggle" })
   assert.deepEqual(plain(C.defaultArgs(C.entryById(CAT, "exec_cmd"))), {})
 })
+
+test("opaque values cannot be written back, as in Python", () => {
+  assert.throws(() => C.luaLiteral([{ __function: "a" }]))
+  assert.throws(() => C.luaLiteral({ x: [{ __opaque: true }] }))
+  assert.throws(() => C.dispatcherLua({ dsp: "x", args: [{ cb: { __function: "f.lua:1" } }] }))
+  assert.equal(C.actionFromDispatcher({ dsp: "x", args: [{ cb: { __function: "f.lua:1" } }] }, CAT), null)
+  assert.equal(C.describeDispatcher({ dsp: "group.x", args: [{ __opaque: true }] }, CAT), "hl.dsp.group.x(…)")
+})
+
+test("dsp paths are checked, as in Python", () => {
+  assert.equal(C.actionFromDispatcher({}, CAT), null)
+  assert.equal(C.actionFromDispatcher({ dsp: "a-b", args: [] }, CAT), null)
+  assert.throws(() => C.dispatcherLua({ dsp: "a-b", args: [] }))
+  assert.throws(() => C.dispatcherLua({}))
+  assert.equal(C.describeDispatcher({ args: [] }, CAT), "Unknown action")
+  assert.equal(C.describeDispatcher({ dsp: "a-b", args: [] }, CAT), "hl.dsp.a-b(…)")
+})
+
+test("plain formats nested values like Python's json.dumps", () => {
+  assert.equal(C.describeDispatcher({ dsp: "exec_cmd", args: [[1, 2]] }, CAT), "Run a command: [1, 2]")
+  assert.equal(C.describeDispatcher({ dsp: "focus", args: [{ workspace: { a: 1 } }] }, CAT),
+               "Focus (workspace {\"a\": 1})")
+  assert.equal(C.describeDispatcher({ dsp: "exec_cmd", args: [[null, "é"]] }, CAT), "Run a command: [null, \"é\"]")
+})
