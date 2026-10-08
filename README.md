@@ -23,8 +23,9 @@ binds without editing your config.
   against a stand-in for `hl` that records each bind. That is what gets
   loops, helper functions and `mainMod ..` right. The sandbox cannot run
   commands or write files, and it refuses to load files whose path lies
-  outside `~/.config/hypr`. Symlinks inside that directory are followed, so
-  a config directory managed by stow or chezmoi keeps working.
+  outside the directory that holds your config's entry file (by default
+  `~/.config/hypr`). Symlinks inside that directory are followed, so a
+  config directory managed by stow or chezmoi keeps working.
 - **Overriding a bind from `hyprland.lua`** unbinds its keys and re-creates
   the other binds on them, because `hl.unbind` removes a key combo in every
   submap at once. A bind whose action is a Lua function cannot be
