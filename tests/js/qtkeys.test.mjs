@@ -1,0 +1,38 @@
+import { test } from "node:test"
+import assert from "node:assert/strict"
+import { load, plain } from "./load.mjs"
+
+const Q = load("qtkeys")
+
+test("letters, digits and named keys become keysyms", () => {
+  assert.equal(Q.keysymFromQt(0x41), "A")
+  assert.equal(Q.keysymFromQt(0x30), "0")
+  assert.equal(Q.keysymFromQt(0x01000004), "Return")
+  assert.equal(Q.keysymFromQt(0x01000012), "left")
+  assert.equal(Q.keysymFromQt(0x01000016), "Prior")
+  assert.equal(Q.keysymFromQt(0x01000030), "F1")
+  assert.equal(Q.keysymFromQt(0x0100003b), "F12")
+  assert.equal(Q.keysymFromQt(0x20), "space")
+  assert.equal(Q.keysymFromQt(0x2f), "slash")
+  assert.equal(Q.keysymFromQt(0x01000072), "XF86AudioRaiseVolume")
+})
+
+test("modifier keys are not keysyms but are modifiers", () => {
+  assert.equal(Q.keysymFromQt(0x01000020), null)
+  assert.equal(Q.modifierFromQtKey(0x01000020), "SHIFT")
+  assert.equal(Q.modifierFromQtKey(0x01000021), "CTRL")
+  assert.equal(Q.modifierFromQtKey(0x01000023), "ALT")
+  assert.equal(Q.modifierFromQtKey(0x01000022), "SUPER")
+  assert.equal(Q.modifierFromQtKey(0x01000053), "SUPER")
+  assert.equal(Q.modifierFromQtKey(0x41), "")
+})
+
+test("unknown keys are null", () => {
+  assert.equal(Q.keysymFromQt(0x01ffffff), null)
+})
+
+test("modifier flags become canonical modifiers in order", () => {
+  assert.deepEqual(plain(Q.modsFromQt(0x02000000 | 0x10000000)), ["SUPER", "SHIFT"])
+  assert.deepEqual(plain(Q.modsFromQt(0x04000000 | 0x08000000)), ["CTRL", "ALT"])
+  assert.deepEqual(plain(Q.modsFromQt(0)), [])
+})

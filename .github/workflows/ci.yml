@@ -31,6 +31,21 @@ jobs:
       - name: Run tests
         run: python3 -m pytest tests/ -q
 
+  js:
+    name: Panel logic (node)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Plain node, no packages: the panel's logic is .pragma library
+      # JavaScript that tests/js/load.mjs runs in a fresh context.
+      - name: Run tests
+        run: npm test
+
   shell:
     name: ShellCheck
     runs-on: ubuntu-24.04
