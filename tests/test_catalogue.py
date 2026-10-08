@@ -68,7 +68,7 @@ def test_dispatchers_become_lua():
     assert dispatcher_lua({"dsp": "exec_cmd", "args": ["kitty"]}) == \
         'hl.dsp.exec_cmd("kitty")'
     assert dispatcher_lua({"raw": "hl.dsp.layout(\"togglesplit\")"}) == \
-        'hl.dsp.layout("togglesplit")'
+        '(\nhl.dsp.layout("togglesplit")\n)'
     with pytest.raises(NotReproducible):
         dispatcher_lua({"__function": "hyprland.lua:3"})
 

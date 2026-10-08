@@ -1,5 +1,8 @@
 import textwrap
 
+import pytest
+
+from hyprkbm.luaval import NotReproducible
 from hyprkbm.catalogue import load_catalogue
 from hyprkbm.reader import read_config
 from hyprkbm.render import bind_line, render
@@ -98,7 +101,7 @@ def test_bind_line_omits_empty_options():
 
 def test_raw_lua_is_written_verbatim():
     assert bind_line("SUPER + G", {"raw": "function() hl.exec_cmd(\"x\") end"}, {}) == \
-        'bind("SUPER + G", function() hl.exec_cmd("x") end)'
+        'bind("SUPER + G", (\nfunction() hl.exec_cmd("x") end\n))'
 
 
 def test_what_is_rendered_reads_back_as_intended(paths, tmp_path):
@@ -118,3 +121,21 @@ def test_what_is_rendered_reads_back_as_intended(paths, tmp_path):
     ]
     assert result.submaps[0]["name"] == "move"
     assert result.submaps[0]["reset"] == "escape"
+
+
+@pytest.mark.parametrize("dsp", ["a b", "window.close()", "x;y", "1abc", "a..b", ""])
+def test_a_dsp_that_is_not_dotted_identifiers_is_not_reproducible(dsp):
+    with pytest.raises(NotReproducible):
+        bind_line("SUPER + C", {"dsp": dsp, "args": []}, {})
+
+
+def test_a_trailing_comment_in_raw_lua_cannot_swallow_the_rest_of_the_bind(paths):
+    model = {"version": 1, "submaps": [], "unbinds": [], "binds": [
+        {"id": "r1", "keys": "SUPER + G", "action": {"kind": "raw", "lua": "hl.dsp.window.close() -- note"},
+         "description": "Close"}]}
+    paths.entry.write_text(render(model, hand(paths), CAT))
+
+    result = read_config(paths)
+
+    assert result.error is None
+    assert [(b.keys, b.opts) for b in result.binds] == [("SUPER + G", {"description": "Close"})]

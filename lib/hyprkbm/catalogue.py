@@ -2,6 +2,7 @@
 catalogue action to the dispatcher it stands for."""
 import json
 import os
+import re
 
 from . import SHARE
 from .luaval import NotReproducible, to_lua
@@ -80,11 +81,25 @@ def to_dispatcher(action, catalogue):
     return {"dsp": entry["dsp"], "args": [table] if table else []}
 
 
+# A dsp path is pasted into Lua source, so anything but dotted identifiers
+# (which the reader can report for a hand-written bind) would be invalid Lua
+# or worse.
+DSP_PATH = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
+
+
+def valid_dsp(dsp):
+    return isinstance(dsp, str) and DSP_PATH.match(dsp) is not None
+
+
 def dispatcher_lua(dispatcher):
     if "raw" in dispatcher:
-        return dispatcher["raw"]
+        # On lines of its own so a trailing `-- comment` in the raw text cannot
+        # swallow the closing parenthesis and the options after it.
+        return "(\n%s\n)" % dispatcher["raw"]
     if "dsp" not in dispatcher:
         raise NotReproducible(dispatcher.get("__function") or "an hl object")
+    if not valid_dsp(dispatcher["dsp"]):
+        raise NotReproducible("the action %r" % (dispatcher["dsp"],))
     return "hl.dsp.%s(%s)" % (dispatcher["dsp"],
                               ", ".join(to_lua(a) for a in dispatcher.get("args", [])))
 

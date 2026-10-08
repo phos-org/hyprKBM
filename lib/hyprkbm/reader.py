@@ -11,6 +11,7 @@ import subprocess
 from dataclasses import dataclass, field
 
 from . import LIB
+from .catalogue import valid_dsp
 from .keys import KeyParseError, parse
 from .luaval import interpreter
 
@@ -46,7 +47,8 @@ def reproducible(dispatcher, opts):
     """Whether hyprKBM could write this bind back out. Overriding one bind
     means unbinding its whole combo and re-creating the rest, so a Lua
     function sharing that combo blocks the override."""
-    return "dsp" in dispatcher and not _has_marker(dispatcher) and not _has_marker(opts)
+    return (valid_dsp(dispatcher.get("dsp"))
+            and not _has_marker(dispatcher) and not _has_marker(opts))
 
 
 @dataclass

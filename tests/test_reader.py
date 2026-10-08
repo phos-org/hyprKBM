@@ -224,3 +224,10 @@ def test_a_reader_that_prints_garbage_is_an_error(paths, tmp_path, monkeypatch):
     result = read_config(paths)
 
     assert "not JSON" in result.error
+
+
+def test_a_dispatcher_with_a_strange_dsp_path_is_not_reproducible():
+    from hyprkbm.reader import reproducible
+    assert reproducible({"dsp": "window.close", "args": []}, {})
+    assert not reproducible({"dsp": "window close", "args": []}, {})
+    assert not reproducible({"dsp": "a()", "args": []}, {})
