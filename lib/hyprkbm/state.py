@@ -21,12 +21,41 @@ LAYOUTS = ("ansi", "iso")
 BACKUP_NAME = re.compile(r"[0-9T]+\Z")
 
 
+class SettingsError(ValueError):
+    """Raised when settings.json cannot be read or is malformed."""
+    pass
+
+
 def _read_json(path):
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
     return data if isinstance(data, dict) else {}
+
+
+def _read_settings(path):
+    """Read settings.json, or raise SettingsError if it exists but is malformed.
+
+    Returns {} if the file does not exist (safe to write).
+    Raises SettingsError if the file exists but cannot be parsed as a JSON object.
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return {}
+    except OSError as exc:
+        raise SettingsError("settings.json could not be read, so it was left alone: %s" % exc)
+
+    try:
+        data = json.loads(text)
+    except ValueError as exc:
+        raise SettingsError("settings.json could not be read, so it was left alone: %s" % exc)
+
+    if not isinstance(data, dict):
+        raise SettingsError("settings.json could not be read, so it was left alone: not a JSON object")
+
+    return data
 
 
 def watcher_status():
@@ -125,6 +154,6 @@ def set_layout(paths, name):
     including ones this version has never heard of."""
     if name not in LAYOUTS:
         raise ValueError("layout must be one of %s" % ", ".join(LAYOUTS))
-    settings = _read_json(paths.settings)
+    settings = _read_settings(paths.settings)
     settings["layout"] = name
     write_atomic(paths.settings, json.dumps(settings, indent=2, ensure_ascii=False) + "\n")

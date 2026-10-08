@@ -151,7 +151,10 @@ def preview(model, paths, catalogue=None):
         current = paths.lua.read_text(encoding="utf-8")
     except OSError:
         current = ""
-    hand = read_config(paths)
+    try:
+        hand = read_config(paths)
+    except OSError as exc:  # no Lua interpreter to run the reader with
+        return dict(_failure("the config could not be read: %s" % exc), lua="", current=current)
     if hand.error:
         result = _failure("%s could not be read: %s" % (paths.entry.name, hand.error))
         return dict(result, lua="", current=current)

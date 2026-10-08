@@ -301,3 +301,21 @@ def test_the_executable_previews(home_env, stubs, paths):
     assert res.returncode == 0, res.stderr
     assert json.loads(res.stdout)["ok"] is True
     assert not paths.lua.exists()
+
+
+def test_preview_handles_missing_lua_interpreter(paths, monkeypatch):
+    from hyprkbm.apply import preview
+    from hyprkbm import reader
+
+    def raise_no_lua(*_a, **_k):
+        raise FileNotFoundError("no lua")
+
+    monkeypatch.setattr(reader, "interpreter", raise_no_lua)
+
+    result = preview(GOOD, paths)
+
+    assert result["ok"] is False
+    assert len(result["errors"]) > 0
+    assert "could not be read" in result["errors"][0]["message"]
+    assert result["lua"] == ""
+    assert result["current"] == ""

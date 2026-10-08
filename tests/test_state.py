@@ -114,3 +114,33 @@ def test_cli_state_backup_and_layout(home_env, paths, stubs):
     assert res.returncode == 0, res.stderr
     assert json.loads(paths.settings.read_text())["layout"] == "iso"
     assert run(home_env, "--set-layout", "qwertz").returncode == 2
+
+
+def test_set_layout_refuses_malformed_settings_json(paths):
+    paths.settings.parent.mkdir(parents=True)
+    paths.settings.write_text("{oops")
+
+    with pytest.raises(ValueError) as exc_info:
+        set_layout(paths, "iso")
+    assert "could not be read" in str(exc_info.value)
+    assert paths.settings.read_text() == "{oops"
+
+
+def test_set_layout_refuses_non_object_settings_json(paths):
+    paths.settings.parent.mkdir(parents=True)
+    paths.settings.write_text("[1, 2]")
+
+    with pytest.raises(ValueError) as exc_info:
+        set_layout(paths, "iso")
+    assert "could not be read" in str(exc_info.value)
+    assert paths.settings.read_text() == "[1, 2]"
+
+
+def test_cli_set_layout_exits_1_on_malformed_settings(home_env, paths):
+    paths.settings.parent.mkdir(parents=True)
+    paths.settings.write_text("{oops")
+
+    res = run(home_env, "--set-layout", "iso")
+    assert res.returncode == 1, res.stderr
+    assert "could not be read" in res.stderr
+    assert paths.settings.read_text() == "{oops"
