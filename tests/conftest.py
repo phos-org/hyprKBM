@@ -9,6 +9,13 @@ sys.path.insert(0, str(ROOT / "lib"))
 from hyprkbm.paths import Paths  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def no_live_compositor(monkeypatch):
+    """hyprctl finds the compositor through this variable, so a test that
+    forgets the `stubs` fixture still cannot reach the real session."""
+    monkeypatch.delenv("HYPRLAND_INSTANCE_SIGNATURE", raising=False)
+
+
 @pytest.fixture
 def home_env(tmp_path):
     """An environment whose HOME is a throwaway directory with an empty
