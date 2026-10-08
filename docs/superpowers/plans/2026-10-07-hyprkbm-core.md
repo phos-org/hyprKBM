@@ -3889,6 +3889,9 @@ Press SUPER+CTRL+ALT+F12: a "hyprKBM works" notification appears.
 Run: `hyprctl reload && sleep 1 && hyprctl binds -j | python3 -c "import json,sys; print(sum(1 for b in json.load(sys.stdin) if b['description'].startswith(('hyprKBM','Toggle split'))))"`
 Expected: `2`.
 
+Run: `systemctl --user restart hyprkbm-watch && sleep 2`, then the same count check.
+Expected: `2`, not `4`: the watcher's `--live` re-load of `keybinds.lua` must not register every bind twice.
+
 Run: `journalctl --user -u hyprkbm-watch -n 5 --no-pager`
 Expected: an `apply --live rc=0` line after the reload, and `reload made by hyprkbm-apply` for the reload `hyprkbm --apply` itself made.
 

@@ -24,7 +24,7 @@ def test_first_apply_dry_runs_writes_reloads_and_loads(paths, stubs):
 
     assert result == {"ok": True, "backup": None}
     assert json.loads(paths.model.read_text()) == GOOD
-    assert 'hl.bind("SUPER + B", hl.dsp.exec_cmd("firefox"))' in paths.lua.read_text()
+    assert 'bind("SUPER + B", hl.dsp.exec_cmd("firefox"))' in paths.lua.read_text()
     assert stubs.hyprctl_kinds() == ["dry", "reload", "load"]
     load = [c for c in stubs.calls() if c[:2] == ["hyprctl", "eval"]][-1]
     assert load[2] == 'dofile("%s")' % paths.lua
@@ -195,3 +195,10 @@ def test_an_exception_after_the_dry_run_restores_the_previous_files(paths, stubs
 
     assert json.loads(paths.model.read_text()) == GOOD
     assert (paths.model.read_text(), paths.lua.read_text()) == before
+
+
+def test_the_dry_run_shadows_the_bind_list_so_it_cannot_touch_live_binds():
+    # The chunk only runs inside Hyprland, so the text is what can be checked:
+    # its env falls back to the real _G, where the preamble would otherwise
+    # find (and remove) the live binds' handles.
+    assert "__hyprkbm_binds = false" in applying.DRY_RUN

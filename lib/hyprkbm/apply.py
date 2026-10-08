@@ -34,7 +34,13 @@ local stub = {
         if f then f() end
     end,
 }
-local env = setmetatable({ hl = setmetatable(stub, { __index = hl }) }, { __index = _G })
+-- The env falls back to the real _G, where keybinds.lua's preamble would find
+-- the live binds' handles and remove them. Shadowing the list with false makes
+-- it read `false or {}`, and its assignment lands here instead of in _G.
+local env = setmetatable({
+    hl = setmetatable(stub, { __index = hl }),
+    __hyprkbm_binds = false,
+}, { __index = _G })
 assert(loadfile(%s, "t", env))()
 """
 

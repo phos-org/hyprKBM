@@ -13,7 +13,9 @@ binds without editing your config.
 - **Your `hyprland.lua` is never edited**, and needs no line added to it.
   hyprKBM keeps its binds in `~/.config/hyprkbm/keybinds.json`, writes
   `keybinds.lua` from it, and applies that to the running Hyprland with
-  `hyprctl eval`.
+  `hyprctl eval`. `keybinds.lua` is safe to load more than once (it removes
+  the binds its previous run made), so sourcing it from `hyprland.lua` is
+  harmless, though unnecessary.
 - **The binds always work.** A reload re-runs `hyprland.lua` and drops what
   eval set, so the `hyprkbm-watch` user service applies them again after
   every reload and at login. hyprKBM needs it, and `install.sh` enables it.
