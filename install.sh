@@ -33,6 +33,18 @@ have_systemd_session() {
         && systemctl --user is-active --quiet graphical-session.target
 }
 
+# Compared resolved, not as written: ~/.local/share/../bin is ~/.local/bin, and
+# warning about it sends people off to fix a PATH that already works.
+bin_on_path() {
+    local want dir dirs
+    want="$(realpath -m "$BIN_DIR")"
+    IFS=: read -ra dirs <<<"$PATH"
+    for dir in "${dirs[@]}"; do
+        [ -n "$dir" ] && [ "$(realpath -m "$dir")" = "$want" ] && return 0
+    done
+    return 1
+}
+
 have_lua() {
     command -v lua >/dev/null 2>&1 || command -v lua5.5 >/dev/null 2>&1 \
         || command -v lua5.4 >/dev/null 2>&1
@@ -119,10 +131,7 @@ install() {
     else
         warn "The watcher was not enabled: its link $BIN_DIR/hyprkbm-watch is missing."
     fi
-    case ":$PATH:" in
-        *":$BIN_DIR:"*) ;;
-        *) warn "warning: $BIN_DIR is not on your PATH; add it to run hyprkbm yourself" ;;
-    esac
+    bin_on_path || warn "warning: $BIN_DIR is not on your PATH; add it to run hyprkbm yourself"
     say ""
     say "Done. Try: hyprkbm --status"
 }

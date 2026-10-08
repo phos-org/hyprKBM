@@ -34,7 +34,7 @@ def links(home):
     }
 
 
-def run(tmp_path, *args, session=True, enabled="disabled"):
+def run(tmp_path, *args, session=True, enabled="disabled", bin_on_path=".local/bin"):
     home = tmp_path / "home"
     home.mkdir(exist_ok=True)
     stubs = tmp_path / "stubs"
@@ -43,7 +43,7 @@ def run(tmp_path, *args, session=True, enabled="disabled"):
     script.write_text(SYSTEMCTL % {"python": sys.executable})
     script.chmod(0o755)
     (stubs / "systemd.json").write_text(json.dumps({"session": session, "enabled": enabled}))
-    env = {"PATH": "%s:%s:/usr/bin:/bin" % (stubs, home / ".local/bin"), "HOME": str(home)}
+    env = {"PATH": "%s:%s:/usr/bin:/bin" % (stubs, home / bin_on_path), "HOME": str(home)}
     res = subprocess.run(["bash", str(ROOT / "install.sh"), *args],
                          capture_output=True, text=True, env=env)
     log = stubs / "calls.log"
@@ -137,3 +137,18 @@ def test_an_existing_link_is_re_pointed_and_says_what_it_was(tmp_path):
     assert res.returncode == 0, res.stderr
     assert Path(os.readlink(bindir / "hyprkbm")) == ROOT / "bin/hyprkbm"
     assert "was -> /nonexistent/elsewhere" in res.stdout
+
+
+def test_a_bin_dir_spelled_differently_on_path_is_recognised(tmp_path):
+    """~/.local/share/../bin is ~/.local/bin; warning about it sends people
+    off to fix a PATH that already works."""
+    home, res, _ = run(tmp_path, bin_on_path=".local/share/../bin")
+
+    assert res.returncode == 0, res.stderr
+    assert "not on your PATH" not in res.stderr
+
+
+def test_a_bin_dir_missing_from_path_is_still_reported(tmp_path):
+    home, res, _ = run(tmp_path, bin_on_path="elsewhere/bin")
+
+    assert "not on your PATH" in res.stderr
