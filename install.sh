@@ -14,6 +14,7 @@ REPO="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 # Fixed rather than configurable: the systemd unit runs the watcher from here.
 BIN_DIR="$HOME/.local/bin"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
+DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}"
 UNIT=hyprkbm-watch.service
 
 # source (in the clone) and destination, one pair per line.
@@ -22,6 +23,7 @@ bin/hyprkbm          $BIN_DIR/hyprkbm
 bin/hyprkbm-apply    $BIN_DIR/hyprkbm-apply
 bin/hyprkbm-watch    $BIN_DIR/hyprkbm-watch
 systemd/$UNIT        $CONFIG_DIR/systemd/user/$UNIT
+share/applications/hyprkbm.desktop  $DATA_DIR/applications/hyprkbm.desktop
 "
 
 failed=0
@@ -117,7 +119,7 @@ enable_watcher() {
 }
 
 install() {
-    for tool in hyprctl python3; do
+    for tool in hyprctl python3 qs; do
         command -v "$tool" >/dev/null 2>&1 \
             || warn "warning: $tool not found; hyprKBM needs it to run"
     done
@@ -126,6 +128,8 @@ install() {
     while read -r src dst; do
         [ -n "$src" ] && link "$src" "$dst"
     done <<<"$LINKS"
+    command -v update-desktop-database >/dev/null 2>&1 \
+        && update-desktop-database "$DATA_DIR/applications" >/dev/null 2>&1
     if [ -L "$BIN_DIR/hyprkbm-watch" ]; then
         enable_watcher
     else

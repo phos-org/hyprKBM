@@ -68,11 +68,43 @@ def test_status_summarises(home_env, paths, stubs):
     assert ["systemctl", "--user", "is-active", "hyprkbm-watch.service"] in stubs.calls()
 
 
-def test_no_arguments_explains_the_panel_is_missing(home_env, stubs):
+def wait_for(stubs, program):
+    import time
+    for _ in range(50):
+        if any(c[0] == program for c in stubs.calls()):
+            return
+        time.sleep(0.05)
+
+
+def test_no_arguments_opens_the_panel(home_env, stubs):
     res = run(home_env)
 
-    assert res.returncode == 2
-    assert "panel" in res.stderr
+    assert res.returncode == 0, res.stderr
+    wait_for(stubs, "qs")
+    qs = [c for c in stubs.calls() if c[0] == "qs"][0]
+    assert qs[1] == "-p" and qs[2].endswith("quickshell/hyprkbm") and qs[3] == "-d"
+
+
+def test_an_open_panel_is_focused_not_opened_again(home_env, stubs):
+    stubs.respond(**{"-j": ['[{"class": "org.quickshell", "title": "Keybinds"}]']})
+
+    res = run(home_env)
+
+    assert res.returncode == 0, res.stderr
+    assert ["hyprctl", "dispatch", "focuswindow", "title:^Keybinds$"] in stubs.calls()
+    assert not any(c[0] == "qs" for c in stubs.calls())
+
+
+def test_no_quickshell_is_explained(home_env, stubs):
+    (stubs.root / "qs").unlink()
+    env = dict(home_env, PATH="%s:/usr/bin:/bin" % stubs.root)
+    if any(os.access(os.path.join(d, "qs"), os.X_OK) for d in ("/usr/bin", "/bin")):
+        import pytest
+        pytest.skip("a real qs is installed in /usr/bin; cannot hide it")
+    res = subprocess.run([sys.executable, str(HYPRKBM)], capture_output=True, text=True, env=env)
+
+    assert res.returncode == 1
+    assert "Quickshell" in res.stderr
 
 
 def test_export_to_an_unwritable_path_fails_cleanly(home_env, paths, stubs, tmp_path):

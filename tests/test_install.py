@@ -31,6 +31,7 @@ def links(home):
         home / ".local/bin/hyprkbm-apply": "bin/hyprkbm-apply",
         home / ".local/bin/hyprkbm-watch": "bin/hyprkbm-watch",
         home / ".config/systemd/user" / UNIT: "systemd/" + UNIT,
+        home / ".local/share/applications/hyprkbm.desktop": "share/applications/hyprkbm.desktop",
     }
 
 

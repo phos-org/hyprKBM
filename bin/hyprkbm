@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """hyprKBM: a keyboard-first keybind manager for Hyprland's Lua config.
 
+  hyprkbm                      open the keyboard panel
   hyprkbm --export md [FILE]   write a Markdown cheatsheet (stdout without FILE)
   hyprkbm --apply [FILE]       apply keybinds.json, or FILE, to Hyprland
   hyprkbm --status             binds, conflicts, stale edits and the watcher
@@ -11,6 +12,7 @@
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -27,6 +29,10 @@ from hyprkbm.reader import read_config  # noqa: E402
 from hyprkbm.state import SettingsError, build_state, read_backup, set_layout  # noqa: E402
 
 UNIT = "hyprkbm-watch.service"
+ROOT = Path(os.path.realpath(__file__)).parents[1]
+PANEL = ROOT / "quickshell" / "hyprkbm"
+PANEL_CLASS = "org.quickshell"
+TITLE = "Keybinds"
 
 
 def fail(*messages, code=1):
@@ -164,6 +170,36 @@ def cmd_set_layout(paths, args):
     return 0
 
 
+def panel_open():
+    """Whether the panel already has a window: class as well as title, so a
+    terminal that happens to be called Keybinds is not mistaken for it."""
+    try:
+        res = subprocess.run(["hyprctl", "-j", "clients"], capture_output=True, text=True, timeout=5)
+        clients = json.loads(res.stdout)
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        return False
+    return isinstance(clients, list) and any(
+        isinstance(c, dict) and c.get("class") == PANEL_CLASS and c.get("title") == TITLE
+        for c in clients)
+
+
+def cmd_panel(paths):
+    if shutil.which("qs") is None:
+        return fail("Quickshell (qs) is not installed; the panel needs it. "
+                    "The command line works without it: see hyprkbm --help")
+    if panel_open():
+        subprocess.run(["hyprctl", "dispatch", "focuswindow", "title:^%s$" % TITLE],
+                       capture_output=True, timeout=5)
+        return 0
+    # A keybind's PATH does not include ~/.local/bin, so the panel is told
+    # where its helpers are rather than left to find them.
+    env = dict(os.environ, HYPRKBM_BIN=str(ROOT / "bin"))
+    subprocess.Popen(["qs", "-p", str(PANEL), "-d"], env=env,
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                     start_new_session=True)
+    return 0
+
+
 def main(argv):
     paths = Paths.from_env()
     if argv[:1] == ["--export"]:
@@ -183,9 +219,11 @@ def main(argv):
     if argv in (["-h"], ["--help"]):
         print(__doc__.strip())
         return 0
-    if argv in ([], ["--cheatsheet"]):
-        return fail("the hyprKBM panel is not installed in this version yet; "
-                    "see hyprkbm --help", code=2)
+    if argv == []:
+        return cmd_panel(paths)
+    if argv == ["--cheatsheet"]:
+        return fail("the cheatsheet overlay is not in this version yet; "
+                    "hyprkbm --export md writes a cheatsheet as Markdown", code=2)
     return fail(__doc__.strip(), code=2)
 
 
