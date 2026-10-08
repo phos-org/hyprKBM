@@ -557,7 +557,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 **Interfaces:**
 - Produces (`keys.js`): `MODIFIERS`, `ORDER`, `KEY_ALIASES`, `parse(keys) -> {mods: string[], key: string} | null`, `sortMods(mods) -> string[]` (canonical, de-duplicated, in `ORDER`), `keyId(key) -> string` (lower case, aliases applied), `comboId(mods, key) -> string`, `idOf(keys) -> string | null`, `display(mods, key) -> string`.
-- Produces (`qtkeys.js`): `keysymFromQt(key) -> string | null`, `modifierFromQtKey(key) -> string` (`""` when not a modifier key), `modsFromQt(modifiers) -> string[]`.
+- Produces (`qtkeys.js`): `keysymFromQt(key, modifiers?) -> string | null` (with Shift held, a shifted US symbol maps back to its base key), `modifierFromQtKey(key) -> string` (`""` when not a modifier key), `modsFromQt(modifiers) -> string[]`.
 - Produces (`layouts.js`): `LAYOUTS` (`{ansi, iso}`, each `{name, main: row[], nav: row[]}`; a row is an array of `{id, label, w}` keys, `{mod, label, w}` modifier keys and `{gap: true, w}` gaps; ISO's `Return` continuation has `cont: true`), `keyIds(layout) -> {[lowerId]: true}`, `keyName(layout, lowerId) -> string` (the id as written in the layout, or `lowerId`), `neighbour(layout, lowerId, dir) -> lowerId` (`dir` is `"left" | "right" | "up" | "down"`).
 - Produces (`tests/js/load.mjs`): `load(name)` returns the library's context; `plain(v)`.
 
@@ -3961,7 +3961,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Modify: `quickshell/hyprkbm/shell.qml`, `tests/test_panel_qml.py`
 
 **Interfaces:**
-- Consumes: `Store.draft, catalogue, submaps, readOnly`; `Store.patchDraft, patchArg, setActionKind, draftProblems, saveDraft, cancelEdit, deleteDraft`; `Catalogue.entryById`; `Model.FLAG_NAMES`; `QtKeys.keysymFromQt, modsFromQt`; `Keys.display`.
+- Consumes: `Store.draft, catalogue, submaps, readOnly`; `Store.patchDraft, patchArg, setActionKind, draftProblems, saveDraft, cancelEdit, deleteDraft`; `Catalogue.entryById`; `Model.FLAG_NAMES`; `QtKeys.keysymFromQt(key, modifiers), modsFromQt`; `Keys.display`.
 - Produces: `Editor` (no public API).
 
 - [ ] **Step 1: Write the failing test**
@@ -4088,7 +4088,7 @@ Rectangle {
                     // binds, so some can only be typed.
                     Keys.onPressed: function (event) {
                         if (!root.recording) return
-                        var key = QtKeys.keysymFromQt(event.key)
+                        var key = QtKeys.keysymFromQt(event.key, event.modifiers)
                         event.accepted = true
                         if (key === null) return
                         Store.patchDraft({ keys: Keys.display(QtKeys.modsFromQt(event.modifiers), key) })
