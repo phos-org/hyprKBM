@@ -4,6 +4,7 @@
   hyprkbm --export md [FILE]   write a Markdown cheatsheet (stdout without FILE)
   hyprkbm --apply [FILE]       apply keybinds.json, or FILE, to Hyprland
   hyprkbm --status             binds, conflicts, stale edits and the watcher
+  hyprkbm --binds              hand-written binds: keys, submap, where, fingerprint
 """
 import os
 import subprocess
@@ -84,6 +85,20 @@ def cmd_apply(paths, args):
     return 0
 
 
+def cmd_binds(paths):
+    """Every hand-written bind with what an override or unbind needs to name
+    it -- keys, submap, fingerprint -- until the panel writes those itself."""
+    try:
+        hand = read_config(paths)
+    except OSError as exc:  # no Lua interpreter to run the reader with
+        return fail("the config could not be read: %s" % exc)
+    if hand.error:
+        print("hyprkbm: warning: %s: %s" % (paths.entry, hand.error), file=sys.stderr)
+    for b in hand.binds:
+        print("\t".join((b.keys, b.submap, b.where, b.fingerprint)))
+    return 0
+
+
 def cmd_status(paths):
     state, errors = load_state(paths)
     if errors:
@@ -123,6 +138,8 @@ def main(argv):
         return cmd_apply(paths, argv[1:])
     if argv == ["--status"]:
         return cmd_status(paths)
+    if argv == ["--binds"]:
+        return cmd_binds(paths)
     if argv in (["-h"], ["--help"]):
         print(__doc__.strip())
         return 0

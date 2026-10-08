@@ -89,3 +89,17 @@ def test_export_without_a_lua_interpreter_fails_cleanly(home_env, paths, stubs):
     assert res.returncode == 1
     assert res.stderr.startswith("hyprkbm:")
     assert "Traceback" not in res.stderr
+
+
+def test_binds_lists_what_an_override_needs(home_env, paths, stubs):
+    paths.entry.write_text('hl.bind("SUPER + F", hl.dsp.exec_cmd("dolphin"))\n'
+                           'hl.define_submap("resize", "escape", function()\n'
+                           '    hl.bind("right", hl.dsp.window.resize())\n'
+                           'end)\n')
+
+    res = run(home_env, "--binds")
+
+    assert res.returncode == 0, res.stderr
+    lines = res.stdout.splitlines()
+    assert 'SUPER + F\t\thyprland.lua:1\texec_cmd:["dolphin"]' in lines
+    assert "right\tresize\thyprland.lua:3\twindow.resize:[]" in lines
