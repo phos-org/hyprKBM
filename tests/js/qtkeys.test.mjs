@@ -36,3 +36,13 @@ test("modifier flags become canonical modifiers in order", () => {
   assert.deepEqual(plain(Q.modsFromQt(0x04000000 | 0x08000000)), ["CTRL", "ALT"])
   assert.deepEqual(plain(Q.modsFromQt(0)), [])
 })
+
+test("Shift+symbol maps to base key on US layout", () => {
+  assert.equal(Q.keysymFromQt(0x21, 0x02000000), "1")
+  assert.equal(Q.keysymFromQt(0x3a, 0x02000000), "semicolon")
+  assert.equal(Q.keysymFromQt(0x23, 0), "numbersign")
+  assert.equal(Q.keysymFromQt(0x23, 0x02000000), "3")
+  assert.equal(Q.keysymFromQt(0x3c, 0), "less")
+  assert.equal(Q.keysymFromQt(0x41, 0x02000000), "A")
+  assert.equal(Q.keysymFromQt(0x21), null)
+})

@@ -23,6 +23,17 @@ var NAMED = {
     0x010000b3: "XF86MonBrightnessDown"
 }
 
+// Qt reports shifted symbols as their own key codes on a US layout.
+// Map them back to the base key so hl.bind names can match.
+// For example: Shift+1 arrives as 0x21 ('!'), but binds name it as "1".
+var SHIFTED_SYMBOLS = {
+    0x21: "1", 0x40: "2", 0x23: "3", 0x24: "4", 0x25: "5",
+    0x5e: "6", 0x26: "7", 0x2a: "8", 0x28: "9", 0x29: "0",
+    0x5f: "minus", 0x2b: "equal", 0x7b: "bracketleft", 0x7d: "bracketright",
+    0x7c: "backslash", 0x3a: "semicolon", 0x22: "apostrophe", 0x7e: "grave",
+    0x3c: "comma", 0x3e: "period", 0x3f: "slash"
+}
+
 // Holding these is choosing a combo, not pressing a key of one.
 var MODIFIER_KEYS = {
     0x01000020: "SHIFT", 0x01000021: "CTRL", 0x01000022: "SUPER",
@@ -34,11 +45,17 @@ var FLAGS = [
     [0x10000000, "SUPER"], [0x04000000, "CTRL"], [0x08000000, "ALT"], [0x02000000, "SHIFT"]
 ]
 
-function keysymFromQt(key) {
+function keysymFromQt(key, modifiers) {
     if (MODIFIER_KEYS.hasOwnProperty(key)) return null
     if (key >= 0x41 && key <= 0x5a) return String.fromCharCode(key)
     if (key >= 0x30 && key <= 0x39) return String.fromCharCode(key)
     if (key >= 0x01000030 && key <= 0x01000047) return "F" + (key - 0x01000030 + 1)
+    // When Shift is held, Qt reports shifted symbols as their own key codes.
+    // Map them back to the base key so hl.bind names can match (binds name the base key).
+    // This assumes a US layout, which matches the on-screen keyboard's labels.
+    if (modifiers !== undefined && (modifiers & 0x02000000) !== 0 && SHIFTED_SYMBOLS.hasOwnProperty(key)) {
+        return SHIFTED_SYMBOLS[key]
+    }
     return NAMED.hasOwnProperty(key) ? NAMED[key] : null
 }
 
