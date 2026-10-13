@@ -150,9 +150,10 @@ ShellRoot {
                             id: keyRow
                             Layout.fillWidth: true
                             spacing: Spacing.lg
-                            // From the row's own width, which its parent sets;
-                            // nothing inside the row feeds back into it.
-                            readonly property real unit: Layouts.unitFor(width - spacing * 2 - 1)
+                            // From the pane's width, which only the window sets.
+                            // Not from this row's: a row's width can follow its
+                            // contents' minimum widths, and those are in keys.
+                            readonly property real unit: Layouts.unitFor(keyboardColumn.width - spacing * 2 - 1)
 
                             Keyboard {
                                 id: keyboard

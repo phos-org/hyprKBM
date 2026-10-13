@@ -7,8 +7,6 @@ import "../state"
 Item {
     id: root
     property real unit: 40
-    // Fifteen units of main block, half a unit of gap, three of cluster.
-    implicitWidth: unit * 18.5
     implicitHeight: unit * 6
 
     Row {
