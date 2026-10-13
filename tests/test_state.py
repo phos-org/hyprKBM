@@ -85,8 +85,10 @@ def test_backups_are_listed_newest_first_and_readable(paths, stubs):
     assert build_state(paths)["backups"] == ["20260102T000000000000",
                                              "20260101T000000000000"]
     assert read_backup(paths, "20260102T000000000000") == {
-        "model": {"version": 1, "binds": []}, "lua": "-- old\n"}
-    assert read_backup(paths, "20260101T000000000000") == {"model": None, "lua": ""}
+        "model": {"version": 1, "binds": []}, "lua": "-- old\n", "modelError": None}
+    # No keybinds.json in the backup is an empty model, not an error.
+    assert read_backup(paths, "20260101T000000000000") == {
+        "model": None, "lua": "", "modelError": None}
     assert read_backup(paths, "nope") is None
     assert read_backup(paths, "../etc") is None
 
@@ -144,3 +146,15 @@ def test_cli_set_layout_exits_1_on_malformed_settings(home_env, paths):
     assert res.returncode == 1, res.stderr
     assert "could not be read" in res.stderr
     assert paths.settings.read_text() == "{oops"
+
+
+def test_a_backup_whose_model_cannot_be_read_says_so(paths, stubs):
+    folder = paths.backups / "20260103T000000000000"
+    folder.mkdir(parents=True)
+    (folder / "keybinds.json").write_text("{not json")
+    got = read_backup(paths, "20260103T000000000000")
+    assert got["model"] is None
+    assert got["modelError"]
+    (folder / "keybinds.json").write_text("[1, 2]")
+    got = read_backup(paths, "20260103T000000000000")
+    assert got["model"] is None and got["modelError"]

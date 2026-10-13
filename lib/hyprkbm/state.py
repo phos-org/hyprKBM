@@ -132,21 +132,30 @@ def build_state(paths):
 
 
 def read_backup(paths, name):
-    """A backup's two files, or None when there is no such backup."""
+    """A backup's two files, or None when there is no such backup.
+
+    A keybinds.json that exists but cannot be read is reported in modelError
+    rather than as a missing model: restoring "nothing" would wipe every
+    hyprKBM bind, which is not what an unreadable file means."""
     if not BACKUP_NAME.match(name):
         return None
     folder = paths.backups / name
     if not folder.is_dir():
         return None
-    try:
-        model = json.loads((folder / "keybinds.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        model = None
+    model, model_error = None, None
+    path = folder / "keybinds.json"
+    if path.exists():
+        try:
+            model = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(model, dict):
+                model, model_error = None, "keybinds.json in this backup is not an object"
+        except (OSError, ValueError) as e:
+            model, model_error = None, "keybinds.json in this backup cannot be read: %s" % e
     try:
         lua = (folder / "keybinds.lua").read_text(encoding="utf-8")
     except OSError:
         lua = ""
-    return {"model": model, "lua": lua}
+    return {"model": model, "lua": lua, "modelError": model_error}
 
 
 def set_layout(paths, name):
