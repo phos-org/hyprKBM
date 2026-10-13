@@ -187,7 +187,21 @@ ShellRoot {
                         Layout.fillHeight: true
                     }
                 }
+
+                StagedBar {
+                    Layout.fillWidth: true
+                    onReviewRequested: diffDialog.open()
+                }
             }
+        }
+
+        DiffDialog { id: diffDialog }
+
+        // Ctrl+Enter is safe as a Shortcut: nothing else in the panel wants it.
+        Shortcut {
+            sequences: ["Ctrl+Return", "Ctrl+Enter"]
+            enabled: Store.dirty && !Store.busy && !Store.readOnly && Store.draft === null
+            onActivated: Store.apply()
         }
     }
 }

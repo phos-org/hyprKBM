@@ -200,3 +200,24 @@ def test_the_record_button_does_not_steal_focus():
     editor = qml("components", "Editor.qml")
     button = editor[editor.index('text: root.recording ? "Stop"'):]
     assert "focusPolicy: Qt.NoFocus" in button[:300]
+
+
+def test_staged_changes_apply_only_from_the_bar_and_the_diff():
+    bar = qml("components", "StagedBar.qml")
+    assert "Model.summary(" in bar
+    assert "Store.discard()" in bar
+    assert "Store.apply()" in bar
+    assert "signal reviewRequested()" in bar
+    diff = qml("components", "DiffDialog.qml")
+    assert "Store.requestPreview()" in diff
+    assert "Diff.lineDiff(" in diff
+    assert "Store.apply()" in diff
+    # The bar, the diff and the window's Ctrl+Enter -- and nothing else.
+    applies = [n for n, s in all_qml().items() if "Store.apply()" in s]
+    assert sorted(applies) == ["components/DiffDialog.qml", "components/StagedBar.qml",
+                               "shell.qml"]
+
+
+def test_ctrl_enter_applies_from_the_window():
+    shell = qml("shell.qml")
+    assert re.search(r'sequences:\s*\["Ctrl\+Return",\s*"Ctrl\+Enter"\]', shell)
