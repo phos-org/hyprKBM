@@ -92,12 +92,14 @@ RowLayout {
     }
 
     Action {
+        readonly property int blocking: Store.merged.conflicts.filter(function (g) { return Model.blocks(g) }).length
+        readonly property int shown: blocking > 0 ? blocking : Store.merged.conflicts.length
         visible: Store.merged.conflicts.length > 0
         // Hand-only overlaps are real but never stop an apply, so only a
-        // blocking one is called a conflict.
-        text: Store.merged.conflicts.some(function (g) { return Model.blocks(g) })
-            ? "⚠ " + Store.merged.conflicts.length + (Store.merged.conflicts.length === 1 ? " conflict" : " conflicts")
-            : Store.merged.conflicts.length + (Store.merged.conflicts.length === 1 ? " overlap" : " overlaps")
+        // blocking group is called a conflict, and only those are counted.
+        text: blocking > 0
+            ? "⚠ " + shown + (shown === 1 ? " conflict" : " conflicts")
+            : shown + (shown === 1 ? " overlap" : " overlaps")
         onClicked: Store.nextConflict()
     }
 

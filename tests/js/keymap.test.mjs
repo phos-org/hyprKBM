@@ -22,7 +22,8 @@ const BINDS = [
 test("key states for the held modifiers in the submap", () => {
   const s = plain(K.keyStates(BINDS, "", ["SUPER"]))
   assert.deepEqual(Object.keys(s).sort(), ["f", "mouse:272", "q", "weird_key"])
-  assert.equal(s.f.state, "conflict")
+  // a and b are both hand binds: an overlap, which never stops an apply.
+  assert.equal(s.f.state, "overlap")
   assert.equal(s.q.state, "bound")
   assert.deepEqual(s.q.binds.map(b => b.uid), ["c"])
   assert.deepEqual(Object.keys(plain(K.keyStates(BINDS, "resize", []))), ["right"])
@@ -59,4 +60,18 @@ test("unplaced binds are those no keycap shows", () => {
 test("conflict targets say where to look", () => {
   const groups = [[BINDS[0], BINDS[1]]]
   assert.deepEqual(plain(K.conflictTargets(groups)), [{ submap: "", mods: ["SUPER"], key: "f" }])
+})
+
+test("a key is a conflict only when its group blocks", () => {
+  const binds = [
+    bind("a", "SUPER + F", ["SUPER"], "F"),
+    bind("b", "SUPER + F", ["SUPER"], "F", { source: "hyprkbm" }),
+    bind("c", "SUPER + G", ["SUPER"], "G", { source: "override" }),
+    bind("d", "SUPER + G", ["SUPER"], "G", { source: "hyprkbm", allowConflict: true }),
+    bind("e", "SUPER + H", ["SUPER"], "H", { source: "hyprkbm" })
+  ]
+  const s = plain(K.keyStates(binds, "", ["SUPER"]))
+  assert.equal(s.f.state, "conflict")
+  assert.equal(s.g.state, "bound")
+  assert.equal(s.h.state, "bound")
 })

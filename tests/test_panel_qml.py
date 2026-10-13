@@ -343,3 +343,15 @@ def test_stale_edits_are_listed_and_can_be_forgotten():
     store = qml("state", "Store.qml")
     body = store.split("function forget(entry)", 1)[1].split("function addSubmap", 1)[0]
     assert "readOnly" in body and "Model.forgetUnbind(" in body and "Model.forgetReplaces(" in body
+
+
+def test_overlaps_are_drawn_apart_from_conflicts_and_counted_apart():
+    cap = qml("components", "KeyCap.qml")
+    fill = cap.split("color:", 1)[1].split("border.width", 1)[0]
+    # Filled like a bound key; only the conflict state is filled red.
+    assert re.search(r'"bound" \|\| kind === "overlap" \? lit\(Colors.accentPrimary', fill)
+    border = cap.split("border.color:", 1)[1].split("Behavior", 1)[0]
+    assert '"overlap"' in border and "statusCritical" in border
+    header = qml("components", "Header.qml")
+    action = header.split("Store.nextConflict()", 1)[0].rsplit("Action {", 1)[1]
+    assert "Model.blocks(g)" in action and "blocking" in action and "overlap" in action

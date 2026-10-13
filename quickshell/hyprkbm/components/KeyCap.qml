@@ -26,13 +26,13 @@ Rectangle {
     radius: Radius.sm
     opacity: dimmed ? 0.35 : 1
     color: kind === "conflict" ? lit(Colors.statusCritical, 0.45)
-         : kind === "bound" ? lit(Colors.accentPrimary, 0.3)
+         : kind === "bound" || kind === "overlap" ? lit(Colors.accentPrimary, 0.3)
          : kind === "modOn" ? lit(Colors.accentSecondary, 0.18)
          : kind === "mod" ? Colors.bgSurfaceAlt
          : Colors.bgSurface
     border.width: selected ? 2 : 1
     border.color: selected ? Colors.textPrimary
-                : kind === "conflict" ? Colors.statusCritical
+                : kind === "conflict" || kind === "overlap" ? Colors.statusCritical
                 : kind === "bound" ? lit(Colors.accentPrimary, 0.6)
                 : kind === "mod" || kind === "modOn" ? Colors.accentSecondary
                 : Colors.borderSubtle

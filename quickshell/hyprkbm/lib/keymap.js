@@ -1,6 +1,7 @@
 .pragma library
 .import "keys.js" as Keys
 .import "search.js" as Search
+.import "model.js" as Model
 
 // Which keycap shows which binds. A key's id is its keysym in lower case, as
 // keys.keyId gives it, so "Return", "return" and an alias all land together.
@@ -25,7 +26,9 @@ function keyStates(binds, submap, mods) {
     })
     Object.keys(out).forEach(function (id) {
         var live = out[id].binds.filter(function (b) { return !b.allowConflict })
-        if (live.length > 1) out[id].state = "conflict"
+        // Same rule as the header and the bind list: only a group with a
+        // hyprKBM bind stops an apply. Two hand binds are an overlap.
+        if (live.length > 1) out[id].state = Model.blocks(live) ? "conflict" : "overlap"
     })
     return out
 }
