@@ -131,7 +131,8 @@ again focuses the open panel instead of opening a second one.
   there are staged changes and no bind is open in the editor. The Apply button
   waits for an open edit too. **Esc** cancels an open edit; with staged
   changes it warns instead of quitting, and quits only if pressed again
-  within 3 seconds; it does nothing while an apply runs.
+  within 3 seconds; it does nothing while an apply runs. Do not close the
+  panel while it says "Applying…": closing it stops the helper mid-apply.
 - **Backups** lists the last 30 versions with what restoring each would
   change. Restore is disabled while there are staged changes, except that it
   is the way out when `keybinds.json` is broken (the panel is then read-only),

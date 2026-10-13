@@ -265,7 +265,7 @@ Rectangle {
                 Action {
                     text: "Save"
                     primary: true
-                    enabled: root.problems.length === 0 && !Store.readOnly
+                    enabled: root.problems.length === 0 && !Store.readOnly && !Store.busy
                     onClicked: Store.saveDraft()
                 }
                 Action { text: "Cancel"; onClicked: Store.cancelEdit() }

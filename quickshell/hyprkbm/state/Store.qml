@@ -184,9 +184,17 @@ QtObject {
         return flags
     }
 
+    // While an apply runs the model is still the pre-apply one; an edit made
+    // now would survive the reload as "had edits" and could undo the apply.
+    function stagingBlocked() {
+        if (!busy) return false
+        report("Wait for the current apply to finish.", true)
+        return true
+    }
+
     function edit(uid) {
         var b = findBind(uid)
-        if (b === null || readOnly || model === null) return
+        if (b === null || readOnly || model === null || stagingBlocked()) return
         if (b.source === "hand") {
             var action = Catalogue.actionFromDispatcher(b.dispatcher, catalogue)
             if (action === null) {
@@ -203,7 +211,7 @@ QtObject {
     }
 
     function newBind(keys) {
-        if (readOnly || model === null) return
+        if (readOnly || model === null || stagingBlocked()) return
         draft = { id: null, hand: null, keys: keys, submap: submap,
                   action: { kind: "exec_cmd", args: {} }, description: "", flags: {}, allowConflict: false }
     }
@@ -251,7 +259,7 @@ QtObject {
     }
 
     function saveDraft() {
-        if (model === null || draft === null || draftProblems().length > 0) return
+        if (model === null || draft === null || draftProblems().length > 0 || stagingBlocked()) return
         var fields = { keys: draft.keys.trim(), submap: draft.submap, action: draft.action,
                        description: draft.description, flags: draft.flags, allowConflict: draft.allowConflict }
         if (draft.id !== null) model = Model.updateBind(model, draft.id, fields)
@@ -275,7 +283,7 @@ QtObject {
 
     function deleteBind(uid) {
         var b = findBind(uid)
-        if (b === null || readOnly || model === null) return
+        if (b === null || readOnly || model === null || stagingBlocked()) return
         if (b.source === "hand") {
             var blocker = Model.overrideBlocker(hand, b.hand)
             if (blocker !== null) {
@@ -296,27 +304,33 @@ QtObject {
     }
 
     function restoreHand(h) {
-        if (model === null || readOnly) return
+        if (model === null || readOnly || stagingBlocked()) return
         model = Model.restoreHand(model, h)
     }
 
     function keepBoth(uid) {
         var b = findBind(uid)
-        if (model === null || readOnly || b === null || b.id === null) return
+        if (model === null || readOnly || b === null || b.id === null || stagingBlocked()) return
         model = Model.updateBind(model, b.id, { allowConflict: true })
     }
 
     // Drops an edit whose hyprland.lua bind has gone, so it stops lingering
     // unseen in keybinds.json.
     function forget(entry) {
-        if (model === null || readOnly) return
+        if (model === null || readOnly || stagingBlocked()) return
+        // With hyprland.lua only partly read, a valid edit looks stale; keeping
+        // the forgetting would survive the reload and lose it for good.
+        if (doc && doc.readerError) {
+            report("hyprland.lua was not read completely, so stale edits cannot be trusted. Fix it and reload first.", true)
+            return
+        }
         model = entry.kind === "unbind" ? Model.forgetUnbind(model, entry.target)
                                         : Model.forgetReplaces(model, entry.id)
         report("Forgotten. Apply to save it.", false)
     }
 
     function addSubmap(name, reset) {
-        if (model === null) return
+        if (model === null || stagingBlocked()) return
         model = Model.addSubmap(model, name, reset)
         submap = name
     }

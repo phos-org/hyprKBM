@@ -50,12 +50,19 @@ RowLayout {
     }
 
     Repeater {
-        model: [["bound", Colors.accentPrimary], ["conflict", Colors.statusCritical], ["free", Colors.textSecondary]]
+        model: [["bound", Colors.accentPrimary], ["overlap", Colors.accentPrimary], ["conflict", Colors.statusCritical], ["free", Colors.textSecondary]]
         delegate: Row {
             id: legend
             required property var modelData
             spacing: Spacing.xs
-            Rectangle { width: 9; height: 9; radius: 2; color: legend.modelData[1]; anchors.verticalCenter: parent.verticalCenter }
+            Rectangle {
+                width: 9; height: 9; radius: 2
+                color: legend.modelData[1]
+                // Like the keycap: an overlap is a bound key outlined in the conflict colour.
+                border.width: legend.modelData[0] === "overlap" ? 1 : 0
+                border.color: Colors.statusCritical
+                anchors.verticalCenter: parent.verticalCenter
+            }
             Text {
                 text: legend.modelData[0]
                 color: Colors.textSecondary

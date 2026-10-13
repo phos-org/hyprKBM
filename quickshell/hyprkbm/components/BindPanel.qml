@@ -110,6 +110,16 @@ Rectangle {
                     font.capitalization: Font.AllUppercase
                 }
 
+                Text {
+                    visible: Store.merged.stale.length > 0 && !!(Store.doc && Store.doc.readerError)
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: "hyprland.lua was not read completely, so these may not be stale at all. Fix it and reload before forgetting anything."
+                    color: Colors.statusCritical
+                    font.family: Typography.family
+                    font.pixelSize: Typography.sizeSmall
+                }
+
                 Repeater {
                     model: Store.merged.stale
                     delegate: RowLayout {
@@ -124,7 +134,7 @@ Rectangle {
                             font.family: Typography.family
                             font.pixelSize: Typography.sizeSmall
                         }
-                        Action { text: "Forget"; enabled: !Store.readOnly; onClicked: Store.forget(staleRow.modelData) }
+                        Action { text: "Forget"; enabled: !Store.readOnly && !(Store.doc && Store.doc.readerError); onClicked: Store.forget(staleRow.modelData) }
                     }
                 }
 

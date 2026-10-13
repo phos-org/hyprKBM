@@ -371,3 +371,33 @@ def test_small_store_and_row_guards():
     bar = qml("components", "StagedBar.qml")
     assert "Store.draft === null" in bar.split('text: Store.busy ? "Applying…"', 1)[1].split("onClicked", 1)[0]
     assert "Store.draft !== null" in bar
+
+
+def test_forget_is_refused_while_hyprland_lua_is_only_partly_read():
+    store = qml("state", "Store.qml")
+    body = store.split("function forget(entry)", 1)[1].split("function addSubmap", 1)[0]
+    assert "readerError" in body and "report(" in body
+    panel = qml("components", "BindPanel.qml")
+    forget = panel.split('text: "Forget"', 1)[1].split("}", 1)[0]
+    assert "readerError" in forget
+    assert "readerError" in panel.split('text: "Stale', 1)[0].rsplit("Text {", 1)[-1] + panel.split('text: "Stale', 1)[1].split("Repeater", 1)[0]
+    assert [n for n, s in all_qml().items() if "Store.forget(" in s] == ["components/BindPanel.qml"]
+
+
+def test_nothing_is_staged_while_an_apply_runs():
+    store = qml("state", "Store.qml")
+    assert "function stagingBlocked()" in store
+    for fn, nxt in (("saveDraft()", "cancelEdit"), ("deleteBind(uid)", "deleteDraft"),
+                    ("restoreHand(h)", "keepBoth"), ("keepBoth(uid)", "forget("),
+                    ("forget(entry)", "addSubmap"), ("addSubmap(name, reset)", "discard"),
+                    ("newBind(keys)", "newBindOnSelected"), ("edit(uid)", "newBind(")):
+        body = store.split("function " + fn, 1)[1].split("function " + nxt, 1)[0]
+        assert "stagingBlocked()" in body, fn
+    assert "Store.busy" in qml("components", "Editor.qml").split('text: "Save"', 1)[1].split("onClicked", 1)[0]
+
+
+def test_the_legend_has_an_overlap_entry_and_the_readme_warns_about_closing():
+    bar = qml("components", "ModifierBar.qml")
+    assert '"overlap"' in bar
+    readme = (PANEL.parents[1] / "README.md").read_text(encoding="utf-8")
+    assert "Applying…" in readme and "mid-apply" in readme
