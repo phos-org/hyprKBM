@@ -101,6 +101,34 @@ Rectangle {
                 }
 
                 Text {
+                    visible: Store.merged.stale.length > 0
+                    Layout.topMargin: Spacing.md
+                    text: "Stale · edits whose hyprland.lua bind is gone"
+                    color: Colors.textSecondary
+                    font.family: Typography.family
+                    font.pixelSize: Typography.sizeSmall
+                    font.capitalization: Font.AllUppercase
+                }
+
+                Repeater {
+                    model: Store.merged.stale
+                    delegate: RowLayout {
+                        id: staleRow
+                        required property var modelData
+                        Layout.fillWidth: true
+                        Text {
+                            Layout.fillWidth: true
+                            text: staleRow.modelData.message
+                            wrapMode: Text.WordWrap
+                            color: Colors.textSecondary
+                            font.family: Typography.family
+                            font.pixelSize: Typography.sizeSmall
+                        }
+                        Action { text: "Forget"; enabled: !Store.readOnly; onClicked: Store.forget(staleRow.modelData) }
+                    }
+                }
+
+                Text {
                     visible: !root.searching && Store.unplaced.length > 0
                     Layout.topMargin: Spacing.md
                     text: "Unplaced · binds no keycap shows"

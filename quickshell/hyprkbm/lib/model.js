@@ -102,7 +102,7 @@ function merge(hand, model, catalogue) {
     model.unbinds.forEach(function (u) {
         var hits = supersede(u)
         if (hits.length === 0)
-            stale.push({ kind: "unbind", id: null, keys: u.keys,
+            stale.push({ kind: "unbind", id: null, keys: u.keys, target: u,
                          message: "The bind on " + u.keys + " this removes is no longer in hyprland.lua; the unbind does nothing." })
         hits.forEach(function (i) { removed.push({ uid: hand[i].uid, hand: hand[i] }) })
     })
@@ -179,6 +179,30 @@ function unbindHand(model, h) {
     var m = normalise(model)
     var present = m.unbinds.some(function (u) { return matches(h, u) })
     if (!present) m.unbinds.push(targetOf(h))
+    return m
+}
+
+// Drops an unbind whose bind is gone from hyprland.lua. Compared on the same
+// three fields as a match, so a different fingerprint on the key stays.
+function forgetUnbind(model, target) {
+    var m = normalise(model)
+    m.unbinds = m.unbinds.filter(function (u) {
+        return !(u.keys === target.keys && (u.submap || "") === (target.submap || "")
+                 && u.fingerprint === target.fingerprint)
+    })
+    return m
+}
+
+// An override whose original is gone keeps working as an ordinary bind once it
+// stops claiming to replace anything.
+function forgetReplaces(model, id) {
+    var m = normalise(model)
+    m.binds = m.binds.map(function (b) {
+        if (b.id !== id) return b
+        var next = clone(b)
+        delete next.replaces
+        return next
+    })
     return m
 }
 

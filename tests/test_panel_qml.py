@@ -333,3 +333,13 @@ def test_overriding_a_bind_with_options_hyprkbm_cannot_keep_is_a_problem():
     body = store.split("function draftProblems()", 1)[1].split("function saveDraft()", 1)[0]
     assert "Model.droppedOpts(draft.hand.opts)" in body
     assert "would drop these options" in body
+
+
+def test_stale_edits_are_listed_and_can_be_forgotten():
+    panel = qml("components", "BindPanel.qml")
+    assert "Store.merged.stale" in panel
+    forget = panel.split('text: "Forget"', 1)[1].split("}", 1)[0]
+    assert "Store.readOnly" in forget and "Store.forget(" in forget
+    store = qml("state", "Store.qml")
+    body = store.split("function forget(entry)", 1)[1].split("function addSubmap", 1)[0]
+    assert "readOnly" in body and "Model.forgetUnbind(" in body and "Model.forgetReplaces(" in body

@@ -125,3 +125,30 @@ test("droppedOpts names the options of a hand bind hyprKBM cannot keep", () => {
   assert.deepEqual(plain(M.droppedOpts({ locked: true, foo: 1, bar: true })), ["foo", "bar"])
   assert.deepEqual(plain(M.droppedOpts(undefined)), [])
 })
+
+test("forgetUnbind drops only the unbind with those keys, submap and fingerprint", () => {
+  const t = { keys: "SUPER + F", submap: "", fingerprint: "fp1" }
+  const m = { version: 1, submaps: [], binds: [],
+    unbinds: [t, { keys: "SUPER + F", submap: "", fingerprint: "fp2" }, { keys: "SUPER + F", submap: "x", fingerprint: "fp1" }] }
+  const out = plain(M.forgetUnbind(m, t))
+  assert.deepEqual(out.unbinds.map(u => u.fingerprint + u.submap), ["fp2", "fp1x"])
+  assert.equal(m.unbinds.length, 3)
+})
+
+test("forgetReplaces makes an override an ordinary bind", () => {
+  const m = { version: 1, submaps: [], unbinds: [], binds: [
+    { id: "b1", keys: "SUPER + F", action: { kind: "exec_cmd", args: {} }, replaces: { keys: "SUPER + F", submap: "", fingerprint: "x" } },
+    { id: "b2", keys: "SUPER + G", action: { kind: "exec_cmd", args: {} } }] }
+  const out = plain(M.forgetReplaces(m, "b1"))
+  assert.equal("replaces" in out.binds[0], false)
+  assert.equal(out.binds[0].id, "b1")
+  assert.equal(out.binds.length, 2)
+  assert.ok(m.binds[0].replaces)
+})
+
+test("a stale unbind carries its target so it can be forgotten", () => {
+  const m = { version: 1, submaps: [], binds: [], unbinds: [{ keys: "SUPER + Z", submap: "", fingerprint: "gone" }] }
+  const r = M.merge([], m, CAT)
+  assert.equal(r.stale[0].kind, "unbind")
+  assert.equal(r.stale[0].target.fingerprint, "gone")
+})

@@ -295,6 +295,15 @@ QtObject {
         model = Model.updateBind(model, b.id, { allowConflict: true })
     }
 
+    // Drops an edit whose hyprland.lua bind has gone, so it stops lingering
+    // unseen in keybinds.json.
+    function forget(entry) {
+        if (model === null || readOnly) return
+        model = entry.kind === "unbind" ? Model.forgetUnbind(model, entry.target)
+                                        : Model.forgetReplaces(model, entry.id)
+        report("Forgotten. Apply to save it.", false)
+    }
+
     function addSubmap(name, reset) {
         if (model === null) return
         model = Model.addSubmap(model, name, reset)
