@@ -13,10 +13,8 @@
 you wrote in `hyprland.lua` and its own, and adds, overrides or removes
 binds without ever editing your config.
 
-> **This release is the core**: reading your binds, applying hyprKBM's own,
-> keeping them applied, and exporting a cheatsheet, all from the command
-> line. The keyboard panel and the cheatsheet overlay are next; until then,
-> hyprKBM's binds live in a JSON file you edit by hand.
+The **keyboard panel** shows every bind on an on-screen keyboard; the
+cheatsheet overlay comes next.
 
 ## What it does
 
@@ -41,6 +39,7 @@ binds without ever editing your config.
 | Hyprland | with Lua configuration (`hyprland.lua`). Developed against 0.56.2. |
 | Lua | a 5.4 or 5.5 interpreter: `lua` on Arch (Hyprland already pulls it in), `lua5.4` on Debian and Ubuntu. |
 | Python 3 | standard library only. Developed against 3.14; CI runs 3.12. |
+| Quickshell | 0.3 or later, for the panel (the `qs` command). The command line works without it. |
 | systemd | a user session that starts `graphical-session.target` ([uwsm](https://github.com/Vladimir-csp/uwsm) does). See [Without systemd](#without-systemd) otherwise. |
 
 ## Install
@@ -90,9 +89,52 @@ This disables the watcher and removes the links. Your `keybinds.json`, the
 generated `keybinds.lua` and the backups are kept; the binds stay active
 until the next Hyprland reload.
 
+## The panel
+
+Run `hyprkbm`, or open **Keybinds** from your app launcher. Bind it to a key
+if you like:
+
+```lua
+hl.bind("SUPER + CTRL + K", hl.dsp.exec_cmd("hyprkbm"))
+```
+
+It opens as a floating window, centred, 1180x760. That comes from a window
+rule `hyprkbm` adds to the running Hyprland with `hyprctl eval`; the rule
+goes at the next reload and comes back at the next launch. Running `hyprkbm`
+again focuses the open panel instead of opening a second one.
+
+- **The keyboard** is lit by what each key does under the modifiers you hold
+  (or click): accent for bound, red for a conflict. Click a key, or move with
+  the arrow keys, to see every bind on it below.
+- **Submaps** are the chips in the header; **search** (`/`) narrows to binds
+  matching plain words or the tags `mod:`, `key:`, `exec:`, `desc:`,
+  `submap:` and `src:` (`src:lua` is your `hyprland.lua`).
+- **Conflicts.** Two binds on one key are a *conflict* when at least one is
+  hyprKBM's, and that blocks Apply until you resolve it (or set `allowConflict`
+  in `keybinds.json`). Overlaps among only your `hyprland.lua` binds are
+  shown as *overlaps*; they never block, and the panel says so.
+- **Edit, Remove, + Add.** Editing one of your `hyprland.lua` binds makes an
+  override; removing one makes an unbind. In the editor, **⏺ Record** takes
+  the next key combination (Esc stops recording; Shift+digit records as the
+  digit). Pick an action from the list or write raw Lua, add a description,
+  flags and a submap.
+- **Nothing changes until Apply.** **Review diff** shows the generated
+  `keybinds.lua` before and after, and any errors. **Discard** throws the
+  staged changes away. Ctrl+Enter applies too, but only from the keyboard
+  view: not while you type in a field or have a dialog open, and only when
+  there are staged changes and no bind is open in the editor.
+- **Backups** lists the last 30 versions with what restoring each would
+  change; Restore is disabled while there are staged changes. **Export**
+  writes the Markdown cheatsheet to a path you choose. **Theme** offers the
+  phos presets, an accent and dark or light, saved in
+  `~/.config/hyprkbm/theme.json`. **⋯** switches between ANSI and ISO
+  keyboards, names the config file being read, and shows the watcher's state
+  with a button to start it.
+
 ## Using it
 
 ```bash
+hyprkbm                      # open the panel
 hyprkbm --status              # binds, conflicts, stale overrides, the watcher
 hyprkbm --binds               # your hand-written binds, with fingerprints
 hyprkbm --apply               # apply ~/.config/hyprkbm/keybinds.json
