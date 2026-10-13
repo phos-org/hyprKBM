@@ -36,3 +36,19 @@ test("arrow-key navigation moves between neighbouring keys", () => {
   assert.equal(L.neighbour(a, "escape", "left"), "escape")
   assert.equal(L.neighbour(a, "nonsense", "left"), "q")
 })
+
+// The key size is chosen once from the whole row's width -- keyboard, divider
+// and the extra keys -- and never from the keyboard's own width. Deriving it
+// from the keyboard's width made the two depend on each other (the extra keys
+// are three keys wide), and at some window widths the size flipped between
+// two values forever, freezing the panel.
+test("unitFor sizes keys from the whole row and fits it", () => {
+  assert.equal(L.unitFor(1000), 46)
+  assert.equal(L.unitFor(300), 26)
+  assert.equal(L.unitFor(5000), 48)
+  for (let width = 26 * L.ROW_UNITS; width <= 48 * L.ROW_UNITS; width++) {
+    const unit = L.unitFor(width)
+    assert.ok(unit * L.ROW_UNITS <= width, `width ${width}: ${unit} keys overflow`)
+    assert.equal(L.unitFor(width), unit, "same input, same answer")
+  }
+})

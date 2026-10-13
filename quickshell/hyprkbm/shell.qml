@@ -6,6 +6,7 @@ import "config"
 import "components"
 import "state"
 import "lib/qtkeys.js" as QtKeys
+import "lib/layouts.js" as Layouts
 
 ShellRoot {
     // An ordinary window rather than a layer-shell panel: it is a thing you
@@ -146,20 +147,25 @@ ShellRoot {
                         ModifierBar { Layout.fillWidth: true }
 
                         RowLayout {
+                            id: keyRow
                             Layout.fillWidth: true
                             spacing: Spacing.lg
+                            // From the row's own width, which its parent sets;
+                            // nothing inside the row feeds back into it.
+                            readonly property real unit: Layouts.unitFor(width - spacing * 2 - 1)
 
                             Keyboard {
                                 id: keyboard
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: implicitHeight
+                                unit: keyRow.unit
                             }
 
                             Rectangle { Layout.fillHeight: true; implicitWidth: 1; color: Colors.borderSubtle }
 
                             ExtraKeys {
                                 Layout.alignment: Qt.AlignTop
-                                unit: keyboard.unit
+                                unit: keyRow.unit
                             }
                         }
                     }

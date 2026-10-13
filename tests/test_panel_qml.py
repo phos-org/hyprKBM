@@ -162,3 +162,14 @@ def test_read_only_panel_stages_nothing_and_hand_conflicts_do_not_block():
     panel = qml("components", "BindPanel.qml")
     restore = panel[panel.index('text: "Restore"'):]
     assert "!Store.readOnly" in restore[:200]
+
+
+def test_the_key_size_does_not_depend_on_the_keyboards_own_width():
+    """The keyboard used to compute its key size from its own width, which is
+    what the extra keys (three keys wide) leave over. Each depended on the
+    other, and at some widths the layout never settled: the panel froze."""
+    keyboard = qml("components", "Keyboard.qml")
+    assert not re.search(r"unit\s*:.*\bwidth\b", keyboard)
+    assert re.search(r"property\s+real\s+unit\s*:", keyboard)
+    shell = qml("shell.qml")
+    assert "Layouts.unitFor(" in shell
