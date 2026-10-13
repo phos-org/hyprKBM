@@ -71,6 +71,9 @@ QtObject {
     property bool previewAgain: false
     onModelChanged: preview = null
     property var backup: null
+    // The backup the dialog last asked for. Loads finish in their own time, so
+    // a result is kept only when it is for the name still wanted.
+    property string backupWanted: ""
     property int conflictIndex: -1
 
     signal applied()
@@ -309,13 +312,26 @@ QtObject {
     }
 
     function loadBackup(name) {
+        backupWanted = name
         backup = null
+        // A load already running cannot be retargeted; its exit starts this one.
+        if (backupProc.running) return
         backupProc.command = [helper("hyprkbm"), "--backup", name]
         backupProc.running = true
     }
 
+    function clearBackup() {
+        backupWanted = ""
+        backup = null
+    }
+
     function restoreBackup() {
-        if (backup === null) return
+        // Restoring replaces the staged model and applies it, so it must not
+        // run over staged edits or a model the panel cannot edit.
+        if (backup === null) { report("Pick a backup to restore first.", true); return }
+        if (busy) { report("Wait for the current apply to finish.", true); return }
+        if (readOnly) { report("The keybinds cannot be edited, so a backup cannot be restored.", true); return }
+        if (dirty) { report("Apply or discard your staged changes before restoring a backup.", true); return }
         model = backup.model === null ? Model.emptyModel() : Model.clone(backup.model)
         if (!dirty) {
             report("That backup is what is applied already.", false)
@@ -419,8 +435,21 @@ QtObject {
     property Process backupProc: Process {
         stdout: StdioCollector { id: backupOut }
         onExited: function (code) {
-            root.backup = code === 0 ? root.parsed(backupOut.text) : null
-            if (root.backup === null) root.report("That backup could not be read.", true)
+            var got = backupProc.command[2]
+            if (got !== root.backupWanted) {
+                // Stale: the dialog moved on while this ran. Start the wanted
+                // one once the process has really stopped.
+                if (root.backupWanted !== "") Qt.callLater(function () { root.loadBackup(root.backupWanted) })
+                return
+            }
+            var parsed = code === 0 ? root.parsed(backupOut.text) : null
+            if (parsed === null) {
+                root.backup = null
+                root.report("That backup could not be read.", true)
+                return
+            }
+            parsed.name = got
+            root.backup = parsed
         }
     }
 

@@ -23,7 +23,9 @@ QC.Popup {
 
     property string chosen: ""
     readonly property var names: Store.doc ? Store.doc.backups : []
-    readonly property var lines: Store.backup ? Diff.lineDiff(Store.doc.currentLua, Store.backup.lua) : []
+    // Store.backup can still be an earlier pick while the chosen one loads.
+    readonly property bool loaded: Store.backup !== null && Store.backup.name === chosen
+    readonly property var lines: loaded ? Diff.lineDiff(Store.doc.currentLua, Store.backup.lua) : []
 
     function when(name) {
         // 20261008T173647613251 -> 2026-10-08 17:36:47
@@ -31,7 +33,7 @@ QC.Popup {
              + " " + name.slice(9, 11) + ":" + name.slice(11, 13) + ":" + name.slice(13, 15)
     }
 
-    onOpened: { chosen = ""; Store.backup = null }
+    onOpened: { chosen = ""; Store.clearBackup() }
 
     background: Rectangle {
         color: Colors.bgSurface
@@ -85,12 +87,22 @@ QC.Popup {
 
             Text {
                 text: root.chosen === "" ? "Pick a backup to see what restoring it would change."
-                    : Store.backup === null ? "Reading…"
+                    : !root.loaded ? "Reading…"
                     : "Restoring " + root.when(root.chosen) + " · +" + Diff.counts(root.lines).added
                       + " −" + Diff.counts(root.lines).removed + " lines of keybinds.lua"
                 color: Colors.textSecondary
                 font.family: Typography.family
                 font.pixelSize: Typography.sizeBody
+            }
+
+            Text {
+                visible: Store.dirty
+                text: "Apply or discard your staged changes before restoring a backup."
+                color: Colors.textSecondary
+                font.family: Typography.family
+                font.pixelSize: Typography.sizeSmall
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
             }
 
             ListView {
@@ -119,7 +131,8 @@ QC.Popup {
                 Action {
                     text: "Restore"
                     primary: true
-                    enabled: Store.backup !== null && !Store.busy
+                    enabled: Store.backup !== null && Store.backup.name === root.chosen
+                             && !Store.busy && !Store.readOnly && !Store.dirty
                     onClicked: { Store.restoreBackup(); root.close() }
                 }
             }

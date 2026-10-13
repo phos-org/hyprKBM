@@ -273,3 +273,25 @@ def test_the_dialogs_keep_our_action_button():
 def test_a_stale_preview_restarts_through_the_event_loop():
     store = qml("state", "Store.qml")
     assert "Qt.callLater(root.requestPreview)" in store
+
+
+def test_a_backup_load_cannot_land_on_the_wrong_backup():
+    store = qml("state", "Store.qml")
+    assert "backupWanted" in store
+    assert re.search(r"backupWanted\s*!==", store)
+    assert "function clearBackup()" in store
+    dialog = qml("components", "BackupsDialog.qml")
+    assert re.search(r"onOpened:[^\n]*Store\.clearBackup\(\)", dialog)
+    assert "Store.backup =" not in dialog
+    assert "Store.backup.name === root.chosen" in dialog
+
+
+def test_restore_never_runs_over_staged_edits_or_a_read_only_model():
+    store = qml("state", "Store.qml")
+    body = store.split("function restoreBackup()")[1].split("function exportTo")[0]
+    for needle in ("backup === null", "busy", "readOnly", "dirty"):
+        assert needle in body, needle
+    dialog = qml("components", "BackupsDialog.qml")
+    enabled = dialog.split("enabled:")[-1].split("onClicked")[0]
+    for needle in ("Store.backup.name", "Store.readOnly", "Store.dirty"):
+        assert needle in enabled, needle
