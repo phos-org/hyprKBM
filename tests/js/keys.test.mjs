@@ -28,3 +28,12 @@ test("comboId sorts and de-duplicates modifiers", () => {
   assert.deepEqual(plain(K.sortMods(["shift", "win"])), ["SUPER", "SHIFT"])
   assert.equal(K.keyId("Page_Up"), "prior")
 })
+
+test("a combo whose last token is a modifier name has no key", () => {
+  assert.equal(K.isModifierOnly("SUPER + "), true)
+  assert.equal(K.isModifierOnly("SUPER + SHIFT"), true)
+  assert.equal(K.isModifierOnly("ctrl"), true)
+  assert.equal(K.isModifierOnly("SUPER + F"), false)
+  assert.equal(K.isModifierOnly("F"), false)
+  assert.equal(K.isModifierOnly("not a combo +"), false)
+})

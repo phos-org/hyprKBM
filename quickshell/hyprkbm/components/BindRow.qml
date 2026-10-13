@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls as QC
 import QtQuick.Layouts
 import "../config"
 import "../state"
@@ -20,6 +21,12 @@ Rectangle {
             || (root.bind.source === "hand" && Store.draft.hand !== null && Store.draft.id === null
                 && Store.draft.hand.uid === root.bind.uid))
 
+    // A hand bind whose keys hyprKBM could not read cannot be matched by an
+    // override or an unbind, so changing it here would do nothing useful.
+    readonly property bool untouchable: root.bind.source === "hand" && root.bind.combo === null
+    readonly property string untouchableReason:
+        "hyprKBM does not understand the keys of this bind, so it cannot be edited or removed here; change it in hyprland.lua."
+
     implicitHeight: 36
     radius: Radius.sm
     color: editing ? Colors.bgSurfaceAlt : hover.hovered ? Colors.bgSurface : "transparent"
@@ -27,6 +34,8 @@ Rectangle {
     border.color: Colors.statusCritical
 
     HoverHandler { id: hover }
+    QC.ToolTip.visible: hover.hovered && root.untouchable
+    QC.ToolTip.text: root.untouchableReason
 
     RowLayout {
         anchors.fill: parent
@@ -93,12 +102,12 @@ Rectangle {
         }
         Action {
             text: "Edit"
-            enabled: !Store.readOnly && root.bind.dispatcher !== null && root.bind.dispatcher.__function === undefined
+            enabled: !Store.readOnly && !root.untouchable && root.bind.dispatcher !== null && root.bind.dispatcher.__function === undefined
             onClicked: Store.edit(root.bind.uid)
         }
         Action {
             text: "Remove"
-            enabled: !Store.readOnly
+            enabled: !Store.readOnly && !root.untouchable
             onClicked: Store.deleteBind(root.bind.uid)
         }
     }

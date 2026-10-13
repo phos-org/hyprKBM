@@ -121,6 +121,14 @@ QtObject {
             model = parsed.model === null ? null : Model.clone(parsed.model)
         loadError = ""
         if (selectedKey === "") selectedKey = "q"
+        keepSubmapValid()
+    }
+
+    // A submap that only existed in staged edits is gone once they are
+    // discarded or reloaded away; leaving it selected would show an empty,
+    // unreachable page.
+    function keepSubmapValid() {
+        if (submap !== "" && submaps.indexOf(submap) < 0) submap = ""
     }
 
     // ------------------------------------------------------- the keyboard
@@ -227,6 +235,9 @@ QtObject {
         if (draft === null) return []
         var out = []
         if (Keys.parse(draft.keys) === null) out.push("Keys: write them like SUPER + SHIFT + F")
+        else if (Keys.isModifierOnly(draft.keys)) out.push("Pick a key, not only modifiers")
+        if (draft.submap !== "" && submaps.indexOf(draft.submap) < 0)
+            out.push("The submap \"" + draft.submap + "\" does not exist; pick another or add it first.")
         Catalogue.actionErrors(draft.action, catalogue).forEach(function (e) { out.push(e) })
         if (draft.hand !== null && draft.id === null) {
             var dropped = Model.droppedOpts(draft.hand.opts)
@@ -312,6 +323,7 @@ QtObject {
 
     function discard() {
         model = Model.clone(saved)
+        keepSubmapValid()
         draft = null
         errors = []
         report("Changes discarded.", false)

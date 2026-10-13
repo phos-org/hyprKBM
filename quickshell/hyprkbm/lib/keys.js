@@ -42,6 +42,13 @@ function parse(keys) {
     return { mods: sortMods(tokens), key: key }
 }
 
+// "SUPER + " parses with SUPER as its key, because the last token is always
+// the key; nobody means that, so the editor asks for a real one.
+function isModifierOnly(keys) {
+    var c = parse(keys)
+    return c !== null && MODIFIERS[c.key.toUpperCase()] !== undefined
+}
+
 function keyId(key) {
     var lower = String(key).toLowerCase()
     return KEY_ALIASES.hasOwnProperty(lower) ? KEY_ALIASES[lower] : lower

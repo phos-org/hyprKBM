@@ -62,13 +62,23 @@ Rectangle {
             elide: Text.ElideRight
         }
 
+        Text {
+            // Same rule as Ctrl+Enter: an open edit is not staged yet, so an
+            // apply now would leave it out without saying so.
+            visible: Store.dirty && Store.draft !== null
+            text: "Save or cancel the open edit to apply."
+            color: Colors.textSecondary
+            font.family: Typography.family
+            font.pixelSize: Typography.sizeSmall
+        }
+
         Action { visible: Store.dirty; text: "Review diff"; onClicked: root.reviewRequested() }
         Action { visible: Store.dirty; text: "Discard"; enabled: !Store.busy; onClicked: Store.discard() }
         Action {
             visible: Store.dirty
             primary: true
             text: Store.busy ? "Applying…" : "Apply"
-            enabled: !Store.busy && !Store.readOnly
+            enabled: !Store.busy && !Store.readOnly && Store.draft === null
             onClicked: Store.apply()
         }
     }

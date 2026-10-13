@@ -355,3 +355,19 @@ def test_overlaps_are_drawn_apart_from_conflicts_and_counted_apart():
     header = qml("components", "Header.qml")
     action = header.split("Store.nextConflict()", 1)[0].rsplit("Action {", 1)[1]
     assert "Model.blocks(g)" in action and "blocking" in action and "overlap" in action
+
+
+def test_small_store_and_row_guards():
+    store = qml("state", "Store.qml")
+    problems = store.split("function draftProblems()", 1)[1].split("function saveDraft()", 1)[0]
+    assert "Keys.isModifierOnly(draft.keys)" in problems and "Pick a key, not only modifiers" in problems
+    assert "submaps.indexOf(draft.submap)" in problems
+    assert "keepSubmapValid()" in store.split("function discard()", 1)[1].split("function ", 1)[0]
+    assert "keepSubmapValid()" in store.split("function adopt(", 1)[1].split("\n    }\n", 1)[0]
+    row = qml("components", "BindRow.qml")
+    assert "untouchable" in row.split('text: "Edit"', 1)[1].split("onClicked", 1)[0]
+    assert "untouchable" in row.split('text: "Remove"', 1)[1].split("onClicked", 1)[0]
+    assert "QC.ToolTip.text" in row
+    bar = qml("components", "StagedBar.qml")
+    assert "Store.draft === null" in bar.split('text: Store.busy ? "Applying…"', 1)[1].split("onClicked", 1)[0]
+    assert "Store.draft !== null" in bar
