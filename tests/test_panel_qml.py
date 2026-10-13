@@ -93,3 +93,25 @@ def test_the_window_lays_out_the_keyboard():
     for part in ("ModifierBar", "Keyboard", "ExtraKeys"):
         assert re.search(r"^\s*%s\s*\{" % part, shell, re.M), part
     assert "Store.moveSelection(" in shell
+
+
+def test_a_held_modifier_is_cleared_when_focus_or_the_window_goes_away():
+    # A release that lands in another window never reaches the scope.
+    shell = qml("shell.qml")
+    assert re.search(r"onActiveFocusChanged:\s*if \(!activeFocus\) Store\.heldMods = \[\]", shell)
+    assert re.search(r"Window\.onActiveChanged:\s*if \(!Window\.active\) Store\.heldMods = \[\]", shell)
+
+
+def test_the_key_handlers_ignore_auto_repeat():
+    shell = qml("shell.qml")
+    assert shell.count("event.isAutoRepeat") >= 2
+
+
+def test_text_fields_keep_their_arrows_and_enter():
+    shell = qml("shell.qml")
+    handler = shell.split("Keys.onPressed", 1)[1]
+    guard = re.search(r"instanceof TextInput\s*\|\|[^)]*instanceof TextEdit", handler)
+    assert guard
+    assert guard.start() < handler.index("Store.moveSelection(")
+    # Modifier tracking comes before the guard so SUPER still shows while typing.
+    assert handler.index("Store.hold(") < guard.start()

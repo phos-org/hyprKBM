@@ -61,9 +61,23 @@ ShellRoot {
             anchors.fill: parent
             focus: true
 
+            // A release is only seen while this scope has focus. If a
+            // compositor bind moves focus (or the window deactivates) while a
+            // modifier is down, the release goes elsewhere and the keyboard
+            // would show that modifier forever, so drop them on either.
+            onActiveFocusChanged: if (!activeFocus) Store.heldMods = []
+            Window.onActiveChanged: if (!Window.active) Store.heldMods = []
+
             Keys.onPressed: function (event) {
+                // Auto-repeat would re-assert a modifier that was just released.
+                if (event.isAutoRepeat) return
                 var mod = QtKeys.modifierFromQtKey(event.key)
                 if (mod !== "") { Store.hold(mod); return }
+                // Text fields leave arrows and Return unaccepted, so without
+                // this they would move the selection under the user's typing.
+                // Everything non-modifier (including "/") sits below it.
+                var focused = scope.Window.activeFocusItem
+                if (focused && (focused instanceof TextInput || focused instanceof TextEdit)) return
                 var dirs = {}
                 dirs[Qt.Key_Left] = "left"
                 dirs[Qt.Key_Right] = "right"
@@ -79,6 +93,7 @@ ShellRoot {
                 }
             }
             Keys.onReleased: function (event) {
+                if (event.isAutoRepeat) return
                 var mod = QtKeys.modifierFromQtKey(event.key)
                 if (mod !== "") Store.release(mod)
             }
