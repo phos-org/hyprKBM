@@ -54,7 +54,7 @@ ColumnLayout {
     Line {
         message: root.doc && root.doc.modelError
                  ? "keybinds.json cannot be used, so the panel is read-only: " + root.doc.modelError
-                   + (root.doc.backups.length > 0 ? " Restore a backup from Backups." : "")
+                   + (root.doc.backups.length > 0 ? " Restoring a backup from Backups replaces it." : "")
                  : ""
     }
 

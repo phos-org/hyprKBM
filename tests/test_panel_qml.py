@@ -286,15 +286,35 @@ def test_a_backup_load_cannot_land_on_the_wrong_backup():
     assert "Store.backup.name === root.chosen" in dialog
 
 
-def test_restore_never_runs_over_staged_edits_or_a_read_only_model():
+def test_restore_never_runs_over_staged_edits_and_is_the_way_out_of_a_broken_model():
     store = qml("state", "Store.qml")
-    body = store.split("function restoreBackup()")[1].split("function exportTo")[0]
-    for needle in ("backup === null", "busy", "readOnly", "dirty"):
-        assert needle in body, needle
+    refusal = store.split("property string restoreRefusal", 1)[1].split("function restoreBackup()", 1)[0]
+    for needle in ("backup === null", "busy", "readOnly", "dirty", "doc.modelError", "backup.modelError"):
+        assert needle in refusal, needle
+    body = store.split("function restoreBackup()", 1)[1].split("function exportTo", 1)[0]
+    assert "applyModel(" in body and "apply()" not in body.replace("applyModel(", "")
+    am = store.split("function applyModel(m)", 1)[1].split("function runApply", 1)[0]
+    assert "busy" in am and "dirty" not in am and "readOnly" not in am
     dialog = qml("components", "BackupsDialog.qml")
     enabled = dialog.split("enabled:")[-1].split("onClicked")[0]
-    for needle in ("Store.backup.name", "Store.readOnly", "Store.dirty"):
+    for needle in ("Store.backup.name", "Store.restoreRefusal"):
         assert needle in enabled, needle
+
+
+def test_the_payload_is_serialized_when_the_apply_starts():
+    store = qml("state", "Store.qml")
+    run = store.split("function runApply(m)", 1)[1].split("function requestPreview", 1)[0]
+    assert "applyPayload = JSON.stringify(m)" in run
+    assert run.index("applyPayload =") < run.index("applyProc.running = true")
+    proc = store.split("property Process applyProc", 1)[1].split("property Process previewProc", 1)[0]
+    assert "write(root.applyPayload)" in proc
+    assert "root.model" not in proc.split("onStarted", 1)[1].split("onExited", 1)[0]
+
+
+def test_qualified_process_ids_in_the_store():
+    store = qml("state", "Store.qml")
+    assert "root.backupProc.command" in store and "root.exportProc.command" in store
+    assert not re.search(r"(?<![.\w])(backupProc|exportProc)\.command", store)
 
 
 def test_escape_never_loses_work_or_kills_an_apply():

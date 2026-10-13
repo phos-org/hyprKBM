@@ -7,8 +7,8 @@ import "../state"
 import "../lib/diff.js" as Diff
 
 // The last thirty versions of keybinds.json, each with what restoring it
-// would change. Restoring stages the backup and applies it, through the same
-// checks as any other apply.
+// would change. Restoring applies the backup through the same checks as any other
+// apply, and is also the way out when keybinds.json is broken.
 QC.Popup {
     id: root
     parent: QC.Overlay.overlay
@@ -96,8 +96,8 @@ QC.Popup {
             }
 
             Text {
-                visible: Store.dirty
-                text: "Apply or discard your staged changes before restoring a backup."
+                visible: root.loaded && Store.restoreRefusal !== ""
+                text: Store.restoreRefusal
                 color: Colors.textSecondary
                 font.family: Typography.family
                 font.pixelSize: Typography.sizeSmall
@@ -132,7 +132,7 @@ QC.Popup {
                     text: "Restore"
                     primary: true
                     enabled: Store.backup !== null && Store.backup.name === root.chosen
-                             && !Store.busy && !Store.readOnly && !Store.dirty
+                             && Store.restoreRefusal === ""
                     onClicked: { Store.restoreBackup(); root.close() }
                 }
             }

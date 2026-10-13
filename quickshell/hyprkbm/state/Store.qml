@@ -65,6 +65,7 @@ QtObject {
     property bool failed: false
     property var errors: []
     property bool busy: false
+    property string applyPayload: ""
     property var preview: null
     // The model the current preview run was started for. A model edited while
     // the helper ran would otherwise leave a preview of an older model on show.
@@ -311,8 +312,22 @@ QtObject {
 
     function apply() {
         if (!dirty || busy || readOnly) return
+        runApply(model)
+    }
+
+    // Applies a model that is not the staged one -- a restored backup. Python
+    // validates it exactly as it does any other; only the busy guard is here.
+    function applyModel(m) {
+        if (busy) return
+        runApply(m)
+    }
+
+    function runApply(m) {
         busy = true
         report("Applying…", false)
+        // Captured now: the process starts later, and a model edited in
+        // between must not be what gets written.
+        applyPayload = JSON.stringify(m)
         applyProc.stdinEnabled = true
         applyProc.running = true
     }
@@ -332,9 +347,9 @@ QtObject {
         backupWanted = name
         backup = null
         // A load already running cannot be retargeted; its exit starts this one.
-        if (backupProc.running) return
-        backupProc.command = [helper("hyprkbm"), "--backup", name]
-        backupProc.running = true
+        if (root.backupProc.running) return
+        root.backupProc.command = [helper("hyprkbm"), "--backup", name]
+        root.backupProc.running = true
     }
 
     function clearBackup() {
@@ -342,24 +357,31 @@ QtObject {
         backup = null
     }
 
+    // Why the loaded backup cannot be restored right now, or "". A broken
+    // keybinds.json makes the panel read-only, and restoring is the way out of
+    // that; over staged edits it would silently replace them.
+    readonly property string restoreRefusal: {
+        if (backup === null) return "Pick a backup to restore first."
+        if (busy) return "Wait for the current apply to finish."
+        if (backup.modelError) return backup.modelError + " It cannot be restored."
+        if (readOnly && !(doc && doc.modelError)) return "The keybinds cannot be edited, so a backup cannot be restored."
+        if (dirty && !readOnly) return "Apply or discard your staged changes before restoring a backup."
+        return ""
+    }
+
     function restoreBackup() {
-        // Restoring replaces the staged model and applies it, so it must not
-        // run over staged edits or a model the panel cannot edit.
-        if (backup === null) { report("Pick a backup to restore first.", true); return }
-        if (busy) { report("Wait for the current apply to finish.", true); return }
-        if (readOnly) { report("The keybinds cannot be edited, so a backup cannot be restored.", true); return }
-        if (dirty) { report("Apply or discard your staged changes before restoring a backup.", true); return }
-        model = backup.model === null ? Model.emptyModel() : Model.clone(backup.model)
-        if (!dirty) {
+        if (restoreRefusal !== "") { report(restoreRefusal, true); return }
+        var m = backup.model === null ? Model.emptyModel() : Model.clone(backup.model)
+        if (!readOnly && JSON.stringify(m) === JSON.stringify(saved)) {
             report("That backup is what is applied already.", false)
             return
         }
-        apply()
+        applyModel(m)
     }
 
     function exportTo(path) {
-        exportProc.command = [helper("hyprkbm"), "--export", "md", path]
-        exportProc.running = true
+        root.exportProc.command = [helper("hyprkbm"), "--export", "md", path]
+        root.exportProc.running = true
     }
 
     function setLayout(name) {
@@ -404,7 +426,7 @@ QtObject {
         command: [root.helper("hyprkbm-apply")]
         stdinEnabled: true
         onStarted: {
-            write(JSON.stringify(root.model))
+            write(root.applyPayload)
             stdinEnabled = false   // EOF, so the helper's read of stdin returns
         }
         stdout: StdioCollector { id: applyOut }
@@ -452,7 +474,7 @@ QtObject {
     property Process backupProc: Process {
         stdout: StdioCollector { id: backupOut }
         onExited: function (code) {
-            var got = backupProc.command[2]
+            var got = root.backupProc.command[2]
             if (got !== root.backupWanted) {
                 // Stale: the dialog moved on while this ran. Start the wanted
                 // one once the process has really stopped.
@@ -473,7 +495,7 @@ QtObject {
     property Process exportProc: Process {
         stderr: StdioCollector { id: exportErr }
         onExited: function (code) {
-            if (code === 0) root.report("Exported to " + exportProc.command[3] + ".", false)
+            if (code === 0) root.report("Exported to " + root.exportProc.command[3] + ".", false)
             else root.report((exportErr.text || "Export failed.").trim(), true)
         }
     }
