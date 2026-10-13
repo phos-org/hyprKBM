@@ -134,3 +134,23 @@ def test_binds_lists_what_an_override_needs(home_env, paths, stubs):
     lines = res.stdout.splitlines()
     assert 'SUPER + F\t\thyprland.lua:1\texec_cmd:["dolphin"]' in lines
     assert "right\tresize\thyprland.lua:3\twindow.resize:[]" in lines
+
+
+def test_the_panel_is_made_to_float_before_it_opens(home_env, stubs):
+    """Tiled, the panel gets whatever share of the workspace is left -- often
+    far below its minimum size. A window rule added just before it opens makes
+    it float, centred, at its own size; the rule lives until the next reload,
+    like everything else hyprKBM applies, and a guard keeps launches from
+    stacking copies of it."""
+    res = run(home_env)
+
+    assert res.returncode == 0, res.stderr
+    wait_for(stubs, "qs")
+    calls = stubs.calls()
+    evals = [c for c in calls if c[:2] == ["hyprctl", "eval"]]
+    assert len(evals) == 1
+    rule = evals[0][2]
+    for needle in ("hl.window_rule(", "float = true", "center = true",
+                   'size = "1180 760"', "Keybinds", "org", "__hyprkbm_panel_rule"):
+        assert needle in rule, needle
+    assert calls.index(evals[0]) < next(i for i, c in enumerate(calls) if c[0] == "qs")

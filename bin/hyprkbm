@@ -183,6 +183,31 @@ def panel_open():
         for c in clients)
 
 
+# Tiled, the panel gets whatever share of the workspace is left, often far
+# below the size it is laid out for. This rule makes it float, centred, at its
+# own size. It is added at run time, like the binds, so hyprland.lua is never
+# touched; a reload drops it together with the global that stops repeated
+# launches from adding it again.
+FLOAT_RULE = """\
+if not __hyprkbm_panel_rule then
+    __hyprkbm_panel_rule = hl.window_rule({
+        name = "hyprkbm-panel",
+        match = { class = "^org[.]quickshell$", title = "^Keybinds$" },
+        float = true,
+        center = true,
+        size = "1180 760",
+    })
+end
+"""
+
+
+def float_the_panel():
+    try:
+        subprocess.run(["hyprctl", "eval", FLOAT_RULE], capture_output=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        pass  # a tiled panel still works; it is just cramped
+
+
 def cmd_panel(paths):
     if shutil.which("qs") is None:
         return fail("Quickshell (qs) is not installed; the panel needs it. "
@@ -197,6 +222,7 @@ def cmd_panel(paths):
     # A keybind's PATH does not include ~/.local/bin, so the panel is told
     # where its helpers are rather than left to find them.
     env = dict(os.environ, HYPRKBM_BIN=str(ROOT / "bin"))
+    float_the_panel()
     # -n: a second launch before the first window is listed must not open a second panel.
     subprocess.Popen(["qs", "-p", str(PANEL), "-d", "-n"], env=env,
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
