@@ -69,15 +69,21 @@ ShellRoot {
             Window.onActiveChanged: if (!Window.active) Store.heldMods = []
 
             Keys.onPressed: function (event) {
-                // Auto-repeat would re-assert a modifier that was just released.
-                if (event.isAutoRepeat) return
                 var mod = QtKeys.modifierFromQtKey(event.key)
-                if (mod !== "") { Store.hold(mod); return }
+                // Auto-repeat would re-assert a modifier that was just
+                // released; for every other key it is wanted, so a held arrow
+                // keeps moving.
+                if (mod !== "") { if (!event.isAutoRepeat) Store.hold(mod); return }
                 // Text fields leave arrows and Return unaccepted, so without
                 // this they would move the selection under the user's typing.
                 // Everything non-modifier (including "/") sits below it.
                 var focused = scope.Window.activeFocusItem
                 if (focused && (focused instanceof TextInput || focused instanceof TextEdit)) return
+                if (event.key === Qt.Key_Slash) {
+                    header.focusSearch()
+                    event.accepted = true
+                    return
+                }
                 var dirs = {}
                 dirs[Qt.Key_Left] = "left"
                 dirs[Qt.Key_Right] = "right"
@@ -107,6 +113,14 @@ ShellRoot {
                 anchors.fill: parent
                 anchors.margins: Spacing.lg
                 spacing: Spacing.md
+
+                Header {
+                    id: header
+                    Layout.fillWidth: true
+                    onLeaveSearch: scope.forceActiveFocus()
+                }
+
+                Banner { Layout.fillWidth: true }
 
                 Text {
                     visible: Store.loading || Store.loadError !== ""
@@ -152,7 +166,16 @@ ShellRoot {
                     }
                 }
 
-                Item { Layout.fillWidth: true; Layout.fillHeight: true }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    spacing: Spacing.md
+
+                    BindPanel {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                    }
+                }
             }
         }
     }

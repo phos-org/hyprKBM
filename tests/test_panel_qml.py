@@ -105,6 +105,9 @@ def test_a_held_modifier_is_cleared_when_focus_or_the_window_goes_away():
 def test_the_key_handlers_ignore_auto_repeat():
     shell = qml("shell.qml")
     assert shell.count("event.isAutoRepeat") >= 2
+    # Only a modifier ignores auto-repeat on press, so a held arrow still repeats.
+    handler = shell.split("Keys.onPressed", 1)[1].split("Keys.onReleased", 1)[0]
+    assert handler.index("modifierFromQtKey") < handler.index("event.isAutoRepeat")
 
 
 def test_text_fields_keep_their_arrows_and_enter():
@@ -115,3 +118,31 @@ def test_text_fields_keep_their_arrows_and_enter():
     assert guard.start() < handler.index("Store.moveSelection(")
     # Modifier tracking comes before the guard so SUPER still shows while typing.
     assert handler.index("Store.hold(") < guard.start()
+
+
+def test_the_header_and_bind_panel_are_wired():
+    header = qml("components", "Header.qml")
+    for needle in ("Store.submaps", "Store.query", "Store.nextConflict()", "ThemePopup",
+                   "signal backupsRequested()", "signal exportRequested()",
+                   "signal submapRequested()", "signal settingsRequested()",
+                   "function focusSearch()"):
+        assert needle in header, needle
+    panel = qml("components", "BindPanel.qml")
+    for needle in ("Store.listed", "Store.removedHere", "Store.unplaced",
+                   "Store.restoreHand(", "Store.newBindOnSelected()"):
+        assert needle in panel, needle
+    row = qml("components", "BindRow.qml")
+    for needle in ("Store.edit(", "Store.deleteBind(", "Store.keepBoth("):
+        assert needle in row, needle
+    banner = qml("components", "Banner.qml")
+    for needle in ("readerError", "modelError", "Store.startWatcher()"):
+        assert needle in banner, needle
+
+
+def test_slash_focuses_search():
+    shell = qml("shell.qml")
+    assert "Qt.Key_Slash" in shell
+    assert "header.focusSearch()" in shell
+    handler = shell.split("Keys.onPressed", 1)[1]
+    # The text-field guard must come first, or "/" typed in the search re-focuses it.
+    assert handler.index("instanceof TextInput") < handler.index("Qt.Key_Slash")
