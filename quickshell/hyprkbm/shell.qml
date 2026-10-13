@@ -114,8 +114,7 @@ ShellRoot {
                 if (mod !== "") Store.release(mod)
             }
             Keys.onEscapePressed: {
-                if (Store.draft !== null) Store.cancelEdit()
-                else Qt.quit()
+                if (Store.requestQuit()) Qt.quit()
             }
 
             ColumnLayout {

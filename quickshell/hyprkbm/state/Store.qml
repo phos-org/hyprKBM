@@ -8,6 +8,7 @@ import "../lib/keymap.js" as Keymap
 import "../lib/search.js" as Search
 import "../lib/layouts.js" as Layouts
 import "../lib/catalogue.js" as Catalogue
+import "../lib/quit.js" as Quit
 
 // The panel's single source of truth. It never writes keybinds.json or
 // keybinds.lua: edits are staged in `model` and leave only through
@@ -75,6 +76,9 @@ QtObject {
     // a result is kept only when it is for the name still wanted.
     property string backupWanted: ""
     property int conflictIndex: -1
+    // When the first Esc over staged edits was pressed; a second one soon
+    // after quits. 0 means not armed.
+    property real quitArmedAt: 0
 
     signal applied()
 
@@ -243,6 +247,16 @@ QtObject {
     }
 
     function cancelEdit() { draft = null }
+
+    // Whether the window should close for this Esc. Reports why it did not.
+    function requestQuit() {
+        var r = Quit.escape({ busy: busy, draft: draft !== null, dirty: dirty }, quitArmedAt, Date.now())
+        quitArmedAt = r.action === "warn" ? r.armedAt : 0
+        if (r.action === "cancel") cancelEdit()
+        else if (r.action === "warn")
+            report("You have changes that are not applied. Apply or Discard them, or press Esc again to quit.", true)
+        return r.action === "quit"
+    }
 
     function deleteBind(uid) {
         var b = findBind(uid)

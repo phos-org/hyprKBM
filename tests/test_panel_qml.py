@@ -295,3 +295,14 @@ def test_restore_never_runs_over_staged_edits_or_a_read_only_model():
     enabled = dialog.split("enabled:")[-1].split("onClicked")[0]
     for needle in ("Store.backup.name", "Store.readOnly", "Store.dirty"):
         assert needle in enabled, needle
+
+
+def test_escape_never_loses_work_or_kills_an_apply():
+    shell = qml("shell.qml")
+    esc = shell.split("Keys.onEscapePressed", 1)[1].split("ColumnLayout", 1)[0]
+    assert "Store.requestQuit()" in esc
+    assert "Store.cancelEdit()" not in esc
+    store = qml("state", "Store.qml")
+    assert "property real quitArmedAt" in store
+    body = store.split("function requestQuit()", 1)[1].split("function ", 1)[0]
+    assert "Quit.escape(" in body and "busy" in body and "dirty" in body
