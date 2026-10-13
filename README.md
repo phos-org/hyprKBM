@@ -104,15 +104,21 @@ goes at the next reload and comes back at the next launch. Running `hyprkbm`
 again focuses the open panel instead of opening a second one.
 
 - **The keyboard** is lit by what each key does under the modifiers you hold
-  (or click): accent for bound, red for a conflict. Click a key, or move with
+  (or click): accent for bound, filled red for a conflict, and an accent key
+  with a red outline for an overlap (see below). Click a key, or move with
   the arrow keys, to see every bind on it below.
 - **Submaps** are the chips in the header; **search** (`/`) narrows to binds
   matching plain words or the tags `mod:`, `key:`, `exec:`, `desc:`,
   `submap:` and `src:` (`src:lua` is your `hyprland.lua`).
 - **Conflicts.** Two binds on one key are a *conflict* when at least one is
-  hyprKBM's, and that blocks Apply until you resolve it (or set `allowConflict`
-  in `keybinds.json`). Overlaps among only your `hyprland.lua` binds are
-  shown as *overlaps*; they never block, and the panel says so.
+  hyprKBM's. The bind list's **Keep both** marks that conflict as deliberate
+  (it sets `allowConflict` on the hyprKBM bind). Until then Apply refuses with
+  a message naming the keys; the button itself stays enabled. Overlaps among
+  only your `hyprland.lua` binds are *overlaps*: they never block, and the
+  panel says so. The header counts conflicts, or overlaps when none block.
+- **Stale edits.** An unbind or override whose `hyprland.lua` bind has
+  disappeared is listed under *Stale* in the bind list, with a **Forget**
+  button that removes the unbind or turns the override into an ordinary bind.
 - **Edit, Remove, + Add.** Editing one of your `hyprland.lua` binds makes an
   override; removing one makes an unbind. In the editor, **⏺ Record** takes
   the next key combination (Esc stops recording; Shift+digit records as the
@@ -122,9 +128,14 @@ again focuses the open panel instead of opening a second one.
   `keybinds.lua` before and after, and any errors. **Discard** throws the
   staged changes away. Ctrl+Enter applies too, but only from the keyboard
   view: not while you type in a field or have a dialog open, and only when
-  there are staged changes and no bind is open in the editor.
+  there are staged changes and no bind is open in the editor. The Apply button
+  waits for an open edit too. **Esc** cancels an open edit; with staged
+  changes it warns instead of quitting, and quits only if pressed again
+  within 3 seconds; it does nothing while an apply runs.
 - **Backups** lists the last 30 versions with what restoring each would
-  change; Restore is disabled while there are staged changes. **Export**
+  change. Restore is disabled while there are staged changes, except that it
+  is the way out when `keybinds.json` is broken (the panel is then read-only),
+  and a backup whose `keybinds.json` cannot be read is refused. **Export**
   writes the Markdown cheatsheet to a path you choose. **Theme** offers the
   phos presets, an accent and dark or light, saved in
   `~/.config/hyprkbm/theme.json`. **⋯** switches between ANSI and ISO
@@ -178,7 +189,7 @@ hyprKBM's binds, overrides and unbinds live in
 | `binds[].action` | `{ "kind": <id>, "args": {…} }` for an action from [`share/actions.json`](share/actions.json) (running a command, focus, moving windows, fullscreen, layout messages, submaps and more), or `{ "kind": "raw", "lua": "<dispatcher>" }` for anything else. |
 | `binds[].submap` | Optional. A submap defined here or in `hyprland.lua`; the global map when left out. |
 | `binds[].description` | Optional. Shown in the cheatsheet. |
-| `binds[].flags` | Optional `HL.BindOptions` switches: `repeating`, `locked`, `release`, `long_press`, `non_consuming`, `transparent`, `ignore_mods` and the rest. |
+| `binds[].flags` | Optional `HL.BindOptions` switches: `repeating`, `locked`, `release`, `long_press`, `non_consuming`, `transparent`, `ignore_mods`, `dont_inhibit`, `submap_universal`, `click`, `drag`, `mouse` and `allow_input_capture`. |
 | `binds[].replaces` | Makes the bind an **override** of one of your hand-written binds. |
 | `binds[].allowConflict` | Optional. `true` keeps a deliberate conflict from blocking the apply. |
 | `unbinds[]` | Removes one of your hand-written binds. |
