@@ -64,6 +64,19 @@ ShellRoot {
             Keys.onPressed: function (event) {
                 var mod = QtKeys.modifierFromQtKey(event.key)
                 if (mod !== "") { Store.hold(mod); return }
+                var dirs = {}
+                dirs[Qt.Key_Left] = "left"
+                dirs[Qt.Key_Right] = "right"
+                dirs[Qt.Key_Up] = "up"
+                dirs[Qt.Key_Down] = "down"
+                if (dirs[event.key] !== undefined) {
+                    Store.moveSelection(dirs[event.key])
+                    event.accepted = true
+                } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                    if (Store.listed.length > 0) Store.edit(Store.listed[0].uid)
+                    else Store.newBindOnSelected()
+                    event.accepted = true
+                }
             }
             Keys.onReleased: function (event) {
                 var mod = QtKeys.modifierFromQtKey(event.key)
@@ -81,15 +94,50 @@ ShellRoot {
                 spacing: Spacing.md
 
                 Text {
-                    text: Store.loading ? "Reading your keybinds…"
-                        : Store.loadError !== "" ? Store.loadError
-                        : Store.merged.binds.length + " binds, " + Store.merged.conflicts.length + " conflicts"
-                    color: Store.loadError !== "" ? Colors.statusCritical : Colors.textPrimary
+                    visible: Store.loading || Store.loadError !== ""
+                    text: Store.loading ? "Reading your keybinds…" : Store.loadError
+                    color: Store.loadError !== "" ? Colors.statusCritical : Colors.textSecondary
                     font.family: Typography.family
                     font.pixelSize: Typography.sizeBody
                 }
 
-                Item { Layout.fillHeight: true }
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: keyboardColumn.implicitHeight + Spacing.lg * 2
+                    color: Colors.bgBase
+                    radius: Radius.md
+                    border.width: 1
+                    border.color: Colors.borderSubtle
+
+                    ColumnLayout {
+                        id: keyboardColumn
+                        anchors.fill: parent
+                        anchors.margins: Spacing.lg
+                        spacing: Spacing.sm
+
+                        ModifierBar { Layout.fillWidth: true }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Spacing.lg
+
+                            Keyboard {
+                                id: keyboard
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: implicitHeight
+                            }
+
+                            Rectangle { Layout.fillHeight: true; implicitWidth: 1; color: Colors.borderSubtle }
+
+                            ExtraKeys {
+                                Layout.alignment: Qt.AlignTop
+                                unit: keyboard.unit
+                            }
+                        }
+                    }
+                }
+
+                Item { Layout.fillWidth: true; Layout.fillHeight: true }
             }
         }
     }

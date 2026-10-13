@@ -73,3 +73,23 @@ def test_no_qml_property_shadows_a_builtin():
     for name, source in all_qml().items():
         for prop in re.findall(r"\bproperty\s+\w+\s+(\w+)", source):
             assert prop not in builtins and not prop.startswith("on"), "%s: %s" % (name, prop)
+
+
+def test_the_keyboard_draws_from_the_store_and_lib():
+    keyboard = qml("components", "Keyboard.qml")
+    assert "Store.layout.main" in keyboard
+    assert "Store.layout.nav" in keyboard
+    block = qml("components", "KeyBlock.qml")
+    assert "Store.keyStates" in block
+    assert "Labels.shortLabel" in block
+    cap = qml("components", "KeyCap.qml")
+    assert "signal clicked()" in cap
+    # Lit keys are tinted over the key's surface, never drawn translucent.
+    assert "Qt.tint(" in cap
+
+
+def test_the_window_lays_out_the_keyboard():
+    shell = qml("shell.qml")
+    for part in ("ModifierBar", "Keyboard", "ExtraKeys"):
+        assert re.search(r"^\s*%s\s*\{" % part, shell, re.M), part
+    assert "Store.moveSelection(" in shell
