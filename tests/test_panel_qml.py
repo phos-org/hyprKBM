@@ -47,7 +47,25 @@ def test_the_window_is_titled_and_scriptable():
     assert re.search(r'title:\s*"Keybinds"', shell)
     assert re.search(r'target:\s*"hyprkbm"', shell)
     # Applying from a script would let a smoke test change a real session.
-    assert "Store.apply()" not in shell.split("IpcHandler", 1)[1].split("FocusScope", 1)[0]
+    ipc = shell.split("IpcHandler", 1)[1].split("FocusScope", 1)[0]
+    assert "Store.apply()" not in ipc
+    assert "Store.restoreBackup()" not in ipc
+
+
+def test_the_store_reports_failures_and_keeps_staged_edits():
+    store = qml("state", "Store.qml")
+    layout = store.split("property Process layoutProc", 1)[1].split("property Process watcherProc", 1)[0]
+    assert "StdioCollector" in layout and "root.report(" in layout
+    adopt = store.split("function adopt(", 1)[1].split("// ----", 1)[0]
+    assert "var hadEdits = root.dirty" in adopt
+    assert adopt.index("hadEdits") < adopt.index("saved = ")
+    apply_proc = store.split("property Process applyProc", 1)[1].split("property Process previewProc", 1)[0]
+    assert "result.errors || []" in apply_proc
+    assert "result.errors[0]" not in apply_proc
+    for fn in ("newBind", "saveDraft", "edit", "deleteBind", "keepBoth", "addSubmap", "restoreHand"):
+        body = store.split("function %s(" % fn, 1)[1].split("\n    }\n", 1)[0]
+        assert "model === null" in body, fn
+    assert "applied already" in store
 
 
 def test_no_qml_property_shadows_a_builtin():

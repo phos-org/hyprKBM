@@ -98,9 +98,14 @@ QtObject {
     }
 
     function adopt(parsed) {
+        // A reload (after a layout change, the watcher or IPC) must not throw
+        // away edits that are staged but not applied; only a clean model is
+        // refreshed from disk. Dirtiness is read before `saved` is overwritten.
+        var hadEdits = root.dirty
         doc = parsed
         saved = parsed.model
-        model = parsed.model === null ? null : Model.clone(parsed.model)
+        if (model === null || !hadEdits)
+            model = parsed.model === null ? null : Model.clone(parsed.model)
         loadError = ""
         if (selectedKey === "") selectedKey = "q"
     }
@@ -160,7 +165,7 @@ QtObject {
 
     function edit(uid) {
         var b = findBind(uid)
-        if (b === null || readOnly) return
+        if (b === null || readOnly || model === null) return
         if (b.source === "hand") {
             var action = Catalogue.actionFromDispatcher(b.dispatcher, catalogue)
             if (action === null) {
@@ -177,7 +182,7 @@ QtObject {
     }
 
     function newBind(keys) {
-        if (readOnly) return
+        if (readOnly || model === null) return
         draft = { id: null, hand: null, keys: keys, submap: submap,
                   action: { kind: "exec_cmd", args: {} }, description: "", flags: {}, allowConflict: false }
     }
@@ -219,7 +224,7 @@ QtObject {
     }
 
     function saveDraft() {
-        if (draft === null || draftProblems().length > 0) return
+        if (model === null || draft === null || draftProblems().length > 0) return
         var fields = { keys: draft.keys.trim(), submap: draft.submap, action: draft.action,
                        description: draft.description, flags: draft.flags, allowConflict: draft.allowConflict }
         if (draft.id !== null) model = Model.updateBind(model, draft.id, fields)
@@ -233,7 +238,7 @@ QtObject {
 
     function deleteBind(uid) {
         var b = findBind(uid)
-        if (b === null || readOnly) return
+        if (b === null || readOnly || model === null) return
         if (b.source === "hand") {
             var blocker = Model.overrideBlocker(hand, b.hand)
             if (blocker !== null) {
@@ -253,14 +258,19 @@ QtObject {
         draft = null
     }
 
-    function restoreHand(h) { model = Model.restoreHand(model, h) }
+    function restoreHand(h) {
+        if (model === null) return
+        model = Model.restoreHand(model, h)
+    }
 
     function keepBoth(uid) {
         var b = findBind(uid)
-        if (b !== null && b.id !== null) model = Model.updateBind(model, b.id, { allowConflict: true })
+        if (model === null || b === null || b.id === null) return
+        model = Model.updateBind(model, b.id, { allowConflict: true })
     }
 
     function addSubmap(name, reset) {
+        if (model === null) return
         model = Model.addSubmap(model, name, reset)
         submap = name
     }
@@ -298,6 +308,10 @@ QtObject {
     function restoreBackup() {
         if (backup === null) return
         model = backup.model === null ? Model.emptyModel() : Model.clone(backup.model)
+        if (!dirty) {
+            report("That backup is what is applied already.", false)
+            return
+        }
         apply()
     }
 
@@ -368,9 +382,10 @@ QtObject {
                 root.applied()
                 return
             }
-            root.errors = result.errors
-            var more = result.errors.length > 1 ? " (and " + (result.errors.length - 1) + " more)" : ""
-            root.report(result.errors[0].message + more, true)
+            var errs = result.errors || []
+            root.errors = errs
+            var more = errs.length > 1 ? " (and " + (errs.length - 1) + " more)" : ""
+            root.report(errs.length ? errs[0].message + more : "hyprkbm-apply refused the change.", true)
         }
     }
 
@@ -405,7 +420,11 @@ QtObject {
     }
 
     property Process layoutProc: Process {
-        onExited: function (code) { if (code === 0) root.reload() }
+        stderr: StdioCollector { id: layoutErr }
+        onExited: function (code) {
+            if (code === 0) root.reload()
+            else root.report((layoutErr.text || "The layout could not be saved.").trim(), true)
+        }
     }
 
     property Process watcherProc: Process {

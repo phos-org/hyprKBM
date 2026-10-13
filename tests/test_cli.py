@@ -82,7 +82,7 @@ def test_no_arguments_opens_the_panel(home_env, stubs):
     assert res.returncode == 0, res.stderr
     wait_for(stubs, "qs")
     qs = [c for c in stubs.calls() if c[0] == "qs"][0]
-    assert qs[1] == "-p" and qs[2].endswith("quickshell/hyprkbm") and qs[3] == "-d"
+    assert qs[1] == "-p" and qs[2].endswith("quickshell/hyprkbm") and qs[3:] == ["-d", "-n"]
 
 
 def test_an_open_panel_is_focused_not_opened_again(home_env, stubs):
@@ -97,10 +97,9 @@ def test_an_open_panel_is_focused_not_opened_again(home_env, stubs):
 
 def test_no_quickshell_is_explained(home_env, stubs):
     (stubs.root / "qs").unlink()
-    env = dict(home_env, PATH="%s:/usr/bin:/bin" % stubs.root)
-    if any(os.access(os.path.join(d, "qs"), os.X_OK) for d in ("/usr/bin", "/bin")):
-        import pytest
-        pytest.skip("a real qs is installed in /usr/bin; cannot hide it")
+    # sys.executable is absolute, so python runs while PATH holds only the stubs
+    # and no real qs can be found.
+    env = dict(home_env, PATH=str(stubs.root))
     res = subprocess.run([sys.executable, str(HYPRKBM)], capture_output=True, text=True, env=env)
 
     assert res.returncode == 1
