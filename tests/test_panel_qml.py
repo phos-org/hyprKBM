@@ -306,3 +306,10 @@ def test_escape_never_loses_work_or_kills_an_apply():
     assert "property real quitArmedAt" in store
     body = store.split("function requestQuit()", 1)[1].split("function ", 1)[0]
     assert "Quit.escape(" in body and "busy" in body and "dirty" in body
+
+
+def test_overriding_a_bind_with_options_hyprkbm_cannot_keep_is_a_problem():
+    store = qml("state", "Store.qml")
+    body = store.split("function draftProblems()", 1)[1].split("function saveDraft()", 1)[0]
+    assert "Model.droppedOpts(draft.hand.opts)" in body
+    assert "would drop these options" in body

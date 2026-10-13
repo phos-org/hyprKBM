@@ -1,6 +1,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
+import { fileURLToPath } from "node:url"
 import { load, plain } from "./load.mjs"
 
 const M = load("model")
@@ -109,4 +110,18 @@ test("blocks: only a conflict involving a hyprKBM bind stops an apply", () => {
   assert.equal(M.blocks([hand, hand]), false)
   assert.equal(M.blocks([own, own]), true)
   assert.equal(M.blocks([hand, over]), true)
+})
+
+test("FLAG_NAMES is exactly the flags Python's model accepts", () => {
+  const py = readFileSync(fileURLToPath(new URL("../../lib/hyprkbm/model.py", import.meta.url)), "utf8")
+  const literal = py.match(/^FLAGS\s*=\s*\{([^}]*)\}/m)[1]
+  const names = [...literal.matchAll(/"(\w+)"/g)].map(m => m[1])
+  assert.equal(names.length, 13)
+  assert.deepEqual([...M.FLAG_NAMES].sort(), names.sort())
+})
+
+test("droppedOpts names the options of a hand bind hyprKBM cannot keep", () => {
+  assert.deepEqual(plain(M.droppedOpts({ repeating: true, description: "x", desc: "y" })), [])
+  assert.deepEqual(plain(M.droppedOpts({ locked: true, foo: 1, bar: true })), ["foo", "bar"])
+  assert.deepEqual(plain(M.droppedOpts(undefined)), [])
 })

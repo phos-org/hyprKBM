@@ -10,8 +10,19 @@
 // Nothing here mutates its input. The store assigns each result to a
 // `property var`, and an object changed in place would never repaint.
 
-var FLAG_NAMES = ["repeating", "locked", "release", "long_press", "non_consuming",
-                  "transparent", "ignore_mods"]
+// Python's FLAGS, in full (a node test compares them): a hand bind that uses a
+// flag missing here would silently lose it when overridden.
+var FLAG_NAMES = ["repeating", "locked", "release", "non_consuming", "transparent",
+                  "ignore_mods", "dont_inhibit", "long_press", "submap_universal", "click",
+                  "drag", "mouse", "allow_input_capture"]
+
+// Options of a hand bind that an override cannot carry over: anything that is
+// neither a flag nor its description. Saving would drop them without a word.
+function droppedOpts(opts) {
+    return Object.keys(opts || {}).filter(function (k) {
+        return FLAG_NAMES.indexOf(k) < 0 && k !== "description" && k !== "desc"
+    })
+}
 
 function emptyModel() { return { version: 1, submaps: [], binds: [], unbinds: [] } }
 

@@ -228,6 +228,9 @@ QtObject {
         if (Keys.parse(draft.keys) === null) out.push("Keys: write them like SUPER + SHIFT + F")
         Catalogue.actionErrors(draft.action, catalogue).forEach(function (e) { out.push(e) })
         if (draft.hand !== null && draft.id === null) {
+            var dropped = Model.droppedOpts(draft.hand.opts)
+            if (dropped.length > 0)
+                out.push("hyprKBM would drop these options of the original bind: " + dropped.join(", ") + ".")
             var blocker = Model.overrideBlocker(hand, draft.hand)
             if (blocker !== null)
                 out.push("The bind at " + blocker + " shares these keys and runs a Lua function, which hyprKBM cannot re-create; change it in hyprland.lua instead.")
