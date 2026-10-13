@@ -246,3 +246,30 @@ def test_a_stale_preview_is_never_shown_or_applied():
     assert "onOpened" not in diff
     apply_btn = diff.split('text: "Apply"', 1)[1]
     assert "Store.dirty" in apply_btn.split("onClicked", 1)[0]
+
+
+def test_the_header_dialogs_are_wired():
+    backups = qml("components", "BackupsDialog.qml")
+    for needle in ("Store.loadBackup(", "Store.restoreBackup()", "Diff.lineDiff("):
+        assert needle in backups, needle
+    assert "Store.exportTo(" in qml("components", "ExportDialog.qml")
+    settings = qml("components", "SettingsPopup.qml")
+    for needle in ("Store.setLayout(", "Store.startWatcher()", "Store.reload()"):
+        assert needle in settings, needle
+    assert "Store.addSubmap(" in qml("components", "SubmapDialog.qml")
+    shell = qml("shell.qml")
+    for handler in ("onBackupsRequested", "onExportRequested", "onSubmapRequested",
+                    "onSettingsRequested"):
+        assert handler in shell, handler
+
+
+def test_the_dialogs_keep_our_action_button():
+    for name in ("BackupsDialog", "ExportDialog", "SettingsPopup", "SubmapDialog"):
+        text = qml("components", name + ".qml")
+        assert "import QtQuick.Controls as QC" in text, name
+        assert not re.search(r"^import QtQuick\.Controls\s*$", text, re.M), name
+
+
+def test_a_stale_preview_restarts_through_the_event_loop():
+    store = qml("state", "Store.qml")
+    assert "Qt.callLater(root.requestPreview)" in store

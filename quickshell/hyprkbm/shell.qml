@@ -128,6 +128,10 @@ ShellRoot {
                     id: header
                     Layout.fillWidth: true
                     onLeaveSearch: scope.forceActiveFocus()
+                    onBackupsRequested: backupsDialog.open()
+                    onExportRequested: exportDialog.open()
+                    onSubmapRequested: submapDialog.open()
+                    onSettingsRequested: settingsPopup.open()
                 }
 
                 Banner { Layout.fillWidth: true }
@@ -206,5 +210,9 @@ ShellRoot {
         }
 
         DiffDialog { id: diffDialog }
+        BackupsDialog { id: backupsDialog }
+        ExportDialog { id: exportDialog }
+        SettingsPopup { id: settingsPopup }
+        SubmapDialog { id: submapDialog }
     }
 }

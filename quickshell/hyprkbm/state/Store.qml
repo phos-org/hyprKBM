@@ -408,7 +408,7 @@ QtObject {
         stdout: StdioCollector { id: previewOut }
         onExited: function (code) {
             if (root.previewAgain || root.previewModel !== JSON.stringify(root.model)) {
-                root.requestPreview()
+                Qt.callLater(root.requestPreview)
                 return
             }
             root.preview = root.parsed(previewOut.text)
