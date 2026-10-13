@@ -218,6 +218,31 @@ def test_staged_changes_apply_only_from_the_bar_and_the_diff():
                                "shell.qml"]
 
 
-def test_ctrl_enter_applies_from_the_window():
+def test_ctrl_enter_applies_only_from_the_keyboard_view():
     shell = qml("shell.qml")
-    assert re.search(r'sequences:\s*\["Ctrl\+Return",\s*"Ctrl\+Enter"\]', shell)
+    assert "Shortcut" not in shell
+    handler = shell.split("Keys.onPressed", 1)[1].split("Keys.onReleased", 1)[0]
+    guard = handler.index("instanceof TextInput")
+    ctrl = handler.index("Qt.ControlModifier")
+    assert guard < ctrl
+    assert handler.index("Store.apply()") > ctrl
+    # Before the plain-Enter branch, which would otherwise take Ctrl+Enter.
+    assert ctrl < handler.index("Store.edit(")
+    cond = handler[ctrl:handler.index("Store.apply()")]
+    for term in ("Store.dirty", "Store.busy", "Store.readOnly", "Store.draft"):
+        assert term in cond
+
+
+def test_a_stale_preview_is_never_shown_or_applied():
+    store = qml("state", "Store.qml")
+    assert re.search(r"onModelChanged:\s*preview = null", store)
+    req = store.split("function requestPreview()", 1)[1].split("function ", 1)[0]
+    assert req.index("preview = null") < req.index("model === null")
+    assert "previewModel = JSON.stringify(model)" in req
+    exited = store.split("property Process previewProc", 1)[1]
+    assert "root.previewModel" in exited and "JSON.stringify(root.model)" in exited
+    diff = qml("components", "DiffDialog.qml")
+    assert "onAboutToShow: Store.requestPreview()" in diff
+    assert "onOpened" not in diff
+    apply_btn = diff.split('text: "Apply"', 1)[1]
+    assert "Store.dirty" in apply_btn.split("onClicked", 1)[0]

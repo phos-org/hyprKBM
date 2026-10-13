@@ -65,6 +65,11 @@ QtObject {
     property var errors: []
     property bool busy: false
     property var preview: null
+    // The model the current preview run was started for. A model edited while
+    // the helper ran would otherwise leave a preview of an older model on show.
+    property string previewModel: ""
+    property bool previewAgain: false
+    onModelChanged: preview = null
     property var backup: null
     property int conflictIndex: -1
 
@@ -293,8 +298,12 @@ QtObject {
     }
 
     function requestPreview() {
-        if (model === null) return
         preview = null
+        if (model === null) return
+        // The running helper was fed an older model; run again when it exits.
+        if (previewProc.running) { previewAgain = true; return }
+        previewAgain = false
+        previewModel = JSON.stringify(model)
         previewProc.stdinEnabled = true
         previewProc.running = true
     }
@@ -398,6 +407,10 @@ QtObject {
         }
         stdout: StdioCollector { id: previewOut }
         onExited: function (code) {
+            if (root.previewAgain || root.previewModel !== JSON.stringify(root.model)) {
+                root.requestPreview()
+                return
+            }
             root.preview = root.parsed(previewOut.text)
                            || { ok: false, errors: [{ id: null, message: "The preview could not be made." }], lua: "", current: "" }
         }

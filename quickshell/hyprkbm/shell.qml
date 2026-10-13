@@ -84,6 +84,16 @@ ShellRoot {
                     event.accepted = true
                     return
                 }
+                // Handled here, past the text-input guard, because this scope
+                // only gets keys when no popup has focus: typing in a field or
+                // an open dialog (with its own Apply) can never apply by accident.
+                if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
+                        && (event.modifiers & Qt.ControlModifier)) {
+                    if (Store.dirty && !Store.busy && !Store.readOnly && Store.draft === null)
+                        Store.apply()
+                    event.accepted = true
+                    return
+                }
                 var dirs = {}
                 dirs[Qt.Key_Left] = "left"
                 dirs[Qt.Key_Right] = "right"
@@ -196,12 +206,5 @@ ShellRoot {
         }
 
         DiffDialog { id: diffDialog }
-
-        // Ctrl+Enter is safe as a Shortcut: nothing else in the panel wants it.
-        Shortcut {
-            sequences: ["Ctrl+Return", "Ctrl+Enter"]
-            enabled: Store.dirty && !Store.busy && !Store.readOnly && Store.draft === null
-            onActivated: Store.apply()
-        }
     }
 }

@@ -25,7 +25,8 @@ QC.Popup {
                                  ? Diff.lineDiff(Store.preview.current, Store.preview.lua) : []
     readonly property var counts: Diff.counts(lines)
 
-    onOpened: Store.requestPreview()
+    // Before it is visible, so a previous preview is never on screen for a frame.
+    onAboutToShow: Store.requestPreview()
 
     background: Rectangle {
         color: Colors.bgSurface
@@ -86,7 +87,7 @@ QC.Popup {
             Action {
                 text: "Apply"
                 primary: true
-                enabled: Store.preview !== null && Store.preview.ok && !Store.busy && !Store.readOnly
+                enabled: Store.dirty && Store.preview !== null && Store.preview.ok && !Store.busy && !Store.readOnly
                 onClicked: { Store.apply(); root.close() }
             }
         }
