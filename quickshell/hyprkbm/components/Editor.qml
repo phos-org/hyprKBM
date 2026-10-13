@@ -115,6 +115,7 @@ Rectangle {
                 }
                 Action {
                     text: root.recording ? "Stop" : "⏺ Record"
+                    focusPolicy: Qt.NoFocus
                     onClicked: {
                         root.recording = !root.recording
                         if (root.recording) keysField.forceActiveFocus()

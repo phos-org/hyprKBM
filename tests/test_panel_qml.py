@@ -194,3 +194,9 @@ def test_the_editor_stops_recording_when_it_should():
     assert re.search(r"onActiveFocusChanged:[^\n]*recording\s*=\s*false", editor)
     assert "Qt.Key_Escape" in editor
     assert "Catalogue.workspaceValue(" in editor
+
+
+def test_the_record_button_does_not_steal_focus():
+    editor = qml("components", "Editor.qml")
+    button = editor[editor.index('text: root.recording ? "Stop"'):]
+    assert "focusPolicy: Qt.NoFocus" in button[:300]
