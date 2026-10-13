@@ -6,6 +6,7 @@ import "../config"
 import "../state"
 import "../lib/keys.js" as Keys
 import "../lib/layouts.js" as Layouts
+import "../lib/model.js" as Model
 
 // Every bind on the selected key -- or every match, while searching -- with
 // conflicts called out, binds this change removes, and the binds no keycap
@@ -20,8 +21,10 @@ Rectangle {
     readonly property bool searching: !Store.parsedQuery.empty
     readonly property string keyText: Store.selectedKey === "" ? ""
         : Keys.display(Store.mods, Layouts.keyName(Store.layout, Store.selectedKey))
-    readonly property bool conflicted: !searching
-        && Store.listed.filter(function (b) { return !b.allowConflict }).length > 1
+    readonly property var conflictGroup: searching ? []
+        : Store.listed.filter(function (b) { return !b.allowConflict })
+    readonly property bool conflicted: conflictGroup.length > 1
+    readonly property bool blocking: conflicted && Model.blocks(conflictGroup)
 
     ColumnLayout {
         anchors.fill: parent
@@ -55,7 +58,7 @@ Rectangle {
                         required property var modelData
                         Layout.fillWidth: true
                         bind: modelData
-                        inConflict: root.conflicted && !modelData.allowConflict
+                        group: modelData.allowConflict ? [] : root.conflictGroup
                     }
                 }
 
@@ -63,8 +66,10 @@ Rectangle {
                     visible: root.conflicted
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
-                    text: "⚠ These all fire on " + root.keyText + ". Remove one, keep both, or edit one onto other keys."
-                    color: Colors.statusCritical
+                    text: root.blocking
+                        ? "⚠ These all fire on " + root.keyText + ". Remove one, keep both, or edit one onto other keys."
+                        : "These both come from hyprland.lua and both fire on " + root.keyText + ". That does not stop an apply; edit or remove one to change it."
+                    color: root.blocking ? Colors.statusCritical : Colors.textSecondary
                     font.family: Typography.family
                     font.pixelSize: Typography.sizeSmall
                 }
@@ -84,7 +89,7 @@ Rectangle {
                             font.strikeout: true
                             elide: Text.ElideRight
                         }
-                        Action { text: "Restore"; onClicked: Store.restoreHand(removedRow.modelData.hand) }
+                        Action { text: "Restore"; enabled: !Store.readOnly; onClicked: Store.restoreHand(removedRow.modelData.hand) }
                     }
                 }
 

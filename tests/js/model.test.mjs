@@ -102,3 +102,11 @@ test("summary counts what changed", () => {
   assert.deepEqual(plain(M.summary(saved, model)), { added: 1, changed: 1, removed: 0, unbound: 1, restored: 0, submaps: 1 })
   assert.deepEqual(plain(M.summary(model, saved)), { added: 0, changed: 1, removed: 1, unbound: 0, restored: 1, submaps: -1 })
 })
+
+test("blocks: only a conflict involving a hyprKBM bind stops an apply", () => {
+  const hand = { source: "hand" }, own = { source: "hyprkbm" }, over = { source: "override" }
+  assert.equal(M.blocks([hand, own]), true)
+  assert.equal(M.blocks([hand, hand]), false)
+  assert.equal(M.blocks([own, own]), true)
+  assert.equal(M.blocks([hand, over]), true)
+})

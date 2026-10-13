@@ -69,6 +69,13 @@ function conflicts(binds) {
     return order.map(function (k) { return groups[k] }).filter(function (g) { return g.length > 1 })
 }
 
+// Whether a conflict group stops an apply. hyprkbm-apply only refuses a group
+// that has a hyprKBM bind in it; two hand-written binds on one key are the
+// user's own hyprland.lua and were always allowed.
+function blocks(group) {
+    return group.some(function (b) { return b.source !== "hand" })
+}
+
 function merge(hand, model, catalogue) {
     model = normalise(model)
     var superseded = {}

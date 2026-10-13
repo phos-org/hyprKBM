@@ -146,3 +146,19 @@ def test_slash_focuses_search():
     handler = shell.split("Keys.onPressed", 1)[1]
     # The text-field guard must come first, or "/" typed in the search re-focuses it.
     assert handler.index("instanceof TextInput") < handler.index("Qt.Key_Slash")
+
+
+def test_read_only_panel_stages_nothing_and_hand_conflicts_do_not_block():
+    store = qml("state", "Store.qml")
+    for name in ("restoreHand", "keepBoth"):
+        body = store[store.index("function %s(" % name):]
+        body = body[:body.index("\n    }")]
+        assert "readOnly" in body, name
+    for part in (("components", "BindPanel.qml"), ("components", "BindRow.qml")):
+        assert "Model.blocks(" in qml(*part), part
+    row = qml("components", "BindRow.qml")
+    keep = row[row.index('text: "Keep both"'):]
+    assert "!Store.readOnly" in keep[:keep.index("}")]
+    panel = qml("components", "BindPanel.qml")
+    restore = panel[panel.index('text: "Restore"'):]
+    assert "!Store.readOnly" in restore[:200]

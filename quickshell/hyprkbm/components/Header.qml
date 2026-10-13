@@ -4,6 +4,7 @@ import QtQuick.Controls as QC
 import QtQuick.Layouts
 import "../config"
 import "../state"
+import "../lib/model.js" as Model
 
 // QtQuick.Controls is namespaced because it has its own Action, which would
 // otherwise shadow ours.
@@ -92,7 +93,11 @@ RowLayout {
 
     Action {
         visible: Store.merged.conflicts.length > 0
-        text: "⚠ " + Store.merged.conflicts.length + (Store.merged.conflicts.length === 1 ? " conflict" : " conflicts")
+        // Hand-only overlaps are real but never stop an apply, so only a
+        // blocking one is called a conflict.
+        text: Store.merged.conflicts.some(function (g) { return Model.blocks(g) })
+            ? "⚠ " + Store.merged.conflicts.length + (Store.merged.conflicts.length === 1 ? " conflict" : " conflicts")
+            : Store.merged.conflicts.length + (Store.merged.conflicts.length === 1 ? " overlap" : " overlaps")
         onClicked: Store.nextConflict()
     }
 

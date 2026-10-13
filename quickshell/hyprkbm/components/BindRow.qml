@@ -2,13 +2,18 @@ import QtQuick
 import QtQuick.Layouts
 import "../config"
 import "../state"
+import "../lib/model.js" as Model
 
 // One bind: its keys, what it does, where it comes from, and what can be done
 // with it. A bind the last apply refused is outlined in the critical colour.
 Rectangle {
     id: root
     property var bind
-    property bool inConflict: false
+    // The binds sharing this one's key, when it is listed in a conflict.
+    property var group: []
+    // Hand-only conflicts are real but never stop an apply, so they are not
+    // drawn as errors.
+    readonly property bool inConflict: root.group.length > 1 && Model.blocks(root.group)
     readonly property bool refused: root.bind.id !== null && Store.errors.some(function (e) { return e.id === root.bind.id })
     readonly property bool editing: Store.draft !== null
         && ((root.bind.id !== null && Store.draft.id === root.bind.id)
@@ -83,6 +88,7 @@ Rectangle {
         Action {
             text: "Keep both"
             visible: root.inConflict && root.bind.id !== null
+            enabled: !Store.readOnly
             onClicked: Store.keepBoth(root.bind.uid)
         }
         Action {

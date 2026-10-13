@@ -259,13 +259,13 @@ QtObject {
     }
 
     function restoreHand(h) {
-        if (model === null) return
+        if (model === null || readOnly) return
         model = Model.restoreHand(model, h)
     }
 
     function keepBoth(uid) {
         var b = findBind(uid)
-        if (model === null || b === null || b.id === null) return
+        if (model === null || readOnly || b === null || b.id === null) return
         model = Model.updateBind(model, b.id, { allowConflict: true })
     }
 
