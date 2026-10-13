@@ -100,3 +100,10 @@ test("plain formats nested values like Python's json.dumps", () => {
                "Focus (workspace {\"a\": 1})")
   assert.equal(C.describeDispatcher({ dsp: "exec_cmd", args: [[null, "é"]] }, CAT), "Run a command: [null, \"é\"]")
 })
+
+test("workspace text is only a number when it round-trips", () => {
+  assert.equal(C.workspaceValue("3"), 3)
+  assert.equal(C.workspaceValue("-1"), -1)
+  for (const s of ["05", "e+1", "special:magic", "123456789012345678901", ""])
+    assert.equal(C.workspaceValue(s), s)
+})

@@ -25,6 +25,11 @@ Rectangle {
     readonly property var kinds: Store.catalogue.map(function (e) { return e.id }).concat(["raw"])
     readonly property var kindLabels: Store.catalogue.map(function (e) { return e.label }).concat(["Raw Lua"])
     property bool recording: false
+    // Changes when another bind's draft opens, not on every edit of one.
+    readonly property string draftIdentity: draft === null ? ""
+        : draft.id !== null ? "k:" + draft.id
+        : draft.hand !== null ? "h:" + draft.hand.uid : "new"
+    onDraftIdentityChanged: recording = false
 
     component Label: Text {
         color: Colors.textSecondary
@@ -90,11 +95,17 @@ Rectangle {
                     text: root.draft === null ? "" : root.draft.keys
                     placeholderText: root.recording ? "Press the keys…" : "SUPER + SHIFT + F"
                     onTextEdited: Store.patchDraft({ keys: text })
+                    onActiveFocusChanged: if (!activeFocus) root.recording = false
                     // While recording, the next key pressed with its modifiers
                     // becomes the combo. Hyprland keeps combos it already
                     // binds, so some can only be typed.
                     Keys.onPressed: function (event) {
                         if (!root.recording) return
+                        if (event.key === Qt.Key_Escape) {
+                            root.recording = false
+                            event.accepted = true
+                            return
+                        }
                         var key = QtKeys.keysymFromQt(event.key, event.modifiers)
                         event.accepted = true
                         if (key === null) return
@@ -135,8 +146,7 @@ Rectangle {
                         visible: ["string", "workspace", "submap"].indexOf(fieldItem.modelData.type) >= 0
                         text: fieldItem.value === undefined ? "" : String(fieldItem.value)
                         onTextEdited: {
-                            var v = text
-                            if (fieldItem.modelData.type === "workspace" && /^-?\d+$/.test(v)) v = parseInt(v, 10)
+                            var v = fieldItem.modelData.type === "workspace" ? Catalogue.workspaceValue(text) : text
                             Store.patchArg(fieldItem.modelData.name, v)
                         }
                     }

@@ -150,6 +150,14 @@ function dispatcherLua(d) {
     return "hl.dsp." + d.dsp + "(" + (d.args || []).map(luaLiteral).join(", ") + ")"
 }
 
+// Workspace text becomes a number only when the number prints back as the same
+// text, so "05" and very long digit strings stay as typed.
+function workspaceValue(text) {
+    if (!/^-?\d+$/.test(text)) return text
+    var n = parseInt(text, 10)
+    return Number.isSafeInteger(n) && String(n) === text ? n : text
+}
+
 function basename(path) { return String(path).split("/").pop() }
 
 function describeDispatcher(d, catalogue) {

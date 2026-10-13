@@ -186,3 +186,11 @@ def test_the_editor_stages_through_the_store():
 
 def test_the_window_has_the_editor():
     assert re.search(r"^\s*Editor\s*\{", qml("shell.qml"), re.M)
+
+
+def test_the_editor_stops_recording_when_it_should():
+    editor = qml("components", "Editor.qml")
+    assert "onDraftIdentityChanged: recording = false" in editor
+    assert re.search(r"onActiveFocusChanged:[^\n]*recording\s*=\s*false", editor)
+    assert "Qt.Key_Escape" in editor
+    assert "Catalogue.workspaceValue(" in editor
