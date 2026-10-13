@@ -181,6 +181,11 @@ ShellRoot {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                     }
+
+                    Editor {
+                        Layout.preferredWidth: 340
+                        Layout.fillHeight: true
+                    }
                 }
             }
         }

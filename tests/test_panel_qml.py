@@ -173,3 +173,16 @@ def test_the_key_size_does_not_depend_on_the_keyboards_own_width():
     assert re.search(r"property\s+real\s+unit\s*:", keyboard)
     shell = qml("shell.qml")
     assert "Layouts.unitFor(" in shell
+
+
+def test_the_editor_stages_through_the_store():
+    editor = qml("components", "Editor.qml")
+    for needle in ("Store.saveDraft()", "Store.cancelEdit()", "Store.deleteDraft()",
+                   "Store.patchDraft(", "Store.patchArg(", "Store.setActionKind(",
+                   "Store.draftProblems()", "QtKeys.keysymFromQt(", "QtKeys.modsFromQt(",
+                   "Model.FLAG_NAMES"):
+        assert needle in editor, needle
+
+
+def test_the_window_has_the_editor():
+    assert re.search(r"^\s*Editor\s*\{", qml("shell.qml"), re.M)
