@@ -170,17 +170,20 @@ def cmd_set_layout(paths, args):
     return 0
 
 
-def panel_open():
-    """Whether the panel already has a window: class as well as title, so a
-    terminal that happens to be called Keybinds is not mistaken for it."""
+def panel_window():
+    """The panel's window address, or None. Matched on class as well as title,
+    so a terminal that happens to be called Keybinds is not mistaken for it."""
     try:
         res = subprocess.run(["hyprctl", "-j", "clients"], capture_output=True, text=True, timeout=5)
         clients = json.loads(res.stdout)
     except (OSError, subprocess.TimeoutExpired, ValueError):
-        return False
-    return isinstance(clients, list) and any(
-        isinstance(c, dict) and c.get("class") == PANEL_CLASS and c.get("title") == TITLE
-        for c in clients)
+        return None
+    if not isinstance(clients, list):
+        return None
+    for c in clients:
+        if isinstance(c, dict) and c.get("class") == PANEL_CLASS and c.get("title") == TITLE:
+            return c.get("address") or None
+    return None
 
 
 # Tiled, the panel gets whatever share of the workspace is left, often far
@@ -212,13 +215,23 @@ def cmd_panel(paths):
     if shutil.which("qs") is None:
         return fail("Quickshell (qs) is not installed; the panel needs it. "
                     "The command line works without it: see hyprkbm --help")
-    if panel_open():
+    address = panel_window()
+    if address is not None:
+        # Through the Lua API: Lua-config Hyprland rejects the old
+        # `dispatch focuswindow` syntax. By address, so only this window.
         try:
-            subprocess.run(["hyprctl", "dispatch", "focuswindow", "title:^%s$" % TITLE],
+            subprocess.run(["hyprctl", "eval",
+                            'hl.dispatch(hl.dsp.focus({ window = "address:%s" }))' % address],
                            capture_output=True, timeout=5)
         except (OSError, subprocess.TimeoutExpired):
             pass  # the panel is open; failing to raise it is not worth an error
         return 0
+    # No panel window, so any panel still running is an orphan, and qs -n
+    # would refuse to start a new one beside it.
+    try:
+        subprocess.run(["qs", "kill", "-p", str(PANEL)], capture_output=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
     # A keybind's PATH does not include ~/.local/bin, so the panel is told
     # where its helpers are rather than left to find them.
     env = dict(os.environ, HYPRKBM_BIN=str(ROOT / "bin"))

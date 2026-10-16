@@ -20,6 +20,10 @@ ShellRoot {
         minimumSize.height: 620
         color: Colors.bgVoid
 
+        // Quickshell keeps running after its last window closes; a panel left
+        // running without one would make the next `hyprkbm` (qs -n) do nothing.
+        onClosed: Qt.quit()
+
         // Scripted inspection, over `qs ipc -p <panel> call hyprkbm <fn>`. It
         // drives the same store the pointer does, and deliberately offers no
         // way to apply: a smoke test must never change a real session.

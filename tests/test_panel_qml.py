@@ -401,3 +401,11 @@ def test_the_legend_has_an_overlap_entry_and_the_readme_warns_about_closing():
     assert '"overlap"' in bar
     readme = (PANEL.parents[1] / "README.md").read_text(encoding="utf-8")
     assert "Applying…" in readme and "mid-apply" in readme
+
+
+def test_closing_the_window_quits_the_panel():
+    """Quickshell keeps running when its last window closes. A panel left
+    running without a window blocks the next launch (qs -n), so closing the
+    window -- from its own close button or the compositor -- quits."""
+    shell = qml("shell.qml")
+    assert re.search(r"onClosed:\s*Qt\.quit\(\)", shell)
