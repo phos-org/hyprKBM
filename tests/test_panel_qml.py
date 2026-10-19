@@ -564,6 +564,7 @@ def test_the_editor_area_takes_no_list_or_key_shortcuts():
 def test_one_shot_keys_ignore_auto_repeat_but_arrows_repeat():
     h = _keys_handler()
     rep = h.index("event.isAutoRepeat", h.index("instanceof TextInput"))
+    assert rep < h.index("Qt.Key_F &&") and rep < h.index("Qt.Key_Slash") and rep < h.index("Qt.Key_Return")
     assert rep < h.index("Qt.Key_Delete") and rep < h.index("Qt.Key_E &&") and rep < h.index("Qt.Key_Z")
     assert "Qt.Key_Up" in h and h.index("Qt.Key_Up") < h.index("Qt.Key_Delete")
     arrows = h.split("Qt.Key_Up", 1)[1].split("Qt.Key_Delete", 1)[0]
@@ -574,7 +575,7 @@ def test_tab_is_plain_and_keypad_is_masked():
     h = _keys_handler()
     assert "~Qt.KeypadModifier" in h
     tab = h.split("Qt.Key_Tab", 1)[1].split("Store.area = ", 1)[0]
-    assert "Qt.ShiftModifier" in tab and "Qt.NoModifier" in tab or "=== 0" in tab
+    assert ("Qt.ShiftModifier" in tab) and ("Qt.NoModifier" in tab)
 
 
 def test_area_is_kept_in_sync_with_real_focus():
@@ -596,13 +597,13 @@ def test_delete_refuses_unreadable_keys_in_the_store():
     assert body.index("combo === null") < body.index("unbindHand")
 
 
-def test_the_cursor_resets_on_context_and_clamps_otherwise():
+def test_the_cursor_resets_from_what_was_picked_and_the_list_only_clamps():
     store = qml("state", "Store.qml")
-    assert "onListedChanged: listIndex = 0" not in store
-    h = store.split("onListedChanged", 1)[1][:400]
-    assert "Focus.reconcile(" in h and "Focus.contextChanged(" in h
-    for dep in ("selectedKey", "mods", "submap", "query"):
-        assert dep in store.split("listContext", 1)[1][:200], dep
+    for name in ("onSelectedKeyChanged", "onModsChanged", "onSubmapChanged", "onQueryChanged"):
+        assert name + ": listIndex = 0" in store, name
+    assert "listContext" not in store and "seenContext" not in store
+    h = store.split("onListedChanged", 1)[1].split("\n    on", 1)[0][:300]
+    assert "Focus.clampIndex(" in h and "listIndex = 0" not in h
 
 
 def test_tab_enters_the_editor_by_focusing_its_keys_field_and_leaving_returns_focus():

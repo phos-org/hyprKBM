@@ -66,13 +66,13 @@ QtObject {
     // Which part of the panel has the keys, and which bind the list points at.
     property string area: "keyboard"
     property int listIndex: 0
-    readonly property string listContext: JSON.stringify([selectedKey, mods, submap, query])
-    property string seenContext: ""
-    onListedChanged: {
-        var changed = Focus.contextChanged(seenContext, listContext)
-        seenContext = listContext
-        listIndex = Focus.reconcile(listIndex, listed.length, changed)
-    }
+    // Back to the top when what was picked changes; the list itself only
+    // clamps, so the order the two signals arrive in does not matter.
+    onSelectedKeyChanged: listIndex = 0
+    onModsChanged: listIndex = 0
+    onSubmapChanged: listIndex = 0
+    onQueryChanged: listIndex = 0
+    onListedChanged: listIndex = Math.max(0, Focus.clampIndex(listIndex, listed.length))
     // The editor closing hands the keys back to the list.
     onDraftChanged: if (draft === null && area === "editor") area = "list"
 

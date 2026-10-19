@@ -36,16 +36,3 @@ test("clampIndex keeps the index in range and is -1 when empty", () => {
   assert.equal(F.clampIndex(9, 4), 3)
   assert.equal(F.clampIndex(2, 4), 2)
 })
-
-test("contextChanged is true only when the list's context differs", () => {
-  assert.equal(F.contextChanged("a", "a"), false)
-  assert.equal(F.contextChanged("a", "b"), true)
-})
-
-test("reconcile resets on a new context and otherwise clamps in place", () => {
-  assert.equal(F.reconcile(3, 10, true), 0)
-  assert.equal(F.reconcile(3, 10, false), 3)
-  assert.equal(F.reconcile(3, 2, false), 1)
-  assert.equal(F.reconcile(3, 0, false), 0)
-  assert.equal(F.reconcile(0, 0, true), 0)
-})

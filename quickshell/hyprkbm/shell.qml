@@ -133,6 +133,11 @@ ShellRoot {
                 // Everything non-modifier (including "/") sits below it.
                 var focused = scope.Window.activeFocusItem
                 if (focused && (focused instanceof TextInput || focused instanceof TextEdit)) return
+                // One-shot keys fire once per press; only arrows repeat.
+                if (event.isAutoRepeat && [Qt.Key_Up, Qt.Key_Down, Qt.Key_Left, Qt.Key_Right].indexOf(event.key) < 0) {
+                    event.accepted = true
+                    return
+                }
                 let m = event.modifiers & ~Qt.KeypadModifier
                 if (event.key === Qt.Key_F && m === Qt.NoModifier && Store.draft === null) {
                     Store.startFind()
@@ -151,11 +156,6 @@ ShellRoot {
                         && (event.modifiers & Qt.ControlModifier)) {
                     if (Store.dirty && !Store.busy && !Store.readOnly && Store.draft === null)
                         Store.apply()
-                    event.accepted = true
-                    return
-                }
-                // One-shot keys fire once per press; only arrows repeat.
-                if (event.isAutoRepeat && [Qt.Key_Up, Qt.Key_Down, Qt.Key_Left, Qt.Key_Right].indexOf(event.key) < 0) {
                     event.accepted = true
                     return
                 }
