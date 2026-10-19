@@ -48,7 +48,7 @@ ColumnLayout {
                 sub: root.subOf(modelData.id)
                 enabled: root.interactive
                 subLines: root.detailed ? 3 : 1
-                selected: root.interactive && Keys.keyId(modelData.id) === Store.selectedKey
+                selected: Keys.keyId(modelData.id) === Store.selectedKey
                 dimmed: Store.matching !== null && Store.matching[Keys.keyId(modelData.id)] !== true
                 onClicked: Store.selectKey(modelData.id)
             }
