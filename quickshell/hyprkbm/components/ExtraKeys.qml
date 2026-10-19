@@ -15,7 +15,8 @@ ColumnLayout {
 
     function kindOf(id) {
         var i = Store.keyStates[Keys.keyId(id)]
-        return i === undefined ? "free" : i.state
+        if (i !== undefined) return i.state
+        return Store.otherKeys[Keys.keyId(id)] === true ? "other" : "free"
     }
 
     function subOf(id) {

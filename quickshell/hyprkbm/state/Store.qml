@@ -57,6 +57,15 @@ QtObject {
     readonly property var listed: parsedQuery.empty
                                   ? Keymap.bindsOn(merged.binds, submap, mods, selectedKey)
                                   : Search.filter(merged.binds, parsedQuery)
+    // Keys bound only under other modifiers, and the selected key's binds
+    // under them: what a view that hides them would otherwise lose.
+    readonly property var otherKeys: Keymap.otherKeys(merged.binds, submap, mods)
+    readonly property var otherCombos: parsedQuery.empty
+                                       ? Keymap.otherCombos(merged.binds, submap, mods, selectedKey)
+                                       : []
+    // What the list cursor walks: the listed binds, then "Also bound as".
+    readonly property var listRows: listed.map(function (b) { return { kind: "bind", bind: b } })
+        .concat(otherCombos.map(function (b) { return { kind: "other", bind: b } }))
     readonly property var removedHere: merged.removed.filter(function (r) {
         return r.hand.submap === root.submap && root.selectedKey !== ""
             && r.hand.combo === Keys.comboId(root.mods, root.selectedKey)
@@ -72,7 +81,7 @@ QtObject {
     onModsChanged: listIndex = 0
     onSubmapChanged: listIndex = 0
     onQueryChanged: listIndex = 0
-    onListedChanged: listIndex = Math.max(0, Focus.clampIndex(listIndex, listed.length))
+    onListRowsChanged: listIndex = Math.max(0, Focus.clampIndex(listIndex, listRows.length))
     // The editor closing hands the keys back to the list.
     onDraftChanged: if (draft === null && area === "editor") area = "list"
 
@@ -268,9 +277,25 @@ QtObject {
         }
     }
 
+    function focusedRow() {
+        var i = Focus.clampIndex(listIndex, listRows.length)
+        return i < 0 ? null : listRows[i]
+    }
+
+    // Only a listed bind: E and Delete never reach an "Also bound as" row.
     function focusedBind() {
-        var i = Focus.clampIndex(listIndex, listed.length)
-        return i < 0 ? null : listed[i]
+        var row = focusedRow()
+        return row !== null && row.kind === "bind" ? row.bind : null
+    }
+
+    // An "Also bound as" row: show the key under that bind's modifiers, with
+    // the cursor on the bind itself.
+    function pickOther(b) {
+        if (b === null || b === undefined) return
+        heldMods = []
+        setMods(b.mods)
+        for (var i = 0; i < listed.length; i++)
+            if (listed[i].uid === b.uid) { listIndex = i; break }
     }
 
     // The keys' Edit: the Edit button's own limits apply, so a bind hyprKBM
@@ -516,6 +541,8 @@ QtObject {
             submap: submap, mods: mods, selectedKey: selectedKey, query: query,
             binds: merged.binds.length, conflicts: merged.conflicts.length, stale: merged.stale.length,
             listed: listed.map(function (b) { return b.uid }),
+            other: otherCombos.map(function (b) { return b.uid }),
+            otherKeys: Object.keys(otherKeys).length,
             draft: draft === null ? null : { id: draft.id, keys: draft.keys, kind: draft.action.kind },
             status: status, errors: errors
         }

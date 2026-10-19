@@ -30,10 +30,12 @@ Rectangle {
          : kind === "modOn" ? lit(Colors.accentSecondary, 0.18)
          : kind === "mod" ? Colors.bgSurfaceAlt
          : Colors.bgSurface
-    border.width: selected ? 2 : 1
+    // "other": free under these modifiers, bound under others. Outlined
+    // only, so it never reads as bound here.
+    border.width: selected || kind === "other" ? 2 : 1
     border.color: selected ? Colors.textPrimary
                 : kind === "conflict" || kind === "overlap" ? Colors.statusCritical
-                : kind === "bound" ? lit(Colors.accentPrimary, 0.6)
+                : kind === "bound" || kind === "other" ? lit(Colors.accentPrimary, 0.6)
                 : kind === "mod" || kind === "modOn" ? Colors.accentSecondary
                 : Colors.borderSubtle
 
@@ -49,6 +51,7 @@ Rectangle {
             horizontalAlignment: Text.AlignHCenter
             text: root.label
             color: root.kind === "free" ? Colors.textTertiary
+                 : root.kind === "other" ? Colors.textSecondary
                  : root.kind === "mod" || root.kind === "modOn" ? Colors.accentSecondary
                  : Colors.textPrimary
             font.family: Typography.family

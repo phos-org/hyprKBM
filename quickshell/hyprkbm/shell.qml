@@ -208,10 +208,13 @@ ShellRoot {
                 }
                 if (Store.area === "list") {
                     if (event.key === Qt.Key_Up || event.key === Qt.Key_Down) {
-                        Store.listIndex = Focus.clampIndex(Store.listIndex + (event.key === Qt.Key_Up ? -1 : 1), Store.listed.length)
+                        Store.listIndex = Focus.clampIndex(Store.listIndex + (event.key === Qt.Key_Up ? -1 : 1), Store.listRows.length)
                         event.accepted = true
                     } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                        Store.editBind(Store.focusedBind())
+                        // An "Also bound as" row switches the view; a bind opens.
+                        let row = Store.focusedRow()
+                        if (row !== null && row.kind === "other") Store.pickOther(row.bind)
+                        else Store.editBind(Store.focusedBind())
                         event.accepted = true
                     } else if (event.key === Qt.Key_Delete) {
                         let target = Store.focusedBind()

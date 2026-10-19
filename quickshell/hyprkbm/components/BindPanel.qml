@@ -23,7 +23,8 @@ Rectangle {
 
     // Scrolls only; the rows' sizes never depend on it.
     function ensureVisible() {
-        let row = rows.itemAt(Store.listIndex)
+        let n = Store.listed.length
+        let row = Store.listIndex < n ? rows.itemAt(Store.listIndex) : otherRows.itemAt(Store.listIndex - n)
         if (!row) return
         let fl = scroll.contentItem as Flickable
         if (row.y < fl.contentY) fl.contentY = row.y
@@ -110,6 +111,30 @@ Rectangle {
                             elide: Text.ElideRight
                         }
                         Action { text: "Restore"; enabled: !Store.readOnly; onClicked: Store.restoreHand(removedRow.modelData.hand) }
+                    }
+                }
+
+                Text {
+                    visible: !root.searching && root.keyText !== "" && Store.otherCombos.length > 0
+                    Layout.topMargin: Spacing.sm
+                    text: "Also bound as"
+                    color: Colors.textSecondary
+                    font.family: Typography.family
+                    font.pixelSize: Typography.sizeSmall
+                    font.capitalization: Font.AllUppercase
+                }
+
+                // After the listed binds in the cursor's walk (Store.listRows).
+                Repeater {
+                    id: otherRows
+                    model: root.searching || root.keyText === "" ? [] : Store.otherCombos
+                    delegate: BindRow {
+                        required property var modelData
+                        required property int index
+                        position: Store.listed.length + index
+                        other: true
+                        Layout.fillWidth: true
+                        bind: modelData
                     }
                 }
 

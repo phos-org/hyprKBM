@@ -18,7 +18,8 @@ Column {
     function kindOf(spec) {
         if (spec.mod !== undefined) return Store.mods.indexOf(spec.mod) >= 0 ? "modOn" : "mod"
         var i = info(spec)
-        return i === undefined ? "free" : i.state
+        if (i !== undefined) return i.state
+        return spec.id !== undefined && Store.otherKeys[Keys.keyId(spec.id)] === true ? "other" : "free"
     }
 
     function subOf(spec) {

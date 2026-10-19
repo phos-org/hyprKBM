@@ -14,6 +14,9 @@ Rectangle {
     property var group: []
     // Where this row sits in the list, so the list's cursor can mark it.
     property int position: -1
+    // An "Also bound as" row: the key under other modifiers. It is not
+    // edited from here; picking it switches the view to its modifiers.
+    property bool other: false
     readonly property bool focused: position >= 0 && Store.area === "list" && position === Store.listIndex
     // Hand-only conflicts are real but never stop an apply, so they are not
     // drawn as errors.
@@ -36,9 +39,16 @@ Rectangle {
     border.width: refused || focused ? 1 : 0
     border.color: refused ? Colors.statusCritical : Colors.accentPrimary
 
-    HoverHandler { id: hover }
-    QC.ToolTip.visible: hover.hovered && root.untouchable
-    QC.ToolTip.text: root.untouchableReason
+    HoverHandler {
+        id: hover
+        cursorShape: root.other ? Qt.PointingHandCursor : Qt.ArrowCursor
+    }
+    TapHandler {
+        enabled: root.other
+        onTapped: Store.pickOther(root.bind)
+    }
+    QC.ToolTip.visible: hover.hovered && (root.untouchable || root.other)
+    QC.ToolTip.text: root.other ? "Show the binds under " + root.bind.keys : root.untouchableReason
 
     RowLayout {
         anchors.fill: parent
@@ -105,11 +115,13 @@ Rectangle {
         }
         Action {
             text: "Edit (E)"
+            visible: !root.other
             enabled: !Store.readOnly && !root.untouchable && root.bind.dispatcher !== null && root.bind.dispatcher.__function === undefined
             onClicked: Store.edit(root.bind.uid)
         }
         Action {
             text: "Remove"
+            visible: !root.other
             enabled: !Store.readOnly && !root.untouchable
             onClicked: Store.deleteBind(root.bind.uid)
         }

@@ -654,8 +654,8 @@ def test_the_cursor_resets_from_what_was_picked_and_the_list_only_clamps():
     for name in ("onSelectedKeyChanged", "onModsChanged", "onSubmapChanged", "onQueryChanged"):
         assert name + ": listIndex = 0" in store, name
     assert "listContext" not in store and "seenContext" not in store
-    h = store.split("onListedChanged", 1)[1].split("\n    on", 1)[0][:300]
-    assert "Focus.clampIndex(" in h and "listIndex = 0" not in h
+    h = store.split("onListRowsChanged", 1)[1].split("\n    on", 1)[0][:300]
+    assert "Focus.clampIndex(" in h and "listRows.length" in h and "listIndex = 0" not in h
 
 
 def test_tab_enters_the_editor_by_focusing_its_keys_field_and_leaving_returns_focus():
@@ -667,7 +667,7 @@ def test_tab_enters_the_editor_by_focusing_its_keys_field_and_leaving_returns_fo
     assert 'property string area: "keyboard"' in store
     assert "property int listIndex: 0" in store
     assert "function focusedBind()" in store
-    assert "onListedChanged" in store
+    assert "onListRowsChanged" in store
     assert "onDraftChanged" in store and 'area = "list"' in store
     assert 'import "lib/focus.js" as Focus' in shell
     assert "onDraftChanged" in shell and "Store.draft === null" in shell
@@ -717,3 +717,68 @@ def test_buttons_show_their_shortcuts():
     bar = qml("components", "StagedBar.qml")
     for hint in ('"Review diff (Ctrl+D)"', '"Discard (Ctrl+Z)"', "(Ctrl+Enter)"):
         assert hint in bar, hint
+
+
+def test_keys_bound_under_other_modifiers_are_outlined():
+    cap = qml("components", "KeyCap.qml")
+    fill = cap.split("color:", 1)[1].split("border.width", 1)[0]
+    # No fill of its own: it falls through to the free key's surface.
+    assert '"other"' not in fill
+    assert 'border.width: selected || kind === "other" ? 2 : 1' in cap
+    border = cap.split("border.color:", 1)[1].split("Behavior", 1)[0]
+    # Selection is checked first, so it still wins the border.
+    assert border.index("selected ?") < border.index('"other"')
+    assert 'kind === "bound" || kind === "other" ? lit(Colors.accentPrimary, 0.6)' in border
+    assert 'root.kind === "other" ? Colors.textSecondary' in cap
+    # Only a key that would otherwise be free is outlined.
+    for f in ("KeyBlock.qml", "ExtraKeys.qml"):
+        kind = qml("components", f).split("function kindOf(", 1)[1].split("\n    }\n", 1)[0]
+        assert kind.index("return i.state") < kind.index("Store.otherKeys["), f
+    store = qml("state", "Store.qml")
+    assert "Keymap.otherKeys(merged.binds, submap, mods)" in store
+
+
+def test_the_legend_has_an_outline_only_other_mods_entry():
+    bar = qml("components", "ModifierBar.qml")
+    assert '["other mods", Colors.bgSurface]' in bar
+    assert 'legend.modelData[0] === "other mods" ? 2 : 0' in bar
+    assert 'legend.modelData[0] === "other mods" ? Colors.accentPrimary' in bar
+
+
+def test_also_bound_as_is_hidden_while_searching_or_with_no_key():
+    store = qml("state", "Store.qml")
+    other = store.split("readonly property var otherCombos:", 1)[1].split("readonly property", 1)[0]
+    assert "parsedQuery.empty" in other and ": []" in other
+    rows = store.split("readonly property var listRows:", 1)[1].split("readonly property", 1)[0]
+    assert rows.index("listed.map(") < rows.index("otherCombos.map(")
+    assert 'kind: "bind"' in rows and 'kind: "other"' in rows
+    panel = qml("components", "BindPanel.qml")
+    header = panel.split('text: "Also bound as"', 1)[0].rsplit("Text {", 1)[1]
+    assert "!root.searching" in header and 'root.keyText !== ""' in header
+    rep = panel.split("id: otherRows", 1)[1].split("\n                }\n", 1)[0]
+    assert 'root.searching || root.keyText === "" ? []' in rep and "Store.otherCombos" in rep
+    assert "position: Store.listed.length + index" in rep and "other: true" in rep
+    # After the removed rows, before the add button.
+    assert panel.index("Store.removedHere") < panel.index('"Also bound as"') < panel.index('"+ Add a bind on "')
+    assert "otherRows.itemAt(Store.listIndex - n)" in panel
+    row = qml("components", "BindRow.qml")
+    assert "property bool other: false" in row
+    assert "enabled: root.other" in row and "Store.pickOther(root.bind)" in row
+    for name in ('"Edit (E)"', '"Remove"'):
+        assert "visible: !root.other" in row.split(name, 1)[1][:80], name
+
+
+def test_enter_dispatches_on_the_row_kind_and_e_and_delete_skip_other_rows():
+    h = _keys_handler()
+    lst = h.split('if (Store.area === "list") {', 1)[1].split("var dirs", 1)[0]
+    assert "Store.listRows.length" in lst
+    enter = lst.split("Qt.Key_Return", 1)[1].split("Qt.Key_Delete", 1)[0]
+    assert "Store.focusedRow()" in enter
+    assert 'row.kind === "other") Store.pickOther(row.bind)' in enter
+    assert "else Store.editBind(Store.focusedBind())" in enter
+    store = qml("state", "Store.qml")
+    fb = store.split("function focusedBind()", 1)[1].split("\n    }\n", 1)[0]
+    assert 'row.kind === "bind" ? row.bind : null' in fb
+    pick = store.split("function pickOther(", 1)[1].split("\n    }\n", 1)[0]
+    assert "setMods(b.mods)" in pick and "listIndex = i" in pick
+    assert "selectedKey" not in pick  # the key stays selected

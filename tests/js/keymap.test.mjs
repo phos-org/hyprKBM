@@ -75,3 +75,45 @@ test("a key is a conflict only when its group blocks", () => {
   assert.equal(s.g.state, "bound")
   assert.equal(s.h.state, "bound")
 })
+
+test("a key bound only under other modifiers is outlined, not lit", () => {
+  const binds = [
+    bind("d", "SUPER + SHIFT + D", ["SUPER", "SHIFT"], "D"),
+    bind("w1", "SUPER + W", ["SUPER"], "W"),
+    bind("w2", "SUPER + SHIFT + W", ["SUPER", "SHIFT"], "W")
+  ]
+  assert.deepEqual(plain(K.otherKeys(binds, "", ["SUPER"])), { d: true })
+  assert.equal(K.keyStates(binds, "", ["SUPER"]).d, undefined)
+  // Bound under the view's mods too: lit as usual, never outlined.
+  assert.equal(K.keyStates(binds, "", ["SUPER"]).w.state, "bound")
+  // Order of the modifiers does not matter.
+  assert.deepEqual(plain(K.otherKeys(binds, "", ["SHIFT", "SUPER"])), {})
+})
+
+test("other keys: no-modifier view, submaps and unreadable binds", () => {
+  const binds = [
+    bind("a", "SUPER + A", ["SUPER"], "A"),
+    bind("r", "SUPER + R", ["SUPER"], "R", { submap: "resize" }),
+    bind("x", "SUPER + X", ["SUPER"], "X", { combo: null })
+  ]
+  assert.deepEqual(plain(K.otherKeys(binds, "", [])), { a: true })
+  assert.deepEqual(plain(K.otherKeys(binds, "resize", [])), { r: true })
+  assert.deepEqual(plain(K.otherKeys(binds, "", ["SUPER"])), {})
+})
+
+test("other combos on a key, sorted by modifiers then by order", () => {
+  const binds = [
+    bind("s2", "SUPER + SHIFT + D", ["SUPER", "SHIFT"], "D"),
+    bind("c", "CTRL + D", ["CTRL"], "D"),
+    bind("here", "SUPER + D", ["SUPER"], "D"),
+    bind("bare", "D", [], "D"),
+    bind("s1", "SHIFT + SUPER + D", ["SHIFT", "SUPER"], "D"),
+    bind("sub", "CTRL + D", ["CTRL"], "D", { submap: "resize" }),
+    bind("null", "ALT + D", ["ALT"], "D", { combo: null }),
+    bind("e", "CTRL + E", ["CTRL"], "E")
+  ]
+  const uids = plain(K.otherCombos(binds, "", ["SUPER"], "d")).map(b => b.uid)
+  assert.deepEqual(uids, ["bare", "c", "s2", "s1"])
+  assert.deepEqual(plain(K.otherCombos(binds, "", [], "d")).map(b => b.uid), ["c", "here", "s2", "s1"])
+  assert.deepEqual(plain(K.otherCombos(binds, "", ["SUPER"], "")), [])
+})

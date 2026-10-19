@@ -40,6 +40,38 @@ function bindsOn(binds, submap, mods, keyId) {
     })
 }
 
+// Keys free under the view's modifiers but bound under some other set
+// (including none): drawn outlined, so a missing SUPER + D does not hide
+// SUPER + SHIFT + D.
+function otherKeys(binds, submap, mods) {
+    var here = {}
+    var other = {}
+    binds.forEach(function (b) {
+        if (b.submap !== submap || b.combo === null) return
+        var id = Keys.keyId(b.key)
+        if (sameMods(b.mods, mods)) here[id] = true
+        else other[id] = true
+    })
+    var out = {}
+    Object.keys(other).forEach(function (id) { if (!here[id]) out[id] = true })
+    return out
+}
+
+// The binds on one key under every other modifier set, grouped by modifiers
+// so the same combo's binds sit together; ties keep the config's order.
+function otherCombos(binds, submap, mods, keyId) {
+    if (keyId === "") return []
+    var found = []
+    binds.forEach(function (b, i) {
+        if (b.submap === submap && b.combo !== null && !sameMods(b.mods, mods) && Keys.keyId(b.key) === keyId)
+            found.push({ bind: b, order: i, mods: Keys.sortMods(b.mods).join("+") })
+    })
+    found.sort(function (x, y) {
+        return x.mods < y.mods ? -1 : x.mods > y.mods ? 1 : x.order - y.order
+    })
+    return found.map(function (f) { return f.bind })
+}
+
 function matchingKeys(binds, submap, query) {
     if (query.empty) return null
     var out = {}

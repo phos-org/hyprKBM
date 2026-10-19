@@ -50,7 +50,8 @@ RowLayout {
     }
 
     Repeater {
-        model: [["bound", Colors.accentPrimary], ["overlap", Colors.accentPrimary], ["conflict", Colors.statusCritical], ["free", Colors.textSecondary]]
+        model: [["bound", Colors.accentPrimary], ["overlap", Colors.accentPrimary], ["conflict", Colors.statusCritical],
+                ["other mods", Colors.bgSurface], ["free", Colors.textSecondary]]
         delegate: Row {
             id: legend
             required property var modelData
@@ -58,9 +59,10 @@ RowLayout {
             Rectangle {
                 width: 9; height: 9; radius: 2
                 color: legend.modelData[1]
-                // Like the keycap: an overlap is a bound key outlined in the conflict colour.
-                border.width: legend.modelData[0] === "overlap" ? 1 : 0
-                border.color: Colors.statusCritical
+                // Like the keycap: an overlap is a bound key outlined in the
+                // conflict colour; "other mods" is an outline with no fill.
+                border.width: legend.modelData[0] === "overlap" ? 1 : legend.modelData[0] === "other mods" ? 2 : 0
+                border.color: legend.modelData[0] === "other mods" ? Colors.accentPrimary : Colors.statusCritical
                 anchors.verticalCenter: parent.verticalCenter
             }
             Text {
