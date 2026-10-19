@@ -102,8 +102,13 @@ def should_leave_capture(submap, active_class, active_title):
 
 def leave_capture():
     try:
-        subprocess.run(["hyprctl", "eval", LEAVE_CAPTURE_LUA], capture_output=True, text=True)
-    except Exception as exc:
+        # Bounded: a hung hyprctl must not stall event processing.
+        res = subprocess.run(["hyprctl", "eval", LEAVE_CAPTURE_LUA],
+                             capture_output=True, text=True, timeout=5)
+        if res.returncode != 0:
+            print("leaving the capture submap failed rc=%d %s" % (
+                res.returncode, (res.stdout + res.stderr).strip()), file=sys.stderr, flush=True)
+    except (subprocess.TimeoutExpired, OSError) as exc:
         print("leaving the capture submap failed: %s" % exc, file=sys.stderr, flush=True)
 
 

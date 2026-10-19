@@ -464,3 +464,40 @@ def test_the_store_enters_and_leaves_through_capture_lua():
     store = qml("state", "Store.qml")
     assert "Capture.enterLua()" in store and "Capture.leaveLua()" in store
     assert "function found(" in store
+
+
+def test_escape_cancels_find_before_it_can_quit():
+    shell = qml("shell.qml")
+    esc = shell.split("Keys.onEscapePressed", 1)[1].split("ColumnLayout", 1)[0]
+    assert esc.index("Store.finding") < esc.index("Store.requestQuit()")
+    assert "Store.stopFind()" in esc.split("Store.requestQuit()", 1)[0]
+    # Every quit leaves find mode first.
+    for m in re.finditer(r"Qt\.quit\(\)", shell):
+        assert "Store.stopFind()" in shell[:m.start()].rsplit("{", 1)[-1] or \
+            "Store.stopFind()" in shell[max(0, m.start() - 200):m.start()]
+
+
+def test_leaving_find_survives_the_panel_and_cannot_be_dropped():
+    store = qml("state", "Store.qml")
+    assert 'Quickshell.execDetached(["hyprctl", "eval", Capture.leaveLua()])' in store
+    assert "findLeave" not in store
+    enter = store.split("property Process findEnter", 1)[1].split("property Process", 1)[0]
+    assert "!root.finding" in enter and "code !== 0" in enter
+
+
+def test_find_follows_hyprland_and_ends_with_the_things_that_conflict_with_it():
+    store = qml("state", "Store.qml")
+    assert "import Quickshell.Hyprland" in store
+    assert "onRawEvent" in store and 'event.name === "submap"' in store
+    assert "Capture.SUBMAP" in store and "Capture.TIMEOUT_MS" in store
+    for fn in ("function runApply(", "function reload(", "function adopt(", "function edit(", "function newBind("):
+        body = store.split(fn, 1)[1].split("\n    function ", 1)[0]
+        assert "stopFind()" in body, fn
+    shell = qml("shell.qml")
+    assert "TextInput" in shell.split("onActiveFocusItemChanged", 1)[1][:300]
+
+
+def test_a_held_key_does_not_find():
+    shell = qml("shell.qml")
+    finding = shell.split("if (Store.finding)", 1)[1].split("var mod", 1)[0]
+    assert "event.isAutoRepeat" in finding.split("Capture.comboFrom", 1)[0]

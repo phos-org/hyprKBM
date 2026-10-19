@@ -155,3 +155,24 @@ def test_a_title_containing_commas_is_kept_whole():
 def test_the_leave_lua_matches_capture_js():
     js = (WATCH.parents[1] / "quickshell/hyprkbm/lib/capture.js").read_text()
     assert watch.LEAVE_CAPTURE_LUA in js.replace("\\\"", '"')
+
+
+def test_leave_capture_is_bounded_and_survives_failures(monkeypatch, capsys):
+    seen = {}
+
+    def fake(cmd, **kw):
+        seen.update(kw)
+        raise watch.subprocess.TimeoutExpired(cmd, kw["timeout"])
+
+    monkeypatch.setattr(watch.subprocess, "run", fake)
+    watch.leave_capture()
+    assert seen["timeout"] == 5
+
+    class R:
+        returncode = 1
+        stdout = ""
+        stderr = "boom"
+
+    monkeypatch.setattr(watch.subprocess, "run", lambda *a, **k: R())
+    watch.leave_capture()
+    assert "boom" in capsys.readouterr().err

@@ -34,3 +34,17 @@ test("a modifier alone, or an unnameable key, is not a combo", () => {
   assert.equal(C.comboFrom(0x01000020, 0), null)
   assert.equal(C.comboFrom(0x7fffffff, 0), null)
 })
+
+test("enterLua is exactly the Lua the brief specifies", () => {
+  assert.equal(C.enterLua(), [
+    'hl.define_submap("hyprkbm-capture", function()',
+    '    hl.bind("SUPER + Escape", hl.dsp.submap("reset"))',
+    'end)',
+    'hl.dispatch(hl.dsp.submap("hyprkbm-capture"))',
+    'hl.timer(function()',
+    '    if hl.get_current_submap() == "hyprkbm-capture" then',
+    '        hl.dispatch(hl.dsp.submap("reset"))',
+    '    end',
+    'end, { timeout = 10000, type = "oneshot" })'
+  ].join("\n"))
+})

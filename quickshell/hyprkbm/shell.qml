@@ -77,6 +77,11 @@ ShellRoot {
             // Find mode ends on either too: its keys only reach this scope
             // while it has focus.
             onActiveFocusChanged: if (!activeFocus) { Store.heldMods = []; Store.stopFind() }
+            // Typing into a field (clicking the search) is not a keybind.
+            Window.onActiveFocusItemChanged: {
+                var f = scope.Window.activeFocusItem
+                if (f && (f instanceof TextInput || f instanceof TextEdit)) Store.stopFind()
+            }
             Window.onActiveChanged: if (!Window.active) { Store.heldMods = []; Store.stopFind() }
 
             Keys.onPressed: function (event) {
@@ -91,10 +96,8 @@ ShellRoot {
                             Store.heldMods = QtKeys.heldMods(event.key, event.modifiers, true)
                         return
                     }
-                    if (event.key === Qt.Key_Escape && (event.modifiers & ~Qt.KeypadModifier) === 0) {
-                        Store.stopFind()
-                        return
-                    }
+                    // A held key repeats; the first press already answered.
+                    if (event.isAutoRepeat) return
                     let c = Capture.comboFrom(event.key, event.modifiers)
                     if (c !== null) Store.found(c.mods, c.key)
                     return
@@ -148,8 +151,18 @@ ShellRoot {
                 var mod = QtKeys.modifierFromQtKey(event.key)
                 if (mod !== "") Store.release(mod)
             }
-            Keys.onEscapePressed: {
-                if (Store.requestQuit()) Qt.quit()
+            // Qt runs this before onPressed and accepts the event, so Escape
+            // while finding has to be handled here or it would quit.
+            Keys.onEscapePressed: function (event) {
+                if (Store.finding) {
+                    event.accepted = true
+                    Store.stopFind()
+                    return
+                }
+                if (Store.requestQuit()) {
+                    Store.stopFind()
+                    Qt.quit()
+                }
             }
 
             ColumnLayout {

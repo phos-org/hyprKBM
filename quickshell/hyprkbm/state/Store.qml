@@ -2,6 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 import "../lib/keys.js" as Keys
 import "../lib/model.js" as Model
 import "../lib/keymap.js" as Keymap
@@ -111,6 +112,7 @@ QtObject {
     // ------------------------------------------------------------ reading
 
     function reload() {
+        stopFind()
         loading = true
         stateProc.running = true
     }
@@ -119,6 +121,7 @@ QtObject {
         // A reload (after a layout change, the watcher or IPC) must not throw
         // away edits that are staged but not applied; only a clean model is
         // refreshed from disk. Dirtiness is read before `saved` is overwritten.
+        stopFind()
         var hadEdits = root.dirty
         doc = parsed
         saved = parsed.model
@@ -159,6 +162,12 @@ QtObject {
         query = ""
     }
 
+    // Fire-and-forget, so it still goes out when the panel is quitting and
+    // cannot be dropped by an earlier leave that is still running.
+    function leaveNow() {
+        Quickshell.execDetached(["hyprctl", "eval", Capture.leaveLua()])
+    }
+
     function startFind() {
         // Not while an apply runs or a draft is open: the pressed keys are
         // the draft's, and an apply reloads Hyprland, which ends the submap.
@@ -174,7 +183,7 @@ QtObject {
         // the user entered themselves (the Lua is guarded too).
         if (!finding) return
         finding = false
-        findLeave.running = true
+        leaveNow()
     }
 
     function found(mods, key) {
@@ -183,7 +192,6 @@ QtObject {
         heldMods = []
         setMods(mods)
         selectKey(key)
-        query = ""
         report("", false)
     }
 
@@ -234,9 +242,11 @@ QtObject {
                 report("The bind at " + b.where + " runs a Lua function; change it in hyprland.lua.", true)
                 return
             }
+            stopFind()
             draft = { id: null, hand: b.hand, keys: b.keys, submap: b.submap, action: action,
                       description: b.description, flags: flagsFromOpts(b.hand.opts), allowConflict: false }
         } else {
+            stopFind()
             draft = { id: b.id, hand: b.hand, keys: b.keys, submap: b.submap,
                       action: Model.clone(b.action), description: b.description,
                       flags: Model.clone(b.flags), allowConflict: b.allowConflict }
@@ -245,6 +255,7 @@ QtObject {
 
     function newBind(keys) {
         if (readOnly || model === null || stagingBlocked()) return
+        stopFind()
         draft = { id: null, hand: null, keys: keys, submap: submap,
                   action: { kind: "exec_cmd", args: {} }, description: "", flags: {}, allowConflict: false }
     }
@@ -391,6 +402,7 @@ QtObject {
     }
 
     function runApply(m) {
+        stopFind()
         busy = true
         report("Applying…", false)
         // Captured now: the process starts later, and a model edited in
@@ -580,14 +592,31 @@ QtObject {
         command: ["hyprctl", "eval", Capture.enterLua()]
         stderr: StdioCollector { id: findErr }
         onExited: function (code) {
-            if (code === 0) return
-            root.finding = false
-            root.report((findErr.text || "Hyprland could not enter find mode.").trim(), true)
+            // Cancelled while the enter was in flight, or the Lua failed after
+            // it had already switched: either way Hyprland may be in capture.
+            if (!root.finding || code !== 0) root.leaveNow()
+            if (root.finding && code !== 0) {
+                root.finding = false
+                root.report((findErr.text || "Hyprland could not enter find mode.").trim(), true)
+            }
         }
     }
 
-    property Process findLeave: Process {
-        command: ["hyprctl", "eval", Capture.leaveLua()]
+    // Hyprland leaves the submap by itself (its own timer, SUPER + Escape);
+    // it has already left, so nothing is sent.
+    property Connections hyprland: Connections {
+        target: Hyprland
+        function onRawEvent(event) {
+            if (root.finding && event.name === "submap" && event.data !== Capture.SUBMAP)
+                root.finding = false
+        }
+    }
+
+    // Backstop for a leave event that never arrives.
+    property Timer findTimeout: Timer {
+        interval: Capture.TIMEOUT_MS
+        running: root.finding
+        onTriggered: root.stopFind()
     }
 
     property Process watcherProc: Process {
