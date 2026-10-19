@@ -509,7 +509,7 @@ def test_the_find_button_moves_focus_to_the_window_first():
     assert "Store.startFind()" not in header
     shell = qml("shell.qml")
     handler = shell.split("onFindRequested:", 1)[1][:200]
-    assert handler.index("scope.forceActiveFocus()") < handler.index("Store.startFind()")
+    assert handler.index("scope.takeKeys()") < handler.index("Store.startFind()")
 
 
 def test_a_leave_follows_every_capture_end_seen_in_hyprland():
@@ -592,7 +592,7 @@ def test_tab_moves_areas_before_the_text_input_guard_but_after_find():
     move = shell.split("function moveArea(back)", 1)[1].split("\n            }\n", 1)[0]
     assert "Focus.next" in move and "Focus.prev" in move
     assert "editor.focusFirst()" in move and "editor.focusLast()" in move
-    assert "scope.forceActiveFocus()" in move
+    assert "scope.takeKeys()" in move
     # The editor hands Tab back when its walk runs off an end.
     assert "onTabOut:" in shell and "scope.moveArea(back)" in shell
 
@@ -782,3 +782,14 @@ def test_enter_dispatches_on_the_row_kind_and_e_and_delete_skip_other_rows():
     pick = store.split("function pickOther(", 1)[1].split("\n    }\n", 1)[0]
     assert "setMods(b.mods)" in pick and "listIndex = i" in pick
     assert "selectedKey" not in pick  # the key stays selected
+
+
+def test_the_scope_takes_the_keys_back_by_clearing_inner_focus():
+    # A FocusScope's forceActiveFocus hands focus back to the child that had
+    # it, and a closed editor's fields are only hidden; every hand-back must
+    # clear that focus first.
+    shell = (PANEL / "shell.qml").read_text()
+    take = shell[shell.index("function takeKeys()"):]
+    take = take[:take.index("\n            }\n")]
+    assert "p.focus = false" in take and "scope.forceActiveFocus()" in take
+    assert shell.count("scope.forceActiveFocus()") == 1

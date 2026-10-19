@@ -96,12 +96,23 @@ ShellRoot {
                 let hasEditor = Store.draft !== null
                 Store.area = back ? Focus.prev(Store.area, hasEditor) : Focus.next(Store.area, hasEditor)
                 if (Store.area === "editor") { if (back) editor.focusLast(); else editor.focusFirst() }
-                else scope.forceActiveFocus()
+                else scope.takeKeys()
             }
 
             function within(item, ancestor) {
                 for (let p = item; p; p = p.parent) if (p === ancestor) return true
                 return false
+            }
+
+            // Takes the keys back from whatever inside the scope has them.
+            // forceActiveFocus alone is not enough: a FocusScope hands active
+            // focus on to the child that last had it, and a closed editor's
+            // fields are hidden, not destroyed, so Tab would go on reaching
+            // the editor's own walk and never move between areas again.
+            function takeKeys() {
+                for (let p = scope.Window.activeFocusItem; p && p !== scope; p = p.parent)
+                    if (scope.within(p, scope)) p.focus = false
+                scope.forceActiveFocus()
             }
 
             // However the editor closes (Save, Cancel, Esc, Delete), the keys
@@ -110,10 +121,10 @@ ShellRoot {
                 target: Store
                 function onDraftChanged() {
                     // Only when focus was in the editor; a click elsewhere keeps its own.
-                    if (Store.draft === null && scope.within(scope.Window.activeFocusItem, editor)) scope.forceActiveFocus()
+                    if (Store.draft === null && scope.within(scope.Window.activeFocusItem, editor)) scope.takeKeys()
                 }
                 function onAreaChanged() {
-                    if (Store.area !== "editor" && scope.within(scope.Window.activeFocusItem, editor)) scope.forceActiveFocus()
+                    if (Store.area !== "editor" && scope.within(scope.Window.activeFocusItem, editor)) scope.takeKeys()
                 }
             }
 
@@ -272,13 +283,13 @@ ShellRoot {
                     id: header
                     Layout.fillWidth: true
                     Layout.fillHeight: false
-                    onLeaveSearch: scope.forceActiveFocus()
+                    onLeaveSearch: scope.takeKeys()
                     onBackupsRequested: backupsDialog.open()
                     onExportRequested: exportDialog.open()
                     onSubmapRequested: submapDialog.open()
                     onSettingsRequested: settingsPopup.open()
                     onFindRequested: {
-                        scope.forceActiveFocus()
+                        scope.takeKeys()
                         Store.startFind()
                     }
                 }
