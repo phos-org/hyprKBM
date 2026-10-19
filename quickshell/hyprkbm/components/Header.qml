@@ -18,6 +18,9 @@ RowLayout {
     signal exportRequested()
     signal submapRequested()
     signal settingsRequested()
+    // The window moves focus off any text field before find starts, so its
+    // keys reach the find handler.
+    signal findRequested()
     // Escape in the search hands focus back to the window, for the arrow keys.
     signal leaveSearch()
 
@@ -65,7 +68,7 @@ RowLayout {
     Action {
         text: Store.finding ? "Press a keybind…" : "Find (F)"
         focusPolicy: Qt.NoFocus
-        onClicked: Store.finding ? Store.stopFind() : Store.startFind()
+        onClicked: Store.finding ? Store.stopFind() : root.findRequested()
     }
 
     Action {

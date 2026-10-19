@@ -454,7 +454,7 @@ def test_find_cannot_be_started_through_ipc():
 
 def test_the_header_find_action_does_not_take_focus():
     header = qml("components", "Header.qml")
-    block = header.split("Store.startFind()", 1)[0].rsplit("Action {", 1)[1]
+    block = header.split("root.findRequested()", 1)[0].rsplit("Action {", 1)[1]
     assert "focusPolicy: Qt.NoFocus" in block
     assert "Store.stopFind()" in header
     assert "Press a keybind" in header
@@ -501,3 +501,26 @@ def test_a_held_key_does_not_find():
     shell = qml("shell.qml")
     finding = shell.split("if (Store.finding)", 1)[1].split("var mod", 1)[0]
     assert "event.isAutoRepeat" in finding.split("Capture.comboFrom", 1)[0]
+
+
+def test_the_find_button_moves_focus_to_the_window_first():
+    header = qml("components", "Header.qml")
+    assert "signal findRequested()" in header
+    assert "Store.startFind()" not in header
+    shell = qml("shell.qml")
+    handler = shell.split("onFindRequested:", 1)[1][:200]
+    assert handler.index("scope.forceActiveFocus()") < handler.index("Store.startFind()")
+
+
+def test_a_leave_follows_every_capture_end_seen_in_hyprland():
+    store = qml("state", "Store.qml")
+    raw = store.split("function onRawEvent", 1)[1].split("property Timer", 1)[0]
+    assert "root.leaveNow()" in raw
+
+
+def test_only_a_bare_escape_cancels_find():
+    shell = qml("shell.qml")
+    esc = shell.split("Keys.onEscapePressed", 1)[1].split("ColumnLayout", 1)[0]
+    finding = esc.split("Store.finding", 1)[1].split("Store.requestQuit()", 1)[0]
+    assert "event.modifiers" in finding and "event.accepted = false" in finding
+    assert finding.index("event.accepted = false") < finding.index("Store.stopFind()")

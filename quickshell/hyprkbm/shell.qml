@@ -155,6 +155,12 @@ ShellRoot {
             // while finding has to be handled here or it would quit.
             Keys.onEscapePressed: function (event) {
                 if (Store.finding) {
+                    // Only a bare Escape cancels; with a modifier it is a combo
+                    // to find, which onPressed captures once this is unaccepted.
+                    if ((event.modifiers & ~Qt.KeypadModifier) !== 0) {
+                        event.accepted = false
+                        return
+                    }
                     event.accepted = true
                     Store.stopFind()
                     return
@@ -180,6 +186,10 @@ ShellRoot {
                     onExportRequested: exportDialog.open()
                     onSubmapRequested: submapDialog.open()
                     onSettingsRequested: settingsPopup.open()
+                    onFindRequested: {
+                        scope.forceActiveFocus()
+                        Store.startFind()
+                    }
                 }
 
                 // A layout inside a layout fills spare height by default; these

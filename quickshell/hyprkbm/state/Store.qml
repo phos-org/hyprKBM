@@ -607,8 +607,12 @@ QtObject {
     property Connections hyprland: Connections {
         target: Hyprland
         function onRawEvent(event) {
-            if (root.finding && event.name === "submap" && event.data !== Capture.SUBMAP)
+            if (root.finding && event.name === "submap" && event.data !== Capture.SUBMAP) {
                 root.finding = false
+                // Guarded Lua: harmless when Hyprland really left, and it ends
+                // a capture that a stale event from an earlier find reported over.
+                root.leaveNow()
+            }
         }
     }
 
