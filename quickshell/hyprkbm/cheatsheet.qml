@@ -32,6 +32,9 @@ ShellRoot {
             var focused = Hyprland.focusedMonitor
             if (focused === null && !force) return
             sheet.output = Cheatsheet.outputFor(Quickshell.screens, focused === null ? "" : focused.name)
+            // No output listed yet: wait for the next try rather than show
+            // the sheet unplaced and have it move later.
+            if (sheet.output === null) return
             // Shown a turn later, so the surface is made on that output and
             // not made first on the default one, then moved.
             Qt.callLater(function () { sheet.ready = true })
@@ -173,7 +176,7 @@ ShellRoot {
 
                 Text {
                     Layout.alignment: Qt.AlignHCenter
-                    text: "Hold SUPER, SHIFT, CTRL or ALT · Esc or a click closes"
+                    text: "Hold SUPER, SHIFT, CTRL or ALT to see their binds (pressing a combo still runs it) · Esc or a click closes"
                     color: Colors.textSecondary
                     font.family: Typography.family
                     font.pixelSize: Typography.sizeSmall

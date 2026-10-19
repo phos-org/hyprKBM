@@ -69,7 +69,8 @@ Rectangle {
             maximumLineCount: root.subLines
             color: Colors.textSecondary
             font.family: Typography.family
-            font.pixelSize: Math.max(7, Math.round(root.unit * 0.19))
+            // Three lines at the panel's size would overflow the key.
+            font.pixelSize: Math.max(7, Math.round(root.unit * (root.subLines > 1 ? 0.15 : 0.19)))
             elide: Text.ElideRight
         }
     }
