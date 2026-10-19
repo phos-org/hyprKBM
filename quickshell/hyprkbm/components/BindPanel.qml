@@ -33,6 +33,8 @@ Rectangle {
     Connections {
         target: Store
         function onListIndexChanged() { root.ensureVisible() }
+        // After the rows of the new view are laid out.
+        function onPicked() { Qt.callLater(root.ensureVisible) }
     }
 
     readonly property bool searching: !Store.parsedQuery.empty

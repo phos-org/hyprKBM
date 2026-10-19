@@ -111,6 +111,9 @@ QtObject {
     property bool finding: false
 
     signal applied()
+    // A pick switches views; the list scrolls to the bind even when the
+    // cursor lands on the row it was already on, so listIndex never changes.
+    signal picked()
 
     Component.onCompleted: reload()
 
@@ -296,6 +299,7 @@ QtObject {
         setMods(b.mods)
         for (var i = 0; i < listed.length; i++)
             if (listed[i].uid === b.uid) { listIndex = i; break }
+        picked()
     }
 
     // The keys' Edit: the Edit button's own limits apply, so a bind hyprKBM
