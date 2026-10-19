@@ -206,14 +206,14 @@ hl.bind("SUPER + F1", hl.dsp.exec_cmd("hyprkbm --cheatsheet"))
   instead of running it. They come back the moment it closes (Esc, a click,
   its own key, Enter), with **SUPER+Escape** at any time (which also closes
   it), and within 15 seconds on their own if the cheatsheet crashes. Closing
-  it always returns Hyprland to the default submap.
+  it returns Hyprland to the default submap.
 - It shows the global binds, never changes anything on disk, and stages
   nothing.
 
 ## Using it
 
 ```bash
-hyprkbm                      # open the panel
+hyprkbm                       # open the panel
 hyprkbm --cheatsheet          # show the cheatsheet, or hide it if shown
 hyprkbm --status              # binds, conflicts, stale overrides, the watcher
 hyprkbm --binds               # your hand-written binds, with fingerprints

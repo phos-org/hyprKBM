@@ -173,9 +173,12 @@ ShellRoot {
             onExited: function (code) {
                 if (sheet.closing) { sheet.flush(); return }
                 // A re-arm fails once Hyprland has left the submap (the sheet
-                // missed the event): combos run again, so the sheet goes.
+                // missed the event): combos run again, so the sheet goes. It
+                // can also fail for other reasons (a socket hiccup) with the
+                // submap still held, so it still leaves; the leave is guarded
+                // and does nothing when Hyprland has already left.
                 if (code !== 0 && sheet.held) {
-                    sheet.finish("")
+                    sheet.finish(Cheatsheet.leaveLua(Date.now()))
                     return
                 }
                 // The first hold may have failed after it switched: give the

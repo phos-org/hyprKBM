@@ -218,7 +218,7 @@ def test_cheatsheet_closes_the_one_that_is_running(home_env, stubs):
     assert res.returncode == 0, res.stderr
     calls = [c for c in stubs.calls() if c[0] == "qs"]
     assert len(calls) == 1 and calls[0][1] == "ipc"
-    assert calls[0][2:4] == ["-p", calls[0][3]] and calls[0][3].endswith("cheatsheet.qml")
+    assert calls[0][2] == "-p" and calls[0][3].endswith("quickshell/hyprkbm/cheatsheet.qml")
 
 
 def test_cheatsheet_needs_quickshell(home_env, stubs):

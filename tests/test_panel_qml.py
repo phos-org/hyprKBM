@@ -893,13 +893,14 @@ def test_the_cheatsheet_holds_hyprlands_binds_while_open():
     done = done[:done.index("\n        }\n")]
     # Held only once a hold succeeded.
     assert "sheet.held = true" in done.split("if (code !== 0) {", 1)[1].split("} else {", 1)[1]
-    # A failed re-arm means Hyprland is no longer held (rearmLua errors when
-    # the submap is gone): close, with nothing to leave. A failed first hold
-    # is reported and given back instead.
+    # A failed re-arm usually means Hyprland is no longer held (rearmLua
+    # errors when the submap is gone), but may be a hiccup with the submap
+    # still held: close, leaving (guarded, so harmless either way). A failed
+    # first hold is reported and given back instead.
     failed = done.split("if (code !== 0 && sheet.held) {", 1)[1].split("}", 1)[0]
-    assert 'sheet.finish("")' in failed and "return" in failed
+    assert "sheet.finish(Cheatsheet.leaveLua(Date.now()))" in failed and "return" in failed
     assert done.index("code !== 0 && sheet.held") < done.index("if (code !== 0) {")
-    assert sheet.count('sheet.finish("")') == 2  # and the submap event
+    assert sheet.count('sheet.finish("")') == 1  # only the submap event
 
 
 def test_the_cheatsheet_closes_when_hyprland_leaves_its_submap():
@@ -941,7 +942,7 @@ def test_every_way_out_of_the_cheatsheet_gives_the_binds_back():
     flush = flush[:flush.index("\n        }\n")]
     assert flush.index('Quickshell.execDetached(["hyprctl", "eval", lua])') < flush.index("quitSoon.start()")
     # Esc, a click and IPC close leave; Enter runs; nothing else finishes.
-    assert sheet.count("sheet.finish(Cheatsheet.leaveLua(Date.now()))") == 4  # Esc, click, close(), own key
+    assert sheet.count("sheet.finish(Cheatsheet.leaveLua(Date.now()))") == 5  # Esc, click, close(), own key, failed re-arm
     assert sheet.count("sheet.finish(") == 7  # and Hyprland leaving, or a failed re-arm
     run = sheet[sheet.index("function runSelection()"):]
     run = run[:run.index("\n        }\n")]
