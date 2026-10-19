@@ -264,3 +264,58 @@ def test_non_ascii_descriptions_survive_a_c_locale(home_env, stubs, paths):
                                str(out)], capture_output=True, text=True, env=env)
     assert exported.returncode == 0, exported.stderr
     assert "ünï" in out.read_bytes().decode("utf-8")
+
+
+def test_preview_renders_without_writing_or_calling_hyprctl(paths, stubs):
+    from hyprkbm.apply import preview
+
+    result = preview(GOOD, paths)
+
+    assert result["ok"] is True
+    assert result["errors"] == []
+    assert 'exec_cmd("firefox")' in result["lua"]
+    assert result["current"] == ""
+    assert not paths.model.exists()
+    assert stubs.calls() == []
+
+
+def test_preview_reports_errors_and_the_current_file(paths, stubs):
+    from hyprkbm.apply import preview
+    apply(GOOD, paths)
+    bad = {"version": 1, "submaps": [], "unbinds": [],
+           "binds": [{"id": "b1", "keys": "SUPER + B", "action": {"kind": "nope"}}]}
+
+    result = preview(bad, paths)
+
+    assert result["ok"] is False
+    assert result["errors"][0]["id"] == "b1"
+    assert result["lua"] == ""
+    assert result["current"] == paths.lua.read_text()
+
+
+def test_the_executable_previews(home_env, stubs, paths):
+    env = dict(home_env, PATH=os.environ["PATH"])
+    res = subprocess.run([sys.executable, str(ROOT / "bin" / "hyprkbm-apply"), "--preview"],
+                         input=json.dumps(GOOD), capture_output=True, text=True, env=env)
+
+    assert res.returncode == 0, res.stderr
+    assert json.loads(res.stdout)["ok"] is True
+    assert not paths.lua.exists()
+
+
+def test_preview_handles_missing_lua_interpreter(paths, monkeypatch):
+    from hyprkbm.apply import preview
+    from hyprkbm import reader
+
+    def raise_no_lua(*_a, **_k):
+        raise FileNotFoundError("no lua")
+
+    monkeypatch.setattr(reader, "interpreter", raise_no_lua)
+
+    result = preview(GOOD, paths)
+
+    assert result["ok"] is False
+    assert len(result["errors"]) > 0
+    assert "could not be read" in result["errors"][0]["message"]
+    assert result["lua"] == ""
+    assert result["current"] == ""

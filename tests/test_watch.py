@@ -109,3 +109,70 @@ def test_serve_skips_reloads_apply_made_and_answers_the_rest(paths, monkeypatch)
 
     assert calls == ["apply", "apply"]  # catch-up, then the third reload
     assert not paths.marker.exists()
+
+
+def replay_capture(chunks):
+    left = []
+    ours, theirs = socket.socketpair()
+    for chunk in chunks:
+        theirs.sendall(chunk)
+    theirs.shutdown(socket.SHUT_WR)
+    with ours:
+        watch.read_events(ours, lambda: None, lambda: left.append(True))
+    theirs.close()
+    return len(left)
+
+
+def test_capture_is_left_only_when_another_window_is_active():
+    f = watch.should_leave_capture
+    assert f("hyprkbm-capture", "kitty", "~") is True
+    assert f("hyprkbm-capture", "org.quickshell", "Keybinds") is False
+    assert f("hyprkbm-capture", "org.quickshell", "Other") is True
+    assert f("", "kitty", "~") is False
+    assert f("resize", "kitty", "~") is False
+
+
+def test_a_stray_window_during_capture_runs_the_reset():
+    assert replay_capture([b"submap>>hyprkbm-capture\n", b"activewindow>>kitty,~\n"]) == 1
+
+
+def test_the_panel_being_active_during_capture_does_not_reset():
+    assert replay_capture([
+        b"submap>>hyprkbm-capture\n", b"activewindow>>org.quickshell,Keybinds\n"]) == 0
+
+
+def test_no_reset_after_the_submap_is_left():
+    assert replay_capture([
+        b"submap>>hyprkbm-capture\n", b"submap>>\n", b"activewindow>>kitty,~\n"]) == 0
+
+
+def test_a_title_containing_commas_is_kept_whole():
+    assert replay_capture([
+        b"activewindow>>org.quickshell,Keybinds\n", b"submap>>hyprkbm-capture\n",
+        b"activewindow>>org.quickshell,Keybinds, more\n"]) == 1
+
+
+def test_the_leave_lua_matches_capture_js():
+    js = (WATCH.parents[1] / "quickshell/hyprkbm/lib/capture.js").read_text()
+    assert watch.LEAVE_CAPTURE_LUA in js.replace("\\\"", '"')
+
+
+def test_leave_capture_is_bounded_and_survives_failures(monkeypatch, capsys):
+    seen = {}
+
+    def fake(cmd, **kw):
+        seen.update(kw)
+        raise watch.subprocess.TimeoutExpired(cmd, kw["timeout"])
+
+    monkeypatch.setattr(watch.subprocess, "run", fake)
+    watch.leave_capture()
+    assert seen["timeout"] == 5
+
+    class R:
+        returncode = 1
+        stdout = ""
+        stderr = "boom"
+
+    monkeypatch.setattr(watch.subprocess, "run", lambda *a, **k: R())
+    watch.leave_capture()
+    assert "boom" in capsys.readouterr().err

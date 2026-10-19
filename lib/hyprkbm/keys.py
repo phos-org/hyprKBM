@@ -18,6 +18,10 @@ MODIFIERS = {
 }
 ORDER = ["SUPER", "CTRL", "ALT", "SHIFT", "CAPS", "MOD2", "MOD3", "MOD5"]
 
+# Two names xkb accepts for one keysym. A bind written with either spelling
+# must land on the same key, in conflict checks and on the panel's keyboard.
+KEY_ALIASES = {"page_up": "prior", "page_down": "next"}
+
 
 class KeyParseError(ValueError):
     pass
@@ -31,7 +35,8 @@ class Combo:
     @property
     def id(self):
         # Keysyms are matched case-insensitively: "f" and "F" are one key.
-        return "+".join(self.mods + (self.key.lower(),))
+        key = self.key.lower()
+        return "+".join(self.mods + (KEY_ALIASES.get(key, key),))
 
     @property
     def display(self):

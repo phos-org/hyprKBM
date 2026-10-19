@@ -7,6 +7,7 @@ the only development dependency. The reader needs a Lua interpreter.
 
 ```bash
 python3 -m pytest tests/ -q
+node --test tests/js/        # or: npm test
 shellcheck install.sh
 ```
 
@@ -24,8 +25,46 @@ someone who is using the machine.
 | `lib/hyprkbm/` | the Python core: keys, model, render, apply, export, and `marker.py`, the counted lock-protected record of which reloads hyprkbm-apply made itself |
 | `share/actions.json` | the action catalogue |
 | `bin/` | `hyprkbm`, `hyprkbm-apply` (the only writer of keybinds files), `hyprkbm-watch` |
+| `quickshell/hyprkbm/` | the panel: QML in `components/`, logic in `lib/*.js`, theme in `config/`, presets in `presets/` |
+| `quickshell/hyprkbm/lib/capture.js` | find mode: the Lua that pauses binds for one press (the `hyprkbm-capture` submap, a 10 s timer) and turns a key event into a combo; `hyprkbm-watch` resets the submap if the panel dies mid-find |
+| `quickshell/hyprkbm/lib/focus.js` | the keyboard areas' Tab order, the editor's field walk and the list cursor |
+| `tests/js/` | node tests for `quickshell/hyprkbm/lib/*.js` |
 | `systemd/` | the `hyprkbm-watch` user unit |
 | `docs/superpowers/` | the design spec and implementation plans |
+
+## Running the panel
+
+```bash
+HYPRKBM_BIN="$PWD/bin" qs -p quickshell/hyprkbm -d -n
+qs ipc -p quickshell/hyprkbm call hyprkbm state     # what it shows, as JSON
+qs log -p quickshell/hyprkbm                         # QML warnings and errors
+qs kill -p quickshell/hyprkbm
+```
+
+The IPC target can select keys, search and edit, but has no way to apply: a
+scripted check must never change a real session. Logic belongs in
+`quickshell/hyprkbm/lib/*.js` with a test in `tests/js/`; QML only binds and
+draws.
+
+Lint the QML. On Arch there is no `qtpaths6`:
+
+```bash
+find quickshell -name '*.qml' -print0 | xargs -0 /usr/lib/qt6/bin/qmllint -I /usr/lib/qt6/qml
+```
+
+Elsewhere, `qtpaths6 --query QT_INSTALL_QML` gives the import path for `-I`.
+
+QML pitfalls this project has hit:
+
+- Never compute a size from an item's own width when a sibling's width
+  depends on that size. The panel froze from exactly that loop; the key size
+  comes from the pane (see `Layouts.unitFor`).
+- Import `QtQuick.Controls` as `QC` in files that use our `Action`
+  component, which would otherwise clash with the built-in.
+- Do not import `lib/keys.js` as `Keys` in a file with key handlers; it
+  shadows the `Keys` attached property.
+- `textTertiary` is for inactive states only; `tests/test_theme_presets.py`
+  enforces it.
 
 ## Testing against Hyprland
 

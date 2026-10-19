@@ -13,10 +13,8 @@
 you wrote in `hyprland.lua` and its own, and adds, overrides or removes
 binds without ever editing your config.
 
-> **This release is the core**: reading your binds, applying hyprKBM's own,
-> keeping them applied, and exporting a cheatsheet, all from the command
-> line. The keyboard panel and the cheatsheet overlay are next; until then,
-> hyprKBM's binds live in a JSON file you edit by hand.
+The **keyboard panel** shows every bind on an on-screen keyboard; the
+cheatsheet overlay comes next.
 
 ## What it does
 
@@ -41,6 +39,7 @@ binds without ever editing your config.
 | Hyprland | with Lua configuration (`hyprland.lua`). Developed against 0.56.2. |
 | Lua | a 5.4 or 5.5 interpreter: `lua` on Arch (Hyprland already pulls it in), `lua5.4` on Debian and Ubuntu. |
 | Python 3 | standard library only. Developed against 3.14; CI runs 3.12. |
+| Quickshell | 0.3 or later, for the panel (the `qs` command). The command line works without it. |
 | systemd | a user session that starts `graphical-session.target` ([uwsm](https://github.com/Vladimir-csp/uwsm) does). See [Without systemd](#without-systemd) otherwise. |
 
 ## Install
@@ -90,9 +89,103 @@ This disables the watcher and removes the links. Your `keybinds.json`, the
 generated `keybinds.lua` and the backups are kept; the binds stay active
 until the next Hyprland reload.
 
+## The panel
+
+Run `hyprkbm`, or open **Keybinds** from your app launcher. Bind it to a key
+if you like:
+
+```lua
+hl.bind("SUPER + CTRL + K", hl.dsp.exec_cmd("hyprkbm"))
+```
+
+It opens as a floating window, centred, 1180x760. That comes from a window
+rule `hyprkbm` adds to the running Hyprland with `hyprctl eval`; the rule
+goes at the next reload and comes back at the next launch. Running `hyprkbm`
+again focuses the open panel instead of opening a second one.
+
+- **The keyboard** is lit by what each key does under the modifiers you hold
+  (or click): accent for bound, filled red for a conflict, and an accent key
+  with a red outline for an overlap (see below). A key with only an accent
+  outline and no fill is free under these modifiers but bound under others:
+  in the SUPER view, D is outlined if you have SUPER+SHIFT+D. Click a key, or
+  move with the arrow keys, to see every bind on it below.
+- **Also bound as.** Under the selected key's binds, the list shows its binds
+  under every other combination of ALT, CTRL, SHIFT and SUPER, or none. Click
+  one (or press Enter on it) to switch to those modifiers with the key still
+  selected.
+- **Find (F).** Press F (or click **Find**), then press any key combination,
+  even one Hyprland has bound: the panel selects that key under those
+  modifiers. To let a bound combination through, your binds pause for that
+  one press. They come back as soon as the panel has it, on Esc, when the
+  panel loses focus, after 10 seconds at most, or with SUPER+Escape.
+- **Submaps** are the chips in the header; **search** (`/`) narrows to binds
+  matching plain words or the tags `mod:`, `key:`, `exec:`, `desc:`,
+  `submap:` and `src:` (`src:lua` is your `hyprland.lua`). Words also match
+  the action's name, so `exec` finds every bind that runs a command. A tag
+  with nothing after the colon means "has one": `exec:` runs a command,
+  `desc:` has a description, `mod:` has a modifier.
+- **Conflicts.** Two binds on one key are a *conflict* when at least one is
+  hyprKBM's. The bind list's **Keep both** marks that conflict as deliberate
+  (it sets `allowConflict` on the hyprKBM bind). Until then Apply refuses with
+  a message naming the keys; the button itself stays enabled. Overlaps among
+  only your `hyprland.lua` binds are *overlaps*: they never block, and the
+  panel says so. The header counts conflicts, or overlaps when none block.
+- **Stale edits.** An unbind or override whose `hyprland.lua` bind has
+  disappeared is listed under *Stale* in the bind list, with a **Forget**
+  button that removes the unbind or turns the override into an ordinary bind.
+- **Edit, Remove, + Add.** Editing one of your `hyprland.lua` binds makes an
+  override; removing one makes an unbind. In the editor, **⏺ Record** takes
+  the next key combination (Esc stops recording; Shift+digit records as the
+  digit). Pick an action from the list or write raw Lua, add a description,
+  flags and a submap.
+- **Nothing changes until Apply.** **Review diff** shows the generated
+  `keybinds.lua` before and after, and any errors. **Discard** throws the
+  staged changes away. Ctrl+Enter applies too, but only from the keyboard
+  view: not while you type in a field or have a dialog open, and only when
+  there are staged changes and no bind is open in the editor. The Apply button
+  waits for an open edit too. **Esc** cancels an open edit; with staged
+  changes it warns instead of quitting, and quits only if pressed again
+  within 3 seconds; it does nothing while an apply runs. Do not close the
+  panel while it says "Applying…": closing it stops the helper mid-apply.
+- **Backups** lists the last 30 versions with what restoring each would
+  change. Restore is disabled while there are staged changes, except that it
+  is the way out when `keybinds.json` is broken (the panel is then read-only),
+  and a backup whose `keybinds.json` cannot be read is refused. **Export**
+  writes the Markdown cheatsheet to a path you choose. **Theme** offers the
+  phos presets, an accent and dark or light, saved in
+  `~/.config/hyprkbm/theme.json`. **⋯** switches between ANSI and ISO
+  keyboards, names the config file being read, and shows the watcher's state
+  with a button to start it.
+
+### Keys
+
+The panel can be driven without the mouse. It has three areas, the keyboard,
+the bind list and the editor, and the one with the keys has a thick accent
+outline. Clicking a button does not take the keys away from them.
+
+| Key | Does |
+|---|---|
+| Tab / Shift+Tab | next / previous area; in the editor, next / previous field, leaving it at either end |
+| Arrows | move the selected key (keyboard) or the cursor (list) |
+| Enter | edit the bind under the cursor, or switch to an *Also bound as* row; on the keyboard, edit the key's first bind or add one |
+| E | edit the bind under the cursor, or the selected key's first bind |
+| A | add a bind on the selected key |
+| Delete | remove the bind under the cursor (list) |
+| F | find a bind by pressing it |
+| / | search |
+| Ctrl+S | save the bind in the editor |
+| Ctrl+D | review the diff |
+| Ctrl+Z | discard the staged changes |
+| Ctrl+Enter | apply |
+| Esc | cancel find, then the edit; otherwise quit (twice with staged changes) |
+
+Letters and shortcuts do nothing while you type in a field, except Tab,
+Ctrl+S and Esc.
+
 ## Using it
 
 ```bash
+hyprkbm                      # open the panel
 hyprkbm --status              # binds, conflicts, stale overrides, the watcher
 hyprkbm --binds               # your hand-written binds, with fingerprints
 hyprkbm --apply               # apply ~/.config/hyprkbm/keybinds.json
@@ -136,7 +229,7 @@ hyprKBM's binds, overrides and unbinds live in
 | `binds[].action` | `{ "kind": <id>, "args": {…} }` for an action from [`share/actions.json`](share/actions.json) (running a command, focus, moving windows, fullscreen, layout messages, submaps and more), or `{ "kind": "raw", "lua": "<dispatcher>" }` for anything else. |
 | `binds[].submap` | Optional. A submap defined here or in `hyprland.lua`; the global map when left out. |
 | `binds[].description` | Optional. Shown in the cheatsheet. |
-| `binds[].flags` | Optional `HL.BindOptions` switches: `repeating`, `locked`, `release`, `long_press`, `non_consuming`, `transparent`, `ignore_mods` and the rest. |
+| `binds[].flags` | Optional `HL.BindOptions` switches: `repeating`, `locked`, `release`, `long_press`, `non_consuming`, `transparent`, `ignore_mods`, `dont_inhibit`, `submap_universal`, `click`, `drag`, `mouse` and `allow_input_capture`. |
 | `binds[].replaces` | Makes the bind an **override** of one of your hand-written binds. |
 | `binds[].allowConflict` | Optional. `true` keeps a deliberate conflict from blocking the apply. |
 | `unbinds[]` | Removes one of your hand-written binds. |

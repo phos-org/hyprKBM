@@ -1,0 +1,16 @@
+{
+  "mode": "light",
+
+  "bgVoid": "#faf7f2",
+  "bgBase": "#f4efe8",
+  "bgSurface": "#ece4da",
+  "bgSurfaceAlt": "#e3d8cd",
+
+  "textPrimary": "#2a2430",
+  "textSecondary": "#5f5a6b",
+  "textTertiary": "#8d8797",
+
+  "accentPrimary": "#b04b6d",
+  "accentSecondary": "#966223",
+  "accentTertiary": "#607165"
+}

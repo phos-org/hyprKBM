@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Keybinds
+GenericName=Keybind manager
+Comment=See and change your Hyprland keybinds
+Exec=hyprkbm
+Icon=input-keyboard
+Categories=Settings;
+Keywords=hyprland;keybinds;shortcuts;hotkeys;

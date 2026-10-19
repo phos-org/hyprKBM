@@ -91,7 +91,8 @@ class Stubs:
 def stubs(tmp_path, monkeypatch):
     root = tmp_path / "stubs"
     root.mkdir()
-    for name, body in (("hyprctl", HYPRCTL), ("notify-send", LOGGER), ("systemctl", LOGGER)):
+    for name, body in (("hyprctl", HYPRCTL), ("notify-send", LOGGER), ("systemctl", LOGGER),
+                       ("qs", LOGGER)):
         script = root / name
         script.write_text(body % {"python": sys.executable})
         script.chmod(0o755)

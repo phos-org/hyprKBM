@@ -258,6 +258,37 @@ One window, the only view in v1. Regions (see the approved mockup):
 Keyboard navigation: arrow keys move the key selection, Enter edits, `/`
 focuses search, Esc closes dialogs.
 
+### Panel architecture
+
+- **One read, many views.** `hyprkbm --state` prints everything the panel
+  shows as one JSON document: hand binds (with keys, combo, submap, where,
+  fingerprint, reproducible, a description of the action), hand submaps,
+  `keybinds.json`, the action catalogue, the current `keybinds.lua`, the
+  backups, `settings.json` and the watcher's status. The panel runs it at
+  start and after every apply.
+- **Logic in JavaScript, I/O in Python.** `quickshell/hyprkbm/lib/*.js` are
+  `.pragma library` scripts with no I/O, tested with plain `node --test`:
+  key parsing (a twin of `keys.py`, tested against the same
+  `tests/fixtures/keys.json`), the catalogue's action helpers, merging the
+  staged model with hand binds, conflicts, search, keycap labels, keyboard
+  layouts and navigation, Qt key codes, and a line diff. QML only binds and
+  draws. Python stays the authority: everything the panel stages goes through
+  `hyprkbm-apply`, which validates again.
+- **Writes.** Keybinds only through `hyprkbm-apply` (apply) and
+  `hyprkbm-apply --preview` (validate and render without writing, for the
+  diff). The keyboard layout through `hyprkbm --set-layout`, which keeps the
+  other keys in `settings.json`. The theme through `theme.json`, as in
+  hypr-displays. A backup is read with `hyprkbm --backup NAME` and restored by
+  applying its model.
+- **Launch.** `hyprkbm` with no arguments runs `qs -p <clone>/quickshell/hyprkbm
+  -d` with `HYPRKBM_BIN` pointing at the clone's `bin/`, or focuses the panel
+  when it is already open (class `org.quickshell`, title `Keybinds`).
+- **Layouts** are a JS module (`lib/layouts.js`) rather than
+  `share/layouts/*.json`: they are only ever read by the panel, and as code
+  they are tested with the rest of its logic.
+- **Key names.** `Page_Up`/`Prior` and `Page_Down`/`Next` are aliases in both
+  key parsers, so a bind on either spelling lands on the same keycap.
+
 ## Cheatsheet
 
 `hyprkbm --cheatsheet` opens the same keyboard component, read-only, on a

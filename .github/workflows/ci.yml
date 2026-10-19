@@ -31,6 +31,21 @@ jobs:
       - name: Run tests
         run: python3 -m pytest tests/ -q
 
+  js:
+    name: Panel logic (node)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Plain node, no packages: the panel's logic is .pragma library
+      # JavaScript that tests/js/load.mjs runs in a fresh context.
+      - name: Run tests
+        run: npm test
+
   shell:
     name: ShellCheck
     runs-on: ubuntu-24.04
@@ -40,3 +55,63 @@ jobs:
       # shellcheck ships with the GitHub runner image.
       - name: Lint the installer
         run: shellcheck install.sh
+
+  qml:
+    name: QML
+    runs-on: ubuntu-24.04
+    # ubuntu-24.04 ships qmllint 6.4.2, which has no --max-warnings and treats
+    # every warning as fatal, and lacks the --missing-property and
+    # --unresolved-type categories needed to silence what Quickshell's absence
+    # causes. On that version this job cannot pass, whatever the code says.
+    # Debian trixie carries 6.8.2, which has them. An official image rather
+    # than a third-party Qt action: fewer moving parts, and the version is
+    # pinned by the distro rather than by us.
+    container: debian:trixie
+    steps:
+      # git first: actions/checkout silently falls back to a REST download
+      # without it, which loses the tags and history a contributor may expect.
+      - name: Install Qt 6 QML tooling
+        run: |
+          apt-get update
+          apt-get install --no-install-recommends -y \
+            git ca-certificates \
+            qt6-declarative-dev-tools \
+            qml6-module-qtquick \
+            qml6-module-qtquick-controls \
+            qml6-module-qtquick-layouts
+
+      - uses: actions/checkout@v7
+
+      - name: Lint QML
+        run: |
+          qmllint=/usr/lib/qt6/bin/qmllint
+          [ -x "$qmllint" ] || qmllint=$(command -v qmllint || true)
+          if [ -z "$qmllint" ]; then
+            echo "qmllint not found after installing qt6-declarative-dev-tools" >&2
+            exit 1
+          fi
+          "$qmllint" --version || true
+
+          # The strict flags below do not exist in every qmllint. The runner's
+          # Qt is older than a typical developer's, and passing an option it
+          # does not know makes it exit 123 without linting anything -- a red
+          # build that says nothing about the code. So ask this binary what it
+          # supports and use only that.
+          help=$("$qmllint" --help 2>&1 || true)
+          flags=""
+          for opt in import unqualified unresolved-type missing-property required; do
+            case "$help" in *"--$opt"*) flags="$flags --$opt=disable" ;; esac
+          done
+          case "$help" in
+            *--max-warnings*)
+              flags="$flags --max-warnings 0"
+              echo "::notice::qmllint strict: warnings fail the build" ;;
+            *)
+              echo "::warning::qmllint on this runner has no --max-warnings; \
+          syntax and parse errors still fail the build, warnings do not. \
+          Run the -I form locally for the real gate -- see CONTRIBUTING.md." ;;
+          esac
+          echo "using:$flags"
+
+          # shellcheck disable=SC2086
+          find quickshell -name '*.qml' -print0 | xargs -0 -r "$qmllint" $flags

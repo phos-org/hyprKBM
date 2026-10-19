@@ -68,11 +68,68 @@ def test_status_summarises(home_env, paths, stubs):
     assert ["systemctl", "--user", "is-active", "hyprkbm-watch.service"] in stubs.calls()
 
 
-def test_no_arguments_explains_the_panel_is_missing(home_env, stubs):
+def is_launch(call):
+    return call[0] == "qs" and call[1:2] == ["-p"] and "-d" in call
+
+
+def wait_for(stubs, program):
+    """The launch is detached, so its stub logs a moment after hyprkbm exits."""
+    import time
+    for _ in range(50):
+        if any(is_launch(c) if program == "qs" else c[0] == program for c in stubs.calls()):
+            return
+        time.sleep(0.05)
+
+
+def test_no_arguments_opens_the_panel(home_env, stubs):
     res = run(home_env)
 
-    assert res.returncode == 2
-    assert "panel" in res.stderr
+    assert res.returncode == 0, res.stderr
+    wait_for(stubs, "qs")
+    qs = [c for c in stubs.calls() if c[0] == "qs" and c[1] == "-p"][0]
+    assert qs[1] == "-p" and qs[2].endswith("quickshell/hyprkbm") and qs[3:] == ["-d", "-n"]
+
+
+def test_an_open_panel_is_focused_not_opened_again(home_env, stubs):
+    """Focused through the Lua API -- Lua-config Hyprland rejects the old
+    `dispatch focuswindow` syntax -- and by the window's own address, so a
+    different window that happens to be titled Keybinds is never raised."""
+    stubs.respond(**{"-j": ['[{"class": "org.quickshell", "title": "Keybinds", '
+                            '"address": "0x5a1b2c3d"}]']})
+
+    res = run(home_env)
+
+    assert res.returncode == 0, res.stderr
+    evals = [c[2] for c in stubs.calls() if c[:2] == ["hyprctl", "eval"]]
+    assert evals == ['hl.dispatch(hl.dsp.focus({ window = "address:0x5a1b2c3d" }))']
+    assert not any(c[0] == "qs" for c in stubs.calls())
+    assert not any(c[:2] == ["hyprctl", "dispatch"] for c in stubs.calls())
+
+
+def test_a_panel_left_running_without_a_window_is_cleared_first(home_env, stubs):
+    """With no panel window, any panel instance still running is an orphan --
+    and qs -n would refuse to start a new one beside it, so `hyprkbm` would
+    silently do nothing. It is killed before the new one starts."""
+    res = run(home_env)
+
+    assert res.returncode == 0, res.stderr
+    wait_for(stubs, "qs")
+    qs = [c for c in stubs.calls() if c[0] == "qs"]
+    launch = next(c for c in qs if is_launch(c))
+    assert qs[0] == ["qs", "kill", "-p", launch[2]]
+    assert qs.index(qs[0]) < qs.index(launch)
+    assert launch[3:] == ["-d", "-n"]
+
+
+def test_no_quickshell_is_explained(home_env, stubs):
+    (stubs.root / "qs").unlink()
+    # sys.executable is absolute, so python runs while PATH holds only the stubs
+    # and no real qs can be found.
+    env = dict(home_env, PATH=str(stubs.root))
+    res = subprocess.run([sys.executable, str(HYPRKBM)], capture_output=True, text=True, env=env)
+
+    assert res.returncode == 1
+    assert "Quickshell" in res.stderr
 
 
 def test_export_to_an_unwritable_path_fails_cleanly(home_env, paths, stubs, tmp_path):
@@ -103,3 +160,23 @@ def test_binds_lists_what_an_override_needs(home_env, paths, stubs):
     lines = res.stdout.splitlines()
     assert 'SUPER + F\t\thyprland.lua:1\texec_cmd:["dolphin"]' in lines
     assert "right\tresize\thyprland.lua:3\twindow.resize:[]" in lines
+
+
+def test_the_panel_is_made_to_float_before_it_opens(home_env, stubs):
+    """Tiled, the panel gets whatever share of the workspace is left -- often
+    far below its minimum size. A window rule added just before it opens makes
+    it float, centred, at its own size; the rule lives until the next reload,
+    like everything else hyprKBM applies, and a guard keeps launches from
+    stacking copies of it."""
+    res = run(home_env)
+
+    assert res.returncode == 0, res.stderr
+    wait_for(stubs, "qs")
+    calls = stubs.calls()
+    evals = [c for c in calls if c[:2] == ["hyprctl", "eval"]]
+    assert len(evals) == 1
+    rule = evals[0][2]
+    for needle in ("hl.window_rule(", "float = true", "center = true",
+                   'size = "1180 760"', "Keybinds", "org", "__hyprkbm_panel_rule"):
+        assert needle in rule, needle
+    assert calls.index(evals[0]) < next(i for i, c in enumerate(calls) if is_launch(c))

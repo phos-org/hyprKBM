@@ -1,0 +1,8 @@
+{
+  "name": "hyprkbm-panel",
+  "private": true,
+  "description": "hyprKBM's panel is QML and needs no build; this runs the tests of its JavaScript logic.",
+  "scripts": {
+    "test": "node --test tests/js/"
+  }
+}

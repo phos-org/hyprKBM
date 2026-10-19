@@ -143,6 +143,27 @@ def _load(paths):
     return hyprctl("eval", "dofile(%s)" % string(str(paths.lua)))
 
 
+def preview(model, paths, catalogue=None):
+    """What an apply would write, without writing it or touching Hyprland:
+    the panel's diff, and its errors before anyone presses Apply."""
+    catalogue = catalogue or load_catalogue()
+    try:
+        current = paths.lua.read_text(encoding="utf-8")
+    except OSError:
+        current = ""
+    try:
+        hand = read_config(paths)
+    except OSError as exc:  # no Lua interpreter to run the reader with
+        return dict(_failure("the config could not be read: %s" % exc), lua="", current=current)
+    if hand.error:
+        result = _failure("%s could not be read: %s" % (paths.entry.name, hand.error))
+        return dict(result, lua="", current=current)
+    errors = validate(model, hand, catalogue)
+    if errors:
+        return {"ok": False, "errors": errors, "lua": "", "current": current}
+    return {"ok": True, "errors": [], "lua": render(model, hand, catalogue), "current": current}
+
+
 def apply(model, paths, catalogue=None):
     # Two applies at once (the panel and the CLI, say) would interleave their
     # backups, writes and rollbacks, so only one runs at a time.

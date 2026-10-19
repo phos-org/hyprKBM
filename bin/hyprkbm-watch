@@ -26,6 +26,14 @@ from hyprkbm import marker  # noqa: E402
 from hyprkbm.paths import Paths  # noqa: E402
 
 RELOADED = "configreloaded"
+CAPTURE_SUBMAP = "hyprkbm-capture"
+# Find mode (the panel's F) switches Hyprland into this submap, which turns
+# the user's binds off. The panel leaves it itself; this is the backstop for a
+# panel that died mid-find. The Lua is Capture.leaveLua() in
+# quickshell/hyprkbm/lib/capture.js and must stay identical to it.
+LEAVE_CAPTURE_LUA = 'if hl.get_current_submap() == "hyprkbm-capture" then hl.dispatch(hl.dsp.submap("reset")) end'
+PANEL_CLASS = "org.quickshell"
+PANEL_TITLE = "Keybinds"
 RECONNECT_SECONDS = 2.0
 SELF_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -85,8 +93,31 @@ def consume_marker(paths, now=None):
     return marker.consume(paths, now)
 
 
-def read_events(sock, on_reload):
+def should_leave_capture(submap, active_class, active_title):
+    """Capture mode with any window but the panel focused means the panel is
+    gone (or lost focus), and nothing else will end it before the timeout."""
+    return (submap == CAPTURE_SUBMAP
+            and not (active_class == PANEL_CLASS and active_title == PANEL_TITLE))
+
+
+def leave_capture():
+    try:
+        # Bounded: a hung hyprctl must not stall event processing.
+        res = subprocess.run(["hyprctl", "eval", LEAVE_CAPTURE_LUA],
+                             capture_output=True, text=True, timeout=5)
+        if res.returncode != 0:
+            print("leaving the capture submap failed rc=%d %s" % (
+                res.returncode, (res.stdout + res.stderr).strip()), file=sys.stderr, flush=True)
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        print("leaving the capture submap failed: %s" % exc, file=sys.stderr, flush=True)
+
+
+def read_events(sock, on_reload, on_stray_capture=None):
     buffer = b""
+    submap = ""
+    # Unknown until the first activewindow event: judging capture against a
+    # guessed window would reset it the instant it begins.
+    active = None
     while True:
         chunk = sock.recv(4096)
         if not chunk:
@@ -94,8 +125,20 @@ def read_events(sock, on_reload):
         buffer += chunk
         *lines, buffer = buffer.split(b"\n")
         for line in lines:
-            if line.decode("utf-8", "replace").split(">>", 1)[0] == RELOADED:
+            name, _, data = line.decode("utf-8", "replace").partition(">>")
+            if name == RELOADED:
                 on_reload()
+            elif name == "submap":
+                submap = data
+            elif name == "activewindow":
+                # The title may itself hold commas; the class cannot.
+                cls, _, title = data.partition(",")
+                active = (cls, title)
+            else:
+                continue
+            if (on_stray_capture and active is not None
+                    and should_leave_capture(submap, *active)):
+                on_stray_capture()
 
 
 def serve(sock, command, paths):
@@ -109,7 +152,7 @@ def serve(sock, command, paths):
         else:
             run_live(command)
 
-    read_events(sock, on_reload)
+    read_events(sock, on_reload, leave_capture)
 
 
 def main():
