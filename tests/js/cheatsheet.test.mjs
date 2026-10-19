@@ -20,3 +20,16 @@ test("keysOf lists global binds only", () => {
   assert.deepEqual(C.keysOf([exec("hyprkbm --cheatsheet"), exec("kitty", { keys: "SUPER + Q" }),
     exec("hyprkbm --cheatsheet", { keys: "SUPER + F2", submap: "resize" })]), ["SUPER + F1"])
 })
+
+test("outputFor picks the focused output by name, else the first", () => {
+  const screens = [{ name: "DP-1" }, { name: "HDMI-A-1" }]
+  assert.equal(C.outputFor(screens, "HDMI-A-1").name, "HDMI-A-1")
+  assert.equal(C.outputFor(screens, "gone").name, "DP-1")
+  assert.equal(C.outputFor(screens, "").name, "DP-1")
+  assert.equal(C.outputFor([], "DP-1"), null)
+})
+
+test("the title names the held modifiers in order", () => {
+  assert.equal(C.title([]), "Keybinds · no modifier")
+  assert.equal(C.title(["SHIFT", "SUPER"]), "Keybinds · SUPER + SHIFT")
+})

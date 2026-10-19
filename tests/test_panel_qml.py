@@ -821,3 +821,49 @@ def test_the_keyboard_can_be_read_only_and_detailed():
     assert "visible: root.interactive" in extra  # the "+ any key…" button
     cap = qml("components", "KeyCap.qml")
     assert "property int subLines: 1" in cap and "maximumLineCount: root.subLines" in cap
+
+
+def test_the_cheatsheet_is_a_read_only_overlay():
+    sheet = (PANEL / "cheatsheet.qml").read_text()
+    assert 'WlrLayershell.namespace: "hyprkbm-cheatsheet"' in sheet
+    assert "WlrLayer.Overlay" in sheet and "WlrKeyboardFocus.Exclusive" in sheet
+    assert "interactive: false" in sheet and "detailed: true" in sheet
+    assert 'target: "cheatsheet"' in sheet and "function close()" in sheet
+    # Never writes: nothing that stages, applies or evals.
+    for forbidden in ("Store.apply", "saveDraft", "newBind", "hyprctl", "Store.edit"):
+        assert forbidden not in sheet
+    # Esc closes; modifiers are followed on press and release.
+    assert "Qt.Key_Escape" in sheet and "Keys.onReleased" in sheet
+    assert "QtKeys.heldMods(" in sheet
+
+
+def test_the_cheatsheet_follows_held_modifiers_only():
+    sheet = qml("cheatsheet.qml")
+    # The panel's default chip (SUPER) would show whenever nothing is held.
+    assert "Store.setMods([])" in sheet
+    assert "Cheatsheet.title(Store.mods)" in sheet
+
+
+def test_the_cheatsheet_sizes_its_keys_from_the_output_only():
+    sheet = qml("cheatsheet.qml")
+    assert re.search(r"Layouts\.unitFor\(sheet\.width \* [\d.]+ - Spacing\.lg, 96\)", sheet)
+    assert "Layout.preferredWidth: Layouts.KEYBOARD_UNITS * keyRow.unit" in sheet
+    assert "Layout.preferredHeight: implicitHeight" in sheet
+
+
+def test_the_cheatsheet_answers_close_before_it_quits():
+    sheet = qml("cheatsheet.qml")
+    close = sheet[sheet.index("function close()"):]
+    close = close[:close.index("}")]
+    # Quitting inside the call could drop the reply; `hyprkbm --cheatsheet`
+    # would then read "not running" and open a second sheet.
+    assert "Qt.quit" not in close and "quitSoon.start()" in close
+    assert "sheet.visible = false" in close
+    # The output is picked once, so the sheet never jumps between outputs.
+    assert "Cheatsheet.outputFor(" in sheet and "Hyprland.focusedMonitor" in sheet
+
+
+def test_a_read_only_keyboard_shows_no_selection():
+    for name in ("KeyBlock.qml", "ExtraKeys.qml"):
+        src = qml("components", name)
+        assert re.search(r"selected: root\.interactive\s*&&", src), name

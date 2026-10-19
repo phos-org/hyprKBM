@@ -64,3 +64,12 @@ test("unitFor takes a larger cap for the full-screen sheet", () => {
   assert.equal(L.unitFor(10000, 96), 96)
   assert.equal(L.unitFor(21.5 * 70, 96), 70)
 })
+
+test("KEYBOARD_UNITS is the main block, its gap and the nav cluster", () => {
+  for (const name of Object.keys(L.LAYOUTS)) {
+    const width = rows => Math.max(...rows.map(r => r.reduce((s, k) => s + k.w, 0)))
+    const lay = L.LAYOUTS[name]
+    assert.equal(width(lay.main) + 0.5 + width(lay.nav), L.KEYBOARD_UNITS, name)
+  }
+  assert.equal(L.ROW_UNITS - L.KEYBOARD_UNITS, 3, "the extra keys are three keys wide")
+})

@@ -56,7 +56,7 @@ Column {
                     kind: modelData.gap ? "free" : root.kindOf(modelData)
                     sub: root.subOf(modelData)
                     subLines: root.detailed ? 3 : 1
-                    selected: modelData.id !== undefined && Keys.keyId(modelData.id) === Store.selectedKey
+                    selected: root.interactive && modelData.id !== undefined && Keys.keyId(modelData.id) === Store.selectedKey
                     dimmed: Store.matching !== null && modelData.id !== undefined
                             && Store.matching[Keys.keyId(modelData.id)] !== true
                     onClicked: root.press(modelData)
