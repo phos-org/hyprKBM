@@ -11,6 +11,8 @@ import "../lib/labels.js" as Labels
 ColumnLayout {
     id: root
     property real unit: 40
+    property bool interactive: true
+    property bool detailed: false
     spacing: Spacing.xs
 
     function kindOf(id) {
@@ -22,7 +24,8 @@ ColumnLayout {
     function subOf(id) {
         var i = Store.keyStates[Keys.keyId(id)]
         if (i === undefined) return ""
-        return i.binds.length > 1 ? i.binds.length + " binds" : Labels.shortLabel(i.binds[0])
+        return root.detailed ? Labels.sheetLabel(i.binds)
+            : (i.binds.length > 1 ? i.binds.length + " binds" : Labels.shortLabel(i.binds[0]))
     }
 
     Text {
@@ -43,6 +46,8 @@ ColumnLayout {
                 label: modelData.label
                 kind: root.kindOf(modelData.id)
                 sub: root.subOf(modelData.id)
+                enabled: root.interactive
+                subLines: root.detailed ? 3 : 1
                 selected: Keys.keyId(modelData.id) === Store.selectedKey
                 dimmed: Store.matching !== null && Store.matching[Keys.keyId(modelData.id)] !== true
                 onClicked: Store.selectKey(modelData.id)
@@ -52,6 +57,7 @@ ColumnLayout {
 
     Action {
         text: "+ any key…"
+        visible: root.interactive
         enabled: !Store.readOnly
         onClicked: Store.newBind(Keys.display(Store.mods, ""))
     }

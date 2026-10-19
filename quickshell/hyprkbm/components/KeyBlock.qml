@@ -10,6 +10,8 @@ Column {
     id: root
     property var rows: []
     property real unit: 40
+    property bool interactive: true
+    property bool detailed: false
 
     function info(spec) {
         return spec.id === undefined ? undefined : Store.keyStates[Keys.keyId(spec.id)]
@@ -25,7 +27,8 @@ Column {
     function subOf(spec) {
         var i = info(spec)
         if (i === undefined || spec.cont) return ""
-        return i.binds.length > 1 ? i.binds.length + " binds" : Labels.shortLabel(i.binds[0])
+        return root.detailed ? Labels.sheetLabel(i.binds)
+            : (i.binds.length > 1 ? i.binds.length + " binds" : Labels.shortLabel(i.binds[0]))
     }
 
     function press(spec) {
@@ -47,11 +50,12 @@ Column {
                     units: modelData.w
                     // A gap keeps its width in the row but is neither drawn
                     // nor clickable.
-                    enabled: modelData.gap !== true
+                    enabled: root.interactive && modelData.gap !== true
                     opacity: modelData.gap ? 0 : (dimmed ? 0.35 : 1)
                     label: modelData.label || ""
                     kind: modelData.gap ? "free" : root.kindOf(modelData)
                     sub: root.subOf(modelData)
+                    subLines: root.detailed ? 3 : 1
                     selected: modelData.id !== undefined && Keys.keyId(modelData.id) === Store.selectedKey
                     dimmed: Store.matching !== null && modelData.id !== undefined
                             && Store.matching[Keys.keyId(modelData.id)] !== true

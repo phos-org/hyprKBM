@@ -804,3 +804,20 @@ def test_ctrl_s_saves_the_draft_from_any_field():
     assert "Store.saveDraft()" in h[save:save + 300]
     editor = (PANEL / "components" / "Editor.qml").read_text()
     assert 'text: "Save (Ctrl+S)"' in editor and 'text: "Cancel (Esc)"' in editor
+
+
+def test_the_keyboard_can_be_read_only_and_detailed():
+    kb = qml("components", "Keyboard.qml")
+    assert "property bool interactive: true" in kb and "property bool detailed: false" in kb
+    assert kb.count("interactive: root.interactive") == 2 and kb.count("detailed: root.detailed") == 2
+    for name in ("KeyBlock.qml", "ExtraKeys.qml"):
+        src = qml("components", name)
+        assert "property bool interactive: true" in src and "property bool detailed: false" in src
+        assert "Labels.sheetLabel(" in src
+        assert "root.interactive" in src
+    block = qml("components", "KeyBlock.qml")
+    assert "enabled: root.interactive && modelData.gap !== true" in block
+    extra = qml("components", "ExtraKeys.qml")
+    assert "visible: root.interactive" in extra  # the "+ any key…" button
+    cap = qml("components", "KeyCap.qml")
+    assert "property int subLines: 1" in cap and "maximumLineCount: root.subLines" in cap
