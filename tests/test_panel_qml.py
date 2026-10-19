@@ -544,17 +544,65 @@ def test_navigation_keys_sit_after_find_and_the_text_input_guard():
 
 def test_shortcuts_need_no_modifier_or_exactly_control_and_a_dirty_store():
     h = _keys_handler()
-    assert "Qt.Key_E && event.modifiers === Qt.NoModifier" in h
-    assert "Qt.Key_A && event.modifiers === Qt.NoModifier" in h
-    z = h.split("Qt.Key_Z", 1)[1][:200]
+    assert "Qt.Key_E && m === Qt.NoModifier" in h
+    assert "Qt.Key_A && m === Qt.NoModifier" in h
+    z = h.split("Qt.Key_Z &&", 1)[1][:200]
     assert "Store.dirty" in z
-    d = h.split("Qt.Key_D", 1)[1][:200]
+    d = h.split("Qt.Key_D &&", 1)[1][:200]
     assert "Store.dirty" in d
 
 
 def test_the_editor_area_takes_no_list_or_key_shortcuts():
     h = _keys_handler()
-    assert 'Store.area !== "editor"' in h or 'Store.area === "editor"' in h
+    ret = h.index('if (Store.area === "editor") return')
+    assert h.index("Qt.Key_Tab") < ret
+    for needle in ("Qt.Key_E &&", "Qt.Key_A &&", "Qt.Key_D &&", "Qt.Key_Z &&", "Qt.Key_Delete",
+                   "Store.listIndex", "Store.moveSelection"):
+        assert h.index(needle) > ret, needle
+
+
+def test_one_shot_keys_ignore_auto_repeat_but_arrows_repeat():
+    h = _keys_handler()
+    rep = h.index("event.isAutoRepeat", h.index("instanceof TextInput"))
+    assert rep < h.index("Qt.Key_Delete") and rep < h.index("Qt.Key_E &&") and rep < h.index("Qt.Key_Z")
+    assert "Qt.Key_Up" in h and h.index("Qt.Key_Up") < h.index("Qt.Key_Delete")
+    arrows = h.split("Qt.Key_Up", 1)[1].split("Qt.Key_Delete", 1)[0]
+    assert "isAutoRepeat" not in arrows
+
+
+def test_tab_is_plain_and_keypad_is_masked():
+    h = _keys_handler()
+    assert "~Qt.KeypadModifier" in h
+    tab = h.split("Qt.Key_Tab", 1)[1].split("Store.area = ", 1)[0]
+    assert "Qt.ShiftModifier" in tab and "Qt.NoModifier" in tab or "=== 0" in tab
+
+
+def test_area_is_kept_in_sync_with_real_focus():
+    shell = qml("shell.qml")
+    focus = shell.split("onActiveFocusItemChanged", 1)[1].split("Window.onActiveChanged", 1)[0]
+    assert 'Store.area === "editor"' in focus and 'Store.area = "list"' in focus
+    assert "editor" in focus
+    conn = shell.split("function onDraftChanged", 1)[1][:300]
+    assert "editor" in conn  # only refocus when focus was in the editor
+    assert "function onAreaChanged" in shell
+    store = qml("state", "Store.qml")
+    assert 'area = "keyboard"' in store.split("function selectKey", 1)[1].split("\n    }", 1)[0]
+
+
+def test_delete_refuses_unreadable_keys_in_the_store():
+    store = qml("state", "Store.qml")
+    body = store.split("function deleteBind(", 1)[1].split("\n    }\n", 1)[0]
+    assert "combo === null" in body and "report(" in body.split("combo === null", 1)[1][:200]
+    assert body.index("combo === null") < body.index("unbindHand")
+
+
+def test_the_cursor_resets_on_context_and_clamps_otherwise():
+    store = qml("state", "Store.qml")
+    assert "onListedChanged: listIndex = 0" not in store
+    h = store.split("onListedChanged", 1)[1][:400]
+    assert "Focus.reconcile(" in h and "Focus.contextChanged(" in h
+    for dep in ("selectedKey", "mods", "submap", "query"):
+        assert dep in store.split("listContext", 1)[1][:200], dep
 
 
 def test_tab_enters_the_editor_by_focusing_its_keys_field_and_leaving_returns_focus():
@@ -566,7 +614,7 @@ def test_tab_enters_the_editor_by_focusing_its_keys_field_and_leaving_returns_fo
     assert 'property string area: "keyboard"' in store
     assert "property int listIndex: 0" in store
     assert "function focusedBind()" in store
-    assert "onListedChanged" in store and "listIndex = 0" in store
+    assert "onListedChanged" in store
     assert "onDraftChanged" in store and 'area = "list"' in store
     assert 'import "lib/focus.js" as Focus' in shell
     assert "onDraftChanged" in shell and "Store.draft === null" in shell
@@ -586,7 +634,7 @@ def test_the_focus_ring_changes_only_border_colour_and_width():
 
 def test_the_focused_row_is_highlighted_and_kept_in_view():
     panel = qml("components", "BindPanel.qml")
-    assert "Store.listIndex" in panel and "ensureVisible" in panel or "contentItem.contentY" in panel
+    assert "Store.listIndex" in panel and "ensureVisible" in panel and "contentY" in panel
     row = qml("components", "BindRow.qml")
     assert "focused" in row and 'Store.area === "list"' in row
 

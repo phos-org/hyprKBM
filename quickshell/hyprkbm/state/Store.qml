@@ -66,7 +66,13 @@ QtObject {
     // Which part of the panel has the keys, and which bind the list points at.
     property string area: "keyboard"
     property int listIndex: 0
-    onListedChanged: listIndex = 0
+    readonly property string listContext: JSON.stringify([selectedKey, mods, submap, query])
+    property string seenContext: ""
+    onListedChanged: {
+        var changed = Focus.contextChanged(seenContext, listContext)
+        seenContext = listContext
+        listIndex = Focus.reconcile(listIndex, listed.length, changed)
+    }
     // The editor closing hands the keys back to the list.
     onDraftChanged: if (draft === null && area === "editor") area = "list"
 
@@ -168,6 +174,7 @@ QtObject {
     function selectKey(id) {
         selectedKey = Keys.keyId(id)
         query = ""
+        area = "keyboard"
     }
 
     // Fire-and-forget, so it still goes out when the panel is quitting and
@@ -352,6 +359,10 @@ QtObject {
     function deleteBind(uid) {
         var b = findBind(uid)
         if (b === null || readOnly || model === null || stagingBlocked()) return
+        if (b.source === "hand" && b.combo === null) {
+            report("hyprKBM does not understand the keys of this bind, so it cannot be removed here; change it in hyprland.lua.", true)
+            return
+        }
         if (b.source === "hand") {
             var blocker = Model.overrideBlocker(hand, b.hand)
             if (blocker !== null) {

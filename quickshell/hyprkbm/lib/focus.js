@@ -30,3 +30,13 @@ function clampIndex(index, length) {
     if (length <= 0) return -1
     return Math.max(0, Math.min(index, length - 1))
 }
+
+// The list's cursor belongs to its context (key, modifiers, submap, query).
+function contextChanged(before, after) { return before !== after }
+
+// Where the cursor goes when the list changes: back to the top for a new
+// context, otherwise stay on the same row, or the last one if it shrank.
+function reconcile(index, length, changed) {
+    if (changed) return 0
+    return Math.max(0, clampIndex(index, length))
+}

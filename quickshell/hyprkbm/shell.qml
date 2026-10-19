@@ -82,14 +82,27 @@ ShellRoot {
             Window.onActiveFocusItemChanged: {
                 var f = scope.Window.activeFocusItem
                 if (f && (f instanceof TextInput || f instanceof TextEdit)) Store.stopFind()
+                // The ring must never claim the editor when focus has left it.
+                if (f && Store.area === "editor" && !scope.within(f, editor)) Store.area = "list"
             }
             Window.onActiveChanged: if (!Window.active) { Store.heldMods = []; Store.stopFind() }
+
+            function within(item, ancestor) {
+                for (let p = item; p; p = p.parent) if (p === ancestor) return true
+                return false
+            }
 
             // However the editor closes (Save, Cancel, Esc, Delete), the keys
             // come back here; Store has already moved the area to the list.
             Connections {
                 target: Store
-                function onDraftChanged() { if (Store.draft === null) scope.forceActiveFocus() }
+                function onDraftChanged() {
+                    // Only when focus was in the editor; a click elsewhere keeps its own.
+                    if (Store.draft === null && scope.within(scope.Window.activeFocusItem, editor)) scope.forceActiveFocus()
+                }
+                function onAreaChanged() {
+                    if (Store.area !== "editor" && scope.within(scope.Window.activeFocusItem, editor)) scope.forceActiveFocus()
+                }
             }
 
             Keys.onPressed: function (event) {
@@ -120,7 +133,8 @@ ShellRoot {
                 // Everything non-modifier (including "/") sits below it.
                 var focused = scope.Window.activeFocusItem
                 if (focused && (focused instanceof TextInput || focused instanceof TextEdit)) return
-                if (event.key === Qt.Key_F && event.modifiers === Qt.NoModifier && Store.draft === null) {
+                let m = event.modifiers & ~Qt.KeypadModifier
+                if (event.key === Qt.Key_F && m === Qt.NoModifier && Store.draft === null) {
                     Store.startFind()
                     event.accepted = true
                     return
@@ -140,33 +154,41 @@ ShellRoot {
                     event.accepted = true
                     return
                 }
-                if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
-                    let back = event.key === Qt.Key_Backtab || (event.modifiers & Qt.ShiftModifier)
+                // One-shot keys fire once per press; only arrows repeat.
+                if (event.isAutoRepeat && [Qt.Key_Up, Qt.Key_Down, Qt.Key_Left, Qt.Key_Right].indexOf(event.key) < 0) {
+                    event.accepted = true
+                    return
+                }
+                // Plain Tab and Shift+Tab only.
+                if ((event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab)
+                        && (m === Qt.NoModifier || m === Qt.ShiftModifier)) {
+                    let back = event.key === Qt.Key_Backtab || m === Qt.ShiftModifier
                     let hasEditor = Store.draft !== null
                     Store.area = back ? Focus.prev(Store.area, hasEditor) : Focus.next(Store.area, hasEditor)
                     if (Store.area === "editor") editor.focusFirst()
+                    else scope.forceActiveFocus()
                     event.accepted = true
                     return
                 }
                 // The editor has the keys: nothing below is for it.
                 if (Store.area === "editor") return
-                if (event.key === Qt.Key_E && event.modifiers === Qt.NoModifier) {
+                if (event.key === Qt.Key_E && m === Qt.NoModifier) {
                     Store.editBind(Store.area === "list" ? Store.focusedBind()
                                    : (Store.listed.length > 0 ? Store.listed[0] : null))
                     event.accepted = true
                     return
                 }
-                if (event.key === Qt.Key_A && event.modifiers === Qt.NoModifier) {
+                if (event.key === Qt.Key_A && m === Qt.NoModifier) {
                     Store.newBindOnSelected()
                     event.accepted = true
                     return
                 }
-                if (event.key === Qt.Key_D && event.modifiers === Qt.ControlModifier) {
+                if (event.key === Qt.Key_D && m === Qt.ControlModifier) {
                     if (Store.dirty) diffDialog.open()
                     event.accepted = true
                     return
                 }
-                if (event.key === Qt.Key_Z && event.modifiers === Qt.ControlModifier) {
+                if (event.key === Qt.Key_Z && m === Qt.ControlModifier) {
                     if (Store.dirty && !Store.busy) Store.discard()
                     event.accepted = true
                     return
