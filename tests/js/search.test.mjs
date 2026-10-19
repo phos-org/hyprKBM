@@ -32,3 +32,25 @@ test("tags narrow", () => {
   assert.ok(!S.matches(bind({ source: "hyprkbm" }), S.parseQuery("src:lua")))
   assert.equal(S.filter([bind({}), bind({ key: "Q", keys: "SUPER + Q" })], S.parseQuery("key:q")).length, 1)
 })
+
+test("words match the dispatcher's name", () => {
+  const close = bind({ describe: "Close the window", dispatcher: { dsp: "window.close", args: [] } })
+  assert.ok(S.matches(bind({}), S.parseQuery("exec")))
+  assert.ok(!S.matches(close, S.parseQuery("exec")))
+  assert.ok(S.matches(close, S.parseQuery("window.close")))
+  assert.ok(S.matches(bind({ dispatcher: null, describe: "Lua: foo()" }), S.parseQuery("foo")))
+})
+
+test("a tag with no value means has one", () => {
+  const close = bind({ dispatcher: { dsp: "window.close", args: [] } })
+  assert.deepEqual(plain(S.parseQuery("exec: foo:")), { words: ["foo:"], tags: { exec: [""] }, empty: false })
+  assert.ok(S.matches(bind({}), S.parseQuery("exec:")))
+  assert.ok(!S.matches(close, S.parseQuery("exec:")))
+  assert.ok(S.matches(bind({}), S.parseQuery("exec:fire")))
+  assert.ok(!S.matches(bind({}), S.parseQuery("exec:kit")))
+  assert.ok(!S.matches(bind({}), S.parseQuery("desc:")))
+  assert.ok(S.matches(bind({ description: "Browser" }), S.parseQuery("desc:")))
+  assert.ok(S.matches(bind({}), S.parseQuery("mod:")))
+  assert.ok(!S.matches(bind({ mods: [], keys: "F" }), S.parseQuery("mod:")))
+  for (const q of ["key:", "submap:", "src:"]) assert.ok(S.matches(bind({ submap: "resize" }), S.parseQuery(q)))
+})
