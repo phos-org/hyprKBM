@@ -7,7 +7,7 @@ the only development dependency. The reader needs a Lua interpreter.
 
 ```bash
 python3 -m pytest tests/ -q
-node --test tests/js/        # or: npm test
+npm test                     # node --test tests/js/*.test.mjs
 shellcheck install.sh
 ```
 
