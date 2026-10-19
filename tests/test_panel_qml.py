@@ -867,3 +867,13 @@ def test_a_read_only_keyboard_shows_no_selection():
     for name in ("KeyBlock.qml", "ExtraKeys.qml"):
         src = qml("components", name)
         assert re.search(r"selected: root\.interactive\s*&&", src), name
+
+
+def test_the_menu_offers_a_cheatsheet_key():
+    store = qml("state", "Store.qml")
+    assert "Cheatsheet.keysOf(merged.binds)" in store
+    body = store.split("function newCheatsheetBind()", 1)[1].split("\n    }\n", 1)[0]
+    assert "newBind(" in body and "Cheatsheet.COMMAND" in body
+    popup = qml("components", "SettingsPopup.qml")
+    assert "Store.cheatsheetKeys" in popup and "Store.newCheatsheetBind()" in popup
+    assert "root.close()" in popup.split("Store.newCheatsheetBind()", 1)[1][:80]
