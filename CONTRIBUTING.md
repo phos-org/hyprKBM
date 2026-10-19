@@ -28,6 +28,8 @@ someone who is using the machine.
 | `quickshell/hyprkbm/` | the panel: QML in `components/`, logic in `lib/*.js`, theme in `config/`, presets in `presets/` |
 | `quickshell/hyprkbm/lib/capture.js` | find mode: the Lua that pauses binds for one press (the `hyprkbm-capture` submap, a 10 s timer) and turns a key event into a combo; `hyprkbm-watch` resets the submap if the panel dies mid-find |
 | `quickshell/hyprkbm/lib/focus.js` | the keyboard areas' Tab order, the editor's field walk and the list cursor |
+| `quickshell/hyprkbm/cheatsheet.qml` | the cheatsheet overlay: a second root file, so `qs -p` runs it as its own instance (own `-n`, own IPC target `cheatsheet`) beside the panel |
+| `quickshell/hyprkbm/lib/cheatsheet.js` | the cheatsheet's bind, its labels' helpers, and the Lua that pauses binds while it is open (the `hyprkbm-cheatsheet` submap, re-armed every 5 s, reset 15 s after the last re-arm) and runs a bind on Enter |
 | `tests/js/` | node tests for `quickshell/hyprkbm/lib/*.js` |
 | `systemd/` | the `hyprkbm-watch` user unit |
 | `docs/superpowers/` | the design spec and implementation plans |
