@@ -180,3 +180,54 @@ def test_the_panel_is_made_to_float_before_it_opens(home_env, stubs):
                    'size = "1180 760"', "Keybinds", "org", "__hyprkbm_panel_rule"):
         assert needle in rule, needle
     assert calls.index(evals[0]) < next(i for i, c in enumerate(calls) if is_launch(c))
+
+
+QS_IPC_NOBODY = r'''#!%(python)s
+"""qs where no cheatsheet runs: ipc fails as the real one does (255)."""
+import json, os, sys
+here = os.path.dirname(os.path.abspath(__file__))
+with open(os.path.join(here, "calls.log"), "a") as log:
+    log.write(json.dumps(["qs"] + sys.argv[1:]) + "\n")
+sys.exit(255 if sys.argv[1:2] == ["ipc"] else 0)
+'''
+
+
+def nobody_running(stubs):
+    qs = stubs.root / "qs"
+    qs.write_text(QS_IPC_NOBODY % {"python": sys.executable})
+    qs.chmod(0o755)
+
+
+def test_cheatsheet_opens_when_none_is_running(home_env, stubs):
+    nobody_running(stubs)
+
+    res = run(home_env, "--cheatsheet")
+
+    assert res.returncode == 0, res.stderr
+    wait_for(stubs, "qs")
+    calls = [c for c in stubs.calls() if c[0] == "qs"]
+    assert calls[0][:2] == ["qs", "ipc"] and calls[0][-2:] == ["cheatsheet", "close"]
+    launch = next(c for c in calls if is_launch(c))
+    assert launch[2].endswith("quickshell/hyprkbm/cheatsheet.qml") and launch[3:] == ["-d", "-n"]
+
+
+def test_cheatsheet_closes_the_one_that_is_running(home_env, stubs):
+    # The default qs stub exits 0: a running sheet answered and closed.
+    res = run(home_env, "--cheatsheet")
+
+    assert res.returncode == 0, res.stderr
+    calls = [c for c in stubs.calls() if c[0] == "qs"]
+    assert len(calls) == 1 and calls[0][1] == "ipc"
+    assert calls[0][2:4] == ["-p", calls[0][3]] and calls[0][3].endswith("cheatsheet.qml")
+
+
+def test_cheatsheet_needs_quickshell(home_env, stubs):
+    (stubs.root / "qs").unlink()
+
+    # sys.executable is absolute, so python runs while PATH holds only the stubs
+    env = dict(home_env, PATH=str(stubs.root))
+    res = subprocess.run([sys.executable, str(HYPRKBM), "--cheatsheet"],
+                         capture_output=True, text=True, env=env)
+
+    assert res.returncode == 1
+    assert "Quickshell" in res.stderr
