@@ -36,3 +36,20 @@ test("clampIndex keeps the index in range and is -1 when empty", () => {
   assert.equal(F.clampIndex(9, 4), 3)
   assert.equal(F.clampIndex(2, 4), 2)
 })
+
+test("walk steps through the editor's controls and leaves at either end", () => {
+  assert.equal(F.walk(0, 4, false), 1)
+  assert.equal(F.walk(2, 4, false), 3)
+  assert.equal(F.walk(3, 4, false), -1)
+  assert.equal(F.walk(3, 4, true), 2)
+  assert.equal(F.walk(0, 4, true), -1)
+})
+
+test("walk from outside the controls enters at the near end", () => {
+  // Focus was somewhere the walk does not know (say a flag): Tab goes to the
+  // first control, Shift+Tab to the last.
+  assert.equal(F.walk(-1, 3, false), 0)
+  assert.equal(F.walk(-1, 3, true), 2)
+  assert.equal(F.walk(-1, 0, false), -1)
+  assert.equal(F.walk(0, 0, true), -1)
+})

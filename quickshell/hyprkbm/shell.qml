@@ -84,8 +84,20 @@ ShellRoot {
                 if (f && (f instanceof TextInput || f instanceof TextEdit)) Store.stopFind()
                 // The ring must never claim the editor when focus has left it.
                 if (f && Store.area === "editor" && !scope.within(f, editor)) Store.area = "list"
+                // Clicking into an editor control puts the keys there, so the
+                // ring follows; Tab then walks the editor from where it is.
+                else if (f && Store.draft !== null && f !== editor && scope.within(f, editor)) Store.area = "editor"
             }
             Window.onActiveChanged: if (!Window.active) { Store.heldMods = []; Store.stopFind() }
+
+            // Tab / Shift+Tab: the next / previous area. The editor is entered
+            // at its near end; every other area is driven from this scope.
+            function moveArea(back) {
+                let hasEditor = Store.draft !== null
+                Store.area = back ? Focus.prev(Store.area, hasEditor) : Focus.next(Store.area, hasEditor)
+                if (Store.area === "editor") { if (back) editor.focusLast(); else editor.focusFirst() }
+                else scope.forceActiveFocus()
+            }
 
             function within(item, ancestor) {
                 for (let p = item; p; p = p.parent) if (p === ancestor) return true
@@ -128,6 +140,19 @@ ShellRoot {
                 // released; for every other key it is wanted, so a held arrow
                 // keeps moving.
                 if (mod !== "") { if (!event.isAutoRepeat) Store.hold(mod); return }
+                let m = event.modifiers & ~Qt.KeypadModifier
+                // Plain Tab and Shift+Tab only, and before the text-input
+                // guard: Tab always moves between areas, from the search field
+                // too (it is out of Qt's Tab chain, so its Tab bubbles here).
+                // The editor walks its own controls first and only hands Tab
+                // on, through tabOut, when the walk runs off an end.
+                if ((event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab)
+                        && (m === Qt.NoModifier || m === Qt.ShiftModifier)) {
+                    // One step per press, like the other one-shot keys.
+                    if (!event.isAutoRepeat) scope.moveArea(event.key === Qt.Key_Backtab || m === Qt.ShiftModifier)
+                    event.accepted = true
+                    return
+                }
                 // Text fields leave arrows and Return unaccepted, so without
                 // this they would move the selection under the user's typing.
                 // Everything non-modifier (including "/") sits below it.
@@ -138,7 +163,6 @@ ShellRoot {
                     event.accepted = true
                     return
                 }
-                let m = event.modifiers & ~Qt.KeypadModifier
                 if (event.key === Qt.Key_F && m === Qt.NoModifier && Store.draft === null) {
                     Store.startFind()
                     event.accepted = true
@@ -156,17 +180,6 @@ ShellRoot {
                         && (event.modifiers & Qt.ControlModifier)) {
                     if (Store.dirty && !Store.busy && !Store.readOnly && Store.draft === null)
                         Store.apply()
-                    event.accepted = true
-                    return
-                }
-                // Plain Tab and Shift+Tab only.
-                if ((event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab)
-                        && (m === Qt.NoModifier || m === Qt.ShiftModifier)) {
-                    let back = event.key === Qt.Key_Backtab || m === Qt.ShiftModifier
-                    let hasEditor = Store.draft !== null
-                    Store.area = back ? Focus.prev(Store.area, hasEditor) : Focus.next(Store.area, hasEditor)
-                    if (Store.area === "editor") editor.focusFirst()
-                    else scope.forceActiveFocus()
                     event.accepted = true
                     return
                 }
@@ -282,9 +295,12 @@ ShellRoot {
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: keyboardColumn.implicitHeight + Spacing.lg * 2
-                    color: Colors.bgBase
+                    // Tinted over the pane's own colour, never translucent over it.
+                    color: Store.area === "keyboard"
+                           ? Qt.tint(Colors.bgBase, Qt.rgba(Colors.accentPrimary.r, Colors.accentPrimary.g, Colors.accentPrimary.b, 0.05))
+                           : Colors.bgBase
                     radius: Radius.md
-                    border.width: Store.area === "keyboard" ? 2 : 1
+                    border.width: Store.area === "keyboard" ? 3 : 1
                     border.color: Store.area === "keyboard" ? Colors.accentPrimary : Colors.borderSubtle
 
                     ColumnLayout {
@@ -333,6 +349,11 @@ ShellRoot {
 
                     Editor {
                         id: editor
+                        // The editor is already the area; moveArea steps from it.
+                        onTabOut: function (back) {
+                            Store.area = "editor"
+                            scope.moveArea(back)
+                        }
                         Layout.preferredWidth: 340
                         Layout.fillHeight: true
                     }

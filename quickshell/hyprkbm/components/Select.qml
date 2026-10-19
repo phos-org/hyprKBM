@@ -16,9 +16,9 @@ ComboBox {
     background: Rectangle {
         color: root.enabled ? Colors.bgSurface : Colors.bgBase
         radius: Radius.sm
-        border.width: 1
+        border.width: root.activeFocus ? 2 : 1
         border.color: root.danger ? Colors.statusCritical
-                    : root.activeFocus ? Colors.borderStrong
+                    : root.activeFocus ? Colors.accentPrimary
                     : root.hovered ? Colors.borderStrong
                     : Colors.borderSubtle
 

@@ -7,6 +7,9 @@ Button {
     property bool primary: false
 
     implicitHeight: 30
+    // A click never keeps the keys: in the main window they belong to its
+    // FocusScope, whose Tab moves between areas. Dialogs still Tab through us.
+    focusPolicy: Qt.TabFocus
     leftPadding: Spacing.lg
     rightPadding: Spacing.lg
 
@@ -15,9 +18,9 @@ Button {
         color: !root.enabled ? Colors.bgBase
              : root.primary ? (root.down ? Colors.accentPrimaryDim : Colors.accentPrimary)
              : (root.down || root.hovered ? Colors.bgSurfaceAlt : Colors.bgSurface)
-        border.width: 1
+        border.width: root.activeFocus ? 2 : 1
         border.color: !root.enabled ? Colors.borderSubtle
-                    : root.activeFocus ? Colors.borderStrong
+                    : root.activeFocus ? Colors.accentPrimary
                     : root.primary ? Colors.accentPrimary
                     : root.hovered ? Colors.borderStrong : Colors.borderSubtle
         Behavior on color { ColorAnimation { duration: 110 } }

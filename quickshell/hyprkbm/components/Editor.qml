@@ -8,18 +8,63 @@ import "../lib/keys.js" as KeyNames
 import "../lib/qtkeys.js" as QtKeys
 import "../lib/model.js" as Model
 import "../lib/catalogue.js" as Catalogue
+import "../lib/focus.js" as Focus
 
 // The draft in Store.draft: keys, action, description, flags and submap.
 // Saving stages it in the model; nothing reaches Hyprland until Apply.
 Rectangle {
     id: root
-    color: Colors.bgBase
+    // Tinted over the pane's own colour, never translucent over it.
+    color: Store.area === "editor"
+           ? Qt.tint(Colors.bgBase, Qt.rgba(Colors.accentPrimary.r, Colors.accentPrimary.g, Colors.accentPrimary.b, 0.05))
+           : Colors.bgBase
     radius: Radius.md
-    border.width: Store.area === "editor" ? 2 : 1
+    border.width: Store.area === "editor" ? 3 : 1
     border.color: Store.area === "editor" ? Colors.accentPrimary : Colors.borderSubtle
 
-    // Tab into the editor lands on its first field.
+    // Tab ran off the last control (Shift+Tab off the first): the window
+    // moves on to the next (previous) area.
+    signal tabOut(bool back)
+
+    // Tab into the editor lands on its first field; Shift+Tab, on its last.
     function focusFirst() { keysField.forceActiveFocus() }
+    function focusLast() {
+        let list = controls()
+        if (list.length > 0) list[list.length - 1].forceActiveFocus()
+        else focusFirst()
+    }
+
+    // What Tab walks, in reading order: the fields, selects and toggles that
+    // are showing. Not the buttons (they are clicked or have shortcuts) and
+    // not the flags (plain chips, toggled by clicking).
+    function controls() {
+        let list = [keysField, kindSelect]
+        for (let i = 0; i < argFields.count; i++) {
+            let row = argFields.itemAt(i)
+            if (row) list = list.concat(row.controls)
+        }
+        list = list.concat([rawLua, descField, submapSelect])
+        return list.filter(function (c) { return c.visible && c.enabled })
+    }
+
+    // Every control here is out of Qt's own Tab chain (Qt.ClickFocus), so
+    // Tab reaches this handler and the walk is ours alone.
+    function tab(event) {
+        let m = event.modifiers & ~Qt.KeypadModifier
+        if ((event.key !== Qt.Key_Tab && event.key !== Qt.Key_Backtab)
+                || (m !== Qt.NoModifier && m !== Qt.ShiftModifier)) return
+        event.accepted = true
+        // One step per press, as Tab between areas.
+        if (event.isAutoRepeat) return
+        let back = event.key === Qt.Key_Backtab || m === Qt.ShiftModifier
+        let list = controls()
+        let at = -1
+        for (let i = 0; i < list.length; i++) if (list[i].activeFocus) at = i
+        let to = Focus.walk(at, list.length, back)
+        if (to < 0) root.tabOut(back)
+        else list[to].forceActiveFocus()
+    }
+    Keys.onPressed: function (event) { root.tab(event) }
 
     readonly property var draft: Store.draft
     readonly property var entry: draft === null || draft.action.kind === "raw" ? null
@@ -47,6 +92,7 @@ Rectangle {
     component Input: QC.TextField {
         id: input
         Layout.fillWidth: true
+        focusPolicy: Qt.ClickFocus
         color: Colors.textPrimary
         placeholderTextColor: Colors.textSecondary
         font.family: Typography.family
@@ -54,8 +100,8 @@ Rectangle {
         background: Rectangle {
             color: Colors.bgSurface
             radius: Radius.sm
-            border.width: 1
-            border.color: input.activeFocus ? Colors.borderStrong : Colors.borderSubtle
+            border.width: input.activeFocus ? 2 : 1
+            border.color: input.activeFocus ? Colors.accentPrimary : Colors.borderSubtle
         }
     }
 
@@ -142,25 +188,31 @@ Rectangle {
 
             Label { text: "Action" }
             Select {
+                id: kindSelect
                 Layout.fillWidth: true
+                focusPolicy: Qt.ClickFocus
                 model: root.kindLabels
                 currentIndex: root.draft === null ? -1 : root.kinds.indexOf(root.draft.action.kind)
                 onActivated: function (index) { Store.setActionKind(root.kinds[index]) }
             }
 
             Repeater {
+                id: argFields
                 model: root.entry === null ? [] : root.entry.fields
                 delegate: ColumnLayout {
                     id: fieldItem
                     required property var modelData
                     readonly property var value: root.draft.action.args === undefined ? undefined
                                                  : root.draft.action.args[modelData.name]
+                    // Only one of the three shows; controls() drops the rest.
+                    readonly property var controls: [argInput, argSelect, argToggle]
                     Layout.fillWidth: true
                     spacing: Spacing.xs
 
                     Label { text: fieldItem.modelData.label + (fieldItem.modelData.required ? "" : " (optional)") }
 
                     Input {
+                        id: argInput
                         visible: ["string", "workspace", "submap"].indexOf(fieldItem.modelData.type) >= 0
                         text: fieldItem.value === undefined ? "" : String(fieldItem.value)
                         onTextEdited: {
@@ -170,8 +222,10 @@ Rectangle {
                     }
 
                     Select {
+                        id: argSelect
                         visible: fieldItem.modelData.type === "enum"
                         Layout.fillWidth: true
+                        focusPolicy: Qt.ClickFocus
                         model: fieldItem.modelData.type === "enum" ? [""].concat(fieldItem.modelData.values) : []
                         currentIndex: fieldItem.modelData.type === "enum"
                                       ? [""].concat(fieldItem.modelData.values).indexOf(fieldItem.value === undefined ? "" : fieldItem.value)
@@ -182,6 +236,8 @@ Rectangle {
                     }
 
                     Toggle {
+                        id: argToggle
+                        focusPolicy: Qt.ClickFocus
                         visible: fieldItem.modelData.type === "bool"
                         text: fieldItem.modelData.label
                         checked: fieldItem.value === undefined ? fieldItem.modelData["default"] === true : fieldItem.value === true
@@ -191,6 +247,11 @@ Rectangle {
             }
 
             QC.TextArea {
+                id: rawLua
+                focusPolicy: Qt.ClickFocus
+                // A text area takes Tab as a character, so the walk has to
+                // see it first.
+                Keys.onPressed: function (event) { root.tab(event) }
                 visible: root.draft !== null && root.draft.action.kind === "raw"
                 Layout.fillWidth: true
                 Layout.preferredHeight: 80
@@ -206,13 +267,14 @@ Rectangle {
                 background: Rectangle {
                     color: Colors.bgSurface
                     radius: Radius.sm
-                    border.width: 1
-                    border.color: Colors.borderSubtle
+                    border.width: rawLua.activeFocus ? 2 : 1
+                    border.color: rawLua.activeFocus ? Colors.accentPrimary : Colors.borderSubtle
                 }
             }
 
             Label { text: "Description · shown in the cheatsheet" }
             Input {
+                id: descField
                 text: root.draft === null ? "" : root.draft.description
                 onTextEdited: Store.patchDraft({ description: text })
             }
@@ -257,7 +319,9 @@ Rectangle {
 
             Label { text: "Submap" }
             Select {
+                id: submapSelect
                 Layout.fillWidth: true
+                focusPolicy: Qt.ClickFocus
                 model: Store.submaps.map(function (s) { return s === "" ? "global" : s })
                 currentIndex: root.draft === null ? -1 : Store.submaps.indexOf(root.draft.submap)
                 onActivated: function (index) { Store.patchDraft({ submap: Store.submaps[index] }) }

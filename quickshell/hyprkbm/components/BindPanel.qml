@@ -13,9 +13,12 @@ import "../lib/model.js" as Model
 // shows.
 Rectangle {
     id: root
-    color: Colors.bgBase
+    // Tinted over the pane's own colour, never translucent over it.
+    color: Store.area === "list"
+           ? Qt.tint(Colors.bgBase, Qt.rgba(Colors.accentPrimary.r, Colors.accentPrimary.g, Colors.accentPrimary.b, 0.05))
+           : Colors.bgBase
     radius: Radius.md
-    border.width: Store.area === "list" ? 2 : 1
+    border.width: Store.area === "list" ? 3 : 1
     border.color: Store.area === "list" ? Colors.accentPrimary : Colors.borderSubtle
 
     // Scrolls only; the rows' sizes never depend on it.

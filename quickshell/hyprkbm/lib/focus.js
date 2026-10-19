@@ -40,3 +40,13 @@ function reconcile(index, length, changed) {
     if (changed) return 0
     return Math.max(0, clampIndex(index, length))
 }
+
+// Tab inside the editor: the next of its `count` controls from `index`, or -1
+// when the walk runs off either end and the keys go on to the next area. An
+// index of -1 (focus on something the walk does not list) enters at the near end.
+function walk(index, count, back) {
+    if (count <= 0) return -1
+    if (index < 0) return back ? count - 1 : 0
+    var to = index + (back ? -1 : 1)
+    return to < 0 || to >= count ? -1 : to
+}

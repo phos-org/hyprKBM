@@ -22,9 +22,9 @@ Switch {
         // already gone tertiary.
         color: !root.enabled ? Colors.bgSurfaceAlt
              : root.checked ? Colors.accentPrimaryDim : Colors.bgBase
-        border.width: 1
+        border.width: root.activeFocus ? 2 : 1
         border.color: !root.enabled ? Colors.borderSubtle
-                    : root.activeFocus ? Colors.borderStrong
+                    : root.activeFocus ? Colors.accentPrimary
                     : root.checked ? Colors.accentPrimary : Colors.borderSubtle
         opacity: root.enabled ? 1 : 0.5
 

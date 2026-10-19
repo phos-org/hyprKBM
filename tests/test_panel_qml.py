@@ -535,8 +535,8 @@ def test_navigation_keys_sit_after_find_and_the_text_input_guard():
     h = _keys_handler()
     guard = h.index("instanceof TextInput")
     assert h.index("Store.finding") < guard
-    for needle in ("Qt.Key_Tab", "Qt.Key_Backtab", "Qt.Key_E", "Qt.Key_A",
-                   "Qt.Key_D", "Qt.Key_Z", "Qt.Key_Delete", "Focus.next", "Focus.prev",
+    for needle in ("Qt.Key_E", "Qt.Key_A",
+                   "Qt.Key_D", "Qt.Key_Z", "Qt.Key_Delete",
                    "Store.listIndex", "Store.focusedBind()", "diffDialog.open()", "Store.discard()"):
         assert needle in h, needle
         assert h.index(needle) > guard, needle
@@ -574,8 +574,60 @@ def test_one_shot_keys_ignore_auto_repeat_but_arrows_repeat():
 def test_tab_is_plain_and_keypad_is_masked():
     h = _keys_handler()
     assert "~Qt.KeypadModifier" in h
-    tab = h.split("Qt.Key_Tab", 1)[1].split("Store.area = ", 1)[0]
+    tab = h.split("Qt.Key_Tab", 1)[1].split("scope.moveArea(", 1)[0]
     assert ("Qt.ShiftModifier" in tab) and ("Qt.NoModifier" in tab)
+
+
+def test_tab_moves_areas_before_the_text_input_guard_but_after_find():
+    h = _keys_handler()
+    guard = h.index("instanceof TextInput")
+    tab = h.index("Qt.Key_Tab")
+    # After find (every key is the answer there) and after modifier tracking,
+    # but before the guard, so Tab from the search field moves areas too.
+    assert h.index("Store.finding") < tab < guard
+    assert h.index("Store.hold(") < tab
+    assert h.index("Qt.Key_Backtab") < guard
+    assert h.index("scope.moveArea(") < guard
+    shell = qml("shell.qml")
+    move = shell.split("function moveArea(back)", 1)[1].split("\n            }\n", 1)[0]
+    assert "Focus.next" in move and "Focus.prev" in move
+    assert "editor.focusFirst()" in move and "editor.focusLast()" in move
+    assert "scope.forceActiveFocus()" in move
+    # The editor hands Tab back when its walk runs off an end.
+    assert "onTabOut:" in shell and "scope.moveArea(back)" in shell
+
+
+def test_clicks_never_keep_focus_and_only_text_fields_take_it():
+    action = qml("components", "Action.qml")
+    assert "focusPolicy: Qt.TabFocus" in action
+    header = qml("components", "Header.qml")
+    search = header.split("id: search", 1)[1].split("Keys.onEscapePressed", 1)[0]
+    # Out of Qt's own Tab chain, so its Tab bubbles to the window's handler.
+    assert "focusPolicy: Qt.ClickFocus" in search
+    # Chips and keycaps are MouseAreas, which never take focus.
+    for f in ("ModifierBar.qml", "KeyCap.qml", "Header.qml"):
+        assert "focus: true" not in qml("components", f), f
+
+
+def test_the_editor_walks_its_own_controls():
+    editor = qml("components", "Editor.qml")
+    assert 'import "../lib/focus.js" as Focus' in editor
+    assert "signal tabOut(bool back)" in editor
+    assert "function controls()" in editor and "function focusLast()" in editor
+    controls = editor.split("function controls()", 1)[1].split("\n    }\n", 1)[0]
+    for id_ in ("keysField", "kindSelect", "argFields", "rawLua", "descField", "submapSelect"):
+        assert id_ in controls, id_
+    assert "c.visible && c.enabled" in controls
+    # Buttons are clicked or have shortcuts; Tab never walks them.
+    assert "Action" not in controls
+    tab = editor.split("function tab(event)", 1)[1].split("\n    }\n", 1)[0]
+    assert "Focus.walk(" in tab and "root.tabOut(back)" in tab and "event.accepted = true" in tab
+    assert "Keys.onPressed: function (event) { root.tab(event) }" in editor
+    # Every walked control is out of Qt's chain, so Tab reaches the walk.
+    assert editor.count("focusPolicy: Qt.ClickFocus") >= 6
+    # A text area takes Tab as a character: the walk must see it first.
+    area = editor.split("QC.TextArea {", 1)[1][:400]
+    assert "root.tab(event)" in area
 
 
 def test_area_is_kept_in_sync_with_real_focus():
@@ -621,7 +673,7 @@ def test_tab_enters_the_editor_by_focusing_its_keys_field_and_leaving_returns_fo
     assert "onDraftChanged" in shell and "Store.draft === null" in shell
 
 
-def test_the_focus_ring_changes_only_border_colour_and_width():
+def test_the_focus_ring_is_a_thick_accent_border_and_a_faint_tint():
     shell = qml("shell.qml")
     assert 'Store.area === "keyboard"' in shell
     assert 'Store.area === "list"' in qml("components", "BindPanel.qml")
@@ -631,6 +683,25 @@ def test_the_focus_ring_changes_only_border_colour_and_width():
         lines = [l for l in src.splitlines() if l.strip().startswith("border.") and "Store.area ===" in l]
         assert lines and all("border." in l for l in lines), f
         assert all("Colors.accentPrimary" in l for l in lines if "border.color" in l)
+        width = [l for l in lines if "border.width" in l]
+        assert width and all("? 3 : 1" in l for l in width), f
+        # A faint accent tint over the pane's own colour, never translucent.
+        fill = src.split("color: Store.area ===", 1)[1][:200]
+        assert "Qt.tint(Colors.bgBase, Qt.rgba(Colors.accentPrimary" in fill, f
+
+
+def test_focused_controls_get_a_2px_accent_border():
+    for f in ("Action.qml", "Select.qml", "Toggle.qml"):
+        src = qml("components", f)
+        assert "border.width: root.activeFocus ? 2 : 1" in src, f
+        assert "root.activeFocus ? Colors.accentPrimary" in src, f
+    header = qml("components", "Header.qml")
+    assert "border.width: search.activeFocus ? 2 : 1" in header
+    assert "search.activeFocus ? Colors.accentPrimary" in header
+    editor = qml("components", "Editor.qml")
+    assert "border.width: input.activeFocus ? 2 : 1" in editor
+    assert "input.activeFocus ? Colors.accentPrimary" in editor
+    assert "rawLua.activeFocus ? Colors.accentPrimary" in editor
 
 
 def test_the_focused_row_is_highlighted_and_kept_in_view():

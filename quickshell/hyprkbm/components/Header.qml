@@ -83,6 +83,9 @@ RowLayout {
         placeholderText: "/ search · mod: key: exec: desc: submap: src:"
         text: Store.query
         onTextEdited: Store.query = text
+        // Not in Qt's Tab chain: Tab bubbles to the window, which moves to
+        // the next area and so leaves the field.
+        focusPolicy: Qt.ClickFocus
         color: Colors.textPrimary
         placeholderTextColor: Colors.textSecondary
         font.family: Typography.family
@@ -90,8 +93,8 @@ RowLayout {
         background: Rectangle {
             color: Colors.bgSurface
             radius: Radius.sm
-            border.width: 1
-            border.color: search.activeFocus ? Colors.borderStrong : Colors.borderSubtle
+            border.width: search.activeFocus ? 2 : 1
+            border.color: search.activeFocus ? Colors.accentPrimary : Colors.borderSubtle
         }
         // Escape leaves the search rather than closing the panel.
         Keys.onEscapePressed: function (event) {
