@@ -25,6 +25,9 @@ Rectangle {
     readonly property var kinds: Store.catalogue.map(function (e) { return e.id }).concat(["raw"])
     readonly property var kindLabels: Store.catalogue.map(function (e) { return e.label }).concat(["Raw Lua"])
     property bool recording: false
+    // What the keys field shows while recording: the modifiers held so far.
+    property var recordingMods: []
+    onRecordingChanged: recordingMods = []
     // Changes when another bind's draft opens, not on every edit of one.
     readonly property string draftIdentity: draft === null ? ""
         : draft.id !== null ? "k:" + draft.id
@@ -92,8 +95,11 @@ Rectangle {
                 Layout.fillWidth: true
                 Input {
                     id: keysField
-                    text: root.draft === null ? "" : root.draft.keys
-                    placeholderText: root.recording ? "Press the keys…" : "SUPER + SHIFT + F"
+                    // While recording, the held modifiers show as they change,
+                    // so it is clear the field is listening before the last key.
+                    text: root.recording ? QtKeys.recordingText(root.recordingMods)
+                        : root.draft === null ? "" : root.draft.keys
+                    placeholderText: "SUPER + SHIFT + F"
                     onTextEdited: Store.patchDraft({ keys: text })
                     onActiveFocusChanged: if (!activeFocus) root.recording = false
                     // While recording, the next key pressed with its modifiers
@@ -108,9 +114,17 @@ Rectangle {
                         }
                         var key = QtKeys.keysymFromQt(event.key, event.modifiers)
                         event.accepted = true
-                        if (key === null) return
+                        if (key === null) {
+                            root.recordingMods = QtKeys.heldMods(event.key, event.modifiers, true)
+                            return
+                        }
                         Store.patchDraft({ keys: KeyNames.display(QtKeys.modsFromQt(event.modifiers), key) })
                         root.recording = false
+                    }
+                    Keys.onReleased: function (event) {
+                        if (!root.recording) return
+                        root.recordingMods = QtKeys.heldMods(event.key, event.modifiers, false)
+                        event.accepted = true
                     }
                 }
                 Action {

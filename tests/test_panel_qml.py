@@ -421,3 +421,13 @@ def test_the_header_and_banner_do_not_take_spare_height():
     header = shell[shell.index("Header {"):]
     header = header[:header.index("}")]
     assert "Layout.fillHeight: false" in header
+
+
+def test_recording_shows_held_modifiers_live():
+    """The field shows "CTRL + SHIFT + …" while the modifiers are held, so it
+    is clear recording works before the final key is pressed."""
+    editor = qml("components", "Editor.qml")
+    assert "QtKeys.heldMods(" in editor
+    assert "QtKeys.recordingText(" in editor
+    assert "Keys.onReleased" in editor
+    assert re.search(r"text:\s*root\.recording\s*\?", editor)

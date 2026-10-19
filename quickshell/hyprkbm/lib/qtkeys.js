@@ -69,3 +69,22 @@ function modsFromQt(modifiers) {
         if ((modifiers & FLAGS[i][0]) !== 0) out.push(FLAGS[i][1])
     return out
 }
+
+var ORDER = ["SUPER", "CTRL", "ALT", "SHIFT"]
+
+// The modifiers held after a key event, for the live text while recording.
+// Qt does not reliably count a modifier key in the flags of its own press, or
+// drop it from the flags of its own release, so the key itself is folded in.
+function heldMods(key, modifiers, pressed) {
+    var held = modsFromQt(modifiers)
+    var own = modifierFromQtKey(key)
+    if (own !== "") {
+        held = held.filter(function (m) { return m !== own })
+        if (pressed) held.push(own)
+    }
+    return ORDER.filter(function (m) { return held.indexOf(m) >= 0 })
+}
+
+function recordingText(mods) {
+    return mods.length === 0 ? "Press the keys…" : mods.join(" + ") + " + …"
+}

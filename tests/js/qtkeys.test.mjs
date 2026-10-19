@@ -46,3 +46,20 @@ test("Shift+symbol maps to base key on US layout", () => {
   assert.equal(Q.keysymFromQt(0x41, 0x02000000), "A")
   assert.equal(Q.keysymFromQt(0x21), null)
 })
+
+// While recording, the field shows what is held as it changes. Qt does not
+// always include a modifier in the flags of its own press (or drop it from
+// the flags of its own release), so the key itself is folded in.
+test("held modifiers follow presses and releases of modifier keys", () => {
+  const SHIFT = 0x01000020, CTRL = 0x01000021
+  assert.deepEqual(plain(Q.heldMods(CTRL, 0, true)), ["CTRL"])
+  assert.deepEqual(plain(Q.heldMods(SHIFT, 0x04000000, true)), ["CTRL", "SHIFT"])
+  assert.deepEqual(plain(Q.heldMods(SHIFT, 0x04000000 | 0x02000000, false)), ["CTRL"])
+  assert.deepEqual(plain(Q.heldMods(CTRL, 0x04000000, false)), [])
+  assert.deepEqual(plain(Q.heldMods(0x41, 0x04000000, true)), ["CTRL"])
+})
+
+test("the live recording text", () => {
+  assert.equal(Q.recordingText([]), "Press the keys…")
+  assert.equal(Q.recordingText(["CTRL", "SHIFT"]), "CTRL + SHIFT + …")
+})
