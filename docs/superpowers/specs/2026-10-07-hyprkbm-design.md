@@ -298,6 +298,14 @@ action label) instead of short labels. Esc or a click closes it. The user
 binds it to a key of their choice; the panel's `⋯` menu offers to add that
 bind.
 
+As built (2026-10-19, at the user's request): while it is open Hyprland is
+held in a `hyprkbm-cheatsheet` submap (only SUPER+Escape bound), so a pressed
+combo reaches the sheet instead of running. The sheet shows that combo's full
+action and Enter runs it (leaving the submap first). The hold is re-armed
+every 5 s and resets itself 15 s after the last re-arm, so binds come back
+if the sheet dies. It runs as its own qs instance (`cheatsheet.qml`), and
+`hyprkbm --cheatsheet` toggles it over IPC.
+
 **Export**: `hyprkbm --export md [FILE]` and the Export button write Markdown
 grouped by submap, then modifier combo, with key, description and action.
 

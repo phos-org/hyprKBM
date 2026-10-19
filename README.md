@@ -13,8 +13,8 @@
 you wrote in `hyprland.lua` and its own, and adds, overrides or removes
 binds without ever editing your config.
 
-The **keyboard panel** shows every bind on an on-screen keyboard; the
-cheatsheet overlay comes next.
+The **keyboard panel** shows every bind on an on-screen keyboard, and the
+**cheatsheet** puts the same keyboard over your screen at a keypress.
 
 ## What it does
 
@@ -30,6 +30,8 @@ cheatsheet overlay comes next.
 - **Checks before it changes anything.** Conflicts with your other binds
   are refused, every apply is tried inside Hyprland first, and if Hyprland
   still refuses the result, your previous binds are put back.
+- **Shows a cheatsheet** over the screen: hold modifiers to see what they
+  do, press a combo to see its action, Enter to run it.
 - **Exports a cheatsheet** as Markdown, grouped by submap and modifiers.
 
 ## Requirements
@@ -154,8 +156,8 @@ again focuses the open panel instead of opening a second one.
   writes the Markdown cheatsheet to a path you choose. **Theme** offers the
   phos presets, an accent and dark or light, saved in
   `~/.config/hyprkbm/theme.json`. **⋯** switches between ANSI and ISO
-  keyboards, names the config file being read, and shows the watcher's state
-  with a button to start it.
+  keyboards, offers a key for the cheatsheet, names the config file being
+  read, and shows the watcher's state with a button to start it.
 
 ### Keys
 
@@ -182,10 +184,37 @@ outline. Clicking a button does not take the keys away from them.
 Letters and shortcuts do nothing while you type in a field, except Tab,
 Ctrl+S and Esc.
 
+## The cheatsheet
+
+`hyprkbm --cheatsheet` shows your binds on a full-screen keyboard over the
+output you are on, and running it again hides it, so one key toggles it. Bind
+that key from the panel's **⋯** menu (**Cheatsheet key → Add a key**), or by
+hand:
+
+```lua
+hl.bind("SUPER + F1", hl.dsp.exec_cmd("hyprkbm --cheatsheet"))
+```
+
+- **Hold modifiers** to see what they do: keys light up with your
+  descriptions, or the action when a bind has none. Modifiers already held
+  when it opens show from the next key you press or release.
+- **Press a combo** to see it in full at the top, e.g. SUPER + SHIFT + D:
+  "Run a command: discord". **Enter** closes the cheatsheet and runs it. A
+  bind whose action is a Lua function, or a mouse bind, cannot be run from
+  here, and the cheatsheet says so.
+- **Your binds are paused while it is open**, so pressing a combo shows it
+  instead of running it. They come back the moment it closes (Esc, a click,
+  its own key, Enter), with **SUPER+Escape** at any time (which also closes
+  it), and within 15 seconds on their own if the cheatsheet crashes. Closing
+  it returns Hyprland to the default submap.
+- It shows the global binds, never changes anything on disk, and stages
+  nothing.
+
 ## Using it
 
 ```bash
-hyprkbm                      # open the panel
+hyprkbm                       # open the panel
+hyprkbm --cheatsheet          # show the cheatsheet, or hide it if shown
 hyprkbm --status              # binds, conflicts, stale overrides, the watcher
 hyprkbm --binds               # your hand-written binds, with fingerprints
 hyprkbm --apply               # apply ~/.config/hyprkbm/keybinds.json

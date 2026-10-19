@@ -135,14 +135,16 @@ function neighbour(layout, lowerId, dir) {
     return best === null ? lowerId : best.id
 }
 
-// The keyboard row in key units: fifteen of main block, half a unit of gap,
-// three of navigation cluster, and three for the extra keys beside them.
-var ROW_UNITS = 21.5
+// The keyboard in key units: fifteen of main block, half a unit of gap and
+// three of navigation cluster. The row it sits in adds three for the extra
+// keys beside it.
+var KEYBOARD_UNITS = 18.5
+var ROW_UNITS = KEYBOARD_UNITS + 3
 
 // The key size for a row this many pixels wide (after its fixed gaps). It is
 // computed from the row, never from the keyboard's own width: that width is
 // what the extra keys leave, and the extra keys are sized in keys, so each
 // depended on the other and at some window widths the layout never settled.
-function unitFor(width) {
-    return Math.max(26, Math.min(48, Math.floor(width / ROW_UNITS)))
+function unitFor(width, max) {
+    return Math.max(26, Math.min(max === undefined ? 48 : max, Math.floor(width / ROW_UNITS)))
 }

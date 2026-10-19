@@ -804,3 +804,170 @@ def test_ctrl_s_saves_the_draft_from_any_field():
     assert "Store.saveDraft()" in h[save:save + 300]
     editor = (PANEL / "components" / "Editor.qml").read_text()
     assert 'text: "Save (Ctrl+S)"' in editor and 'text: "Cancel (Esc)"' in editor
+
+
+def test_the_keyboard_can_be_read_only_and_detailed():
+    kb = qml("components", "Keyboard.qml")
+    assert "property bool interactive: true" in kb and "property bool detailed: false" in kb
+    assert kb.count("interactive: root.interactive") == 2 and kb.count("detailed: root.detailed") == 2
+    for name in ("KeyBlock.qml", "ExtraKeys.qml"):
+        src = qml("components", name)
+        assert "property bool interactive: true" in src and "property bool detailed: false" in src
+        assert "Labels.sheetLabel(" in src
+        assert "root.interactive" in src
+    block = qml("components", "KeyBlock.qml")
+    assert "enabled: root.interactive && modelData.gap !== true" in block
+    extra = qml("components", "ExtraKeys.qml")
+    assert "visible: root.interactive" in extra  # the "+ any key…" button
+    cap = qml("components", "KeyCap.qml")
+    assert "property int subLines: 1" in cap and "maximumLineCount: root.subLines" in cap
+
+
+def test_the_cheatsheet_is_a_read_only_overlay():
+    sheet = (PANEL / "cheatsheet.qml").read_text()
+    assert 'WlrLayershell.namespace: "hyprkbm-cheatsheet"' in sheet
+    assert "WlrLayer.Overlay" in sheet and "WlrKeyboardFocus.Exclusive" in sheet
+    assert "interactive: false" in sheet and "detailed: true" in sheet
+    assert 'target: "cheatsheet"' in sheet and "function close()" in sheet
+    # Never writes: nothing that stages or applies. It evals only the Lua that
+    # holds Hyprland's binds, gives them back, or runs the selected combo.
+    for forbidden in ("Store.apply", "saveDraft", "newBind", "Store.edit"):
+        assert forbidden not in sheet
+    evals = re.findall(r'"hyprctl", "eval", ([^\]]+)\]', sheet)
+    assert evals and set(evals) <= {"sheet.held ? Cheatsheet.rearmLua(Date.now()) : Cheatsheet.enterLua(Date.now())",
+                            "Cheatsheet.leaveLua(Date.now())", "lua"}, evals
+    assert sheet.count("hyprctl") == len(evals)
+    # Esc closes; modifiers are followed on press and release.
+    assert "Qt.Key_Escape" in sheet and "Keys.onReleased" in sheet
+    assert "QtKeys.heldMods(" in sheet
+
+
+def test_the_cheatsheet_follows_held_modifiers_only():
+    sheet = qml("cheatsheet.qml")
+    # The panel's default chip (SUPER) would show whenever nothing is held.
+    assert "Store.setMods([])" in sheet
+    assert "Cheatsheet.title(Store.mods)" in sheet
+
+
+def test_the_cheatsheet_sizes_its_keys_from_the_output_only():
+    sheet = qml("cheatsheet.qml")
+    assert re.search(r"Layouts\.unitFor\(sheet\.width \* [\d.]+ - Spacing\.lg, 96\)", sheet)
+    assert "Layout.preferredWidth: Layouts.KEYBOARD_UNITS * keyRow.unit" in sheet
+    assert "Layout.preferredHeight: implicitHeight" in sheet
+
+
+def test_the_cheatsheet_answers_close_before_it_quits():
+    sheet = qml("cheatsheet.qml")
+    close = sheet[sheet.index("function close()"):]
+    close = close[:close.index("}")]
+    # Quitting inside the call could drop the reply; `hyprkbm --cheatsheet`
+    # would then read "not running" and open a second sheet.
+    assert "Qt.quit" not in close and "sheet.finish(" in close
+    finish = sheet[sheet.index("function finish(lua)"):]
+    finish = finish[:finish.index("\n        }\n")]
+    assert "sheet.visible = false" in finish
+    # The output is picked once, so the sheet never jumps between outputs.
+    assert "Cheatsheet.outputFor(" in sheet and "Hyprland.focusedMonitor" in sheet
+
+
+def test_a_read_only_keyboard_shows_the_selection():
+    for name in ("KeyBlock.qml", "ExtraKeys.qml"):
+        src = qml("components", name)
+        assert "root.interactive &&" not in re.search(r"selected: [^\n]+", src).group(0), name
+    sheet = qml("cheatsheet.qml")
+    # Store selects Q whenever a load completes; the sheet shows only its own
+    # selection, from the start.
+    assert "function onSelectedKeyChanged()" in sheet
+    assert 'Store.selectedKey = ""' in sheet.split("Component.onCompleted:", 1)[1][:200]
+
+
+def test_the_cheatsheet_holds_hyprlands_binds_while_open():
+    sheet = qml("cheatsheet.qml")
+    arm = sheet[sheet.index("id: armTimer"):]
+    arm = arm[:arm.index("}")]
+    assert "interval: Cheatsheet.ARM_EVERY_MS" in arm and "repeat: true" in arm
+    assert "triggeredOnStart: true" in arm and "sheet.arm()" in arm
+    # Only the first hold enters the submap; re-arms never put the user back.
+    assert '["hyprctl", "eval", sheet.held ? Cheatsheet.rearmLua(Date.now()) : Cheatsheet.enterLua(Date.now())]' in sheet
+    done = sheet[sheet.index("id: holdProc"):]
+    done = done[:done.index("\n        }\n")]
+    # Held only once a hold succeeded.
+    assert "sheet.held = true" in done.split("if (code !== 0) {", 1)[1].split("} else {", 1)[1]
+    # A failed re-arm usually means Hyprland is no longer held (rearmLua
+    # errors when the submap is gone), but may be a hiccup with the submap
+    # still held: close, leaving (guarded, so harmless either way). A failed
+    # first hold is reported and given back instead.
+    failed = done.split("if (code !== 0 && sheet.held) {", 1)[1].split("}", 1)[0]
+    assert "sheet.finish(Cheatsheet.leaveLua(Date.now()))" in failed and "return" in failed
+    assert done.index("code !== 0 && sheet.held") < done.index("if (code !== 0) {")
+    assert sheet.count('sheet.finish("")') == 1  # only the submap event
+
+
+def test_the_cheatsheet_closes_when_hyprland_leaves_its_submap():
+    sheet = qml("cheatsheet.qml")
+    ev = sheet[sheet.index("function onRawEvent(event)"):]
+    ev = ev[:ev.index("\n            }\n")]
+    # Only after our own entry landed, and not while the sheet itself leaves.
+    assert "sheet.held" in ev and "!sheet.closing" in ev
+    assert 'event.name === "submap"' in ev and "event.data !== Cheatsheet.SUBMAP" in ev
+    # Hyprland already left: nothing to send.
+    assert 'sheet.finish("")' in ev and "leaveLua" not in ev
+    flush = sheet[sheet.index("function flush()"):]
+    flush = flush[:flush.index("\n        }\n")]
+    assert 'if (lua !== "") Quickshell.execDetached(' in flush
+
+
+def test_the_cheatsheet_title_area_never_moves_the_keyboard():
+    sheet = qml("cheatsheet.qml")
+    area = sheet[sheet.index("id: titleArea"):sheet.index("id: keyRow")]
+    # A fixed height from type sizes: room for the combo, two action lines
+    # and the status, selected or not.
+    assert "Layout.preferredHeight: sheet.titleAreaHeight" in area
+    h = sheet[sheet.index("readonly property int titlePx"):]
+    h = h[:h.index("\n\n")]
+    assert "Math.round(Typography.sizeBody * 1.8)" in h
+    assert "Math.ceil(Typography.sizeBody * 1.5)" in h and "Math.ceil(sheet.titlePx * 1.5)" in h
+    assert "readonly property real titleAreaHeight" in h and "implicitHeight" not in h
+    assert "implicitHeight" not in area and "visible:" not in area
+    assert area.count("elide: Text.ElideRight") == 3 and "maximumLineCount: 2" in area
+
+
+def test_every_way_out_of_the_cheatsheet_gives_the_binds_back():
+    sheet = qml("cheatsheet.qml")
+    # Qt.quit only from quitSoon, and quitSoon only once the leave or run has
+    # gone out, detached so it survives the quit.
+    assert sheet.count("Qt.quit") == 1 and "onTriggered: Qt.quit()" in sheet
+    assert sheet.count("quitSoon.start()") == 1
+    flush = sheet[sheet.index("function flush()"):]
+    flush = flush[:flush.index("\n        }\n")]
+    assert flush.index('Quickshell.execDetached(["hyprctl", "eval", lua])') < flush.index("quitSoon.start()")
+    # Esc, a click and IPC close leave; Enter runs; nothing else finishes.
+    assert sheet.count("sheet.finish(Cheatsheet.leaveLua(Date.now()))") == 5  # Esc, click, close(), own key, failed re-arm
+    assert sheet.count("sheet.finish(") == 7  # and Hyprland leaving, or a failed re-arm
+    run = sheet[sheet.index("function runSelection()"):]
+    run = run[:run.index("\n        }\n")]
+    assert "var lua = Cheatsheet.runLua(sheet.selectedBinds, Date.now())" in run
+    assert "if (lua === null) return" in run and "sheet.finish(lua)" in run
+    close = sheet[sheet.index("function close()"):]
+    close = close[:close.index("}")]
+    assert "sheet.finish(Cheatsheet.leaveLua(Date.now()))" in close
+
+
+def test_the_cheatsheet_selects_a_pressed_combo():
+    sheet = qml("cheatsheet.qml")
+    assert "Keymap.bindsOn(Store.merged.binds, \"\", sheet.selection.mods, sheet.selection.keyId)" in sheet
+    assert "Cheatsheet.opensSheet(" in sheet
+    assert "Qt.Key_Return" in sheet and "Qt.Key_Enter" in sheet
+    assert "Cheatsheet.actions(sheet.selectedBinds)" in sheet
+    assert "Cheatsheet.status(sheet.selectedBinds)" in sheet
+    assert '"Press a combo to see what it does · Enter runs it · Esc closes"' in sheet
+
+
+def test_the_menu_offers_a_cheatsheet_key():
+    store = qml("state", "Store.qml")
+    assert "Cheatsheet.keysOf(merged.binds)" in store
+    body = store.split("function newCheatsheetBind()", 1)[1].split("\n    }\n", 1)[0]
+    assert "newBind(" in body and "Cheatsheet.COMMAND" in body
+    popup = qml("components", "SettingsPopup.qml")
+    assert "Store.cheatsheetKeys" in popup and "Store.newCheatsheetBind()" in popup
+    assert "root.close()" in popup.split("Store.newCheatsheetBind()", 1)[1][:80]

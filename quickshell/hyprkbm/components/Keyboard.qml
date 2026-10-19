@@ -7,11 +7,13 @@ import "../state"
 Item {
     id: root
     property real unit: 40
+    property bool interactive: true
+    property bool detailed: false
     implicitHeight: unit * 6
 
     Row {
         spacing: root.unit * 0.5
-        KeyBlock { rows: Store.layout.main; unit: root.unit }
-        KeyBlock { rows: Store.layout.nav; unit: root.unit }
+        KeyBlock { rows: Store.layout.main; unit: root.unit; interactive: root.interactive; detailed: root.detailed }
+        KeyBlock { rows: Store.layout.nav; unit: root.unit; interactive: root.interactive; detailed: root.detailed }
     }
 }

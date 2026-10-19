@@ -12,6 +12,7 @@ import "../lib/catalogue.js" as Catalogue
 import "../lib/quit.js" as Quit
 import "../lib/capture.js" as Capture
 import "../lib/focus.js" as Focus
+import "../lib/cheatsheet.js" as Cheatsheet
 
 // The panel's single source of truth. It never writes keybinds.json or
 // keybinds.lua: edits are staged in `model` and leave only through
@@ -51,6 +52,7 @@ QtObject {
     readonly property var parsedQuery: Search.parseQuery(query)
     readonly property string layoutName: doc && doc.settings && doc.settings.layout === "iso" ? "iso" : "ansi"
     readonly property var layout: Layouts.LAYOUTS[layoutName]
+    readonly property var cheatsheetKeys: Cheatsheet.keysOf(merged.binds)
     readonly property var keyStates: Keymap.keyStates(merged.binds, submap, mods)
     readonly property var matching: Keymap.matchingKeys(merged.binds, submap, parsedQuery)
     readonly property var extras: Keymap.extraKeys(merged.binds)
@@ -318,6 +320,15 @@ QtObject {
         stopFind()
         draft = { id: null, hand: null, keys: keys, submap: submap,
                   action: { kind: "exec_cmd", args: {} }, description: "", flags: {}, allowConflict: false }
+    }
+
+    // The ⋯ menu's offer: a bind that opens the cheatsheet, keys left for the
+    // user to record. It goes through the editor like any other new bind.
+    function newCheatsheetBind() {
+        newBind("")
+        if (draft === null) return
+        patchDraft({ submap: "", action: { kind: "exec_cmd", args: { cmd: Cheatsheet.COMMAND } },
+                     description: "Keybind cheatsheet" })
     }
 
     function newBindOnSelected() {

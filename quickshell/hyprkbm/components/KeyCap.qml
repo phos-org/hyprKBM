@@ -7,6 +7,7 @@ Rectangle {
     id: root
     property string label: ""
     property string sub: ""
+    property int subLines: 1
     property string kind: "free"
     property bool selected: false
     property bool dimmed: false
@@ -64,9 +65,12 @@ Rectangle {
             width: parent.width
             horizontalAlignment: Text.AlignHCenter
             text: root.sub
+            wrapMode: root.subLines > 1 ? Text.Wrap : Text.NoWrap
+            maximumLineCount: root.subLines
             color: Colors.textSecondary
             font.family: Typography.family
-            font.pixelSize: Math.max(7, Math.round(root.unit * 0.19))
+            // Three lines at the panel's size would overflow the key.
+            font.pixelSize: Math.max(7, Math.round(root.unit * (root.subLines > 1 ? 0.15 : 0.19)))
             elide: Text.ElideRight
         }
     }

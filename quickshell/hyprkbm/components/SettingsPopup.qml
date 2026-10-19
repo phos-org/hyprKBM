@@ -40,6 +40,27 @@ QC.Popup {
         }
 
         Field {
+            label: "Cheatsheet key"
+            hint: "Runs hyprkbm --cheatsheet. Record the keys in the editor, then Save and Apply."
+            RowLayout {
+                width: parent.width
+                Text {
+                    Layout.fillWidth: true
+                    text: Store.cheatsheetKeys.length > 0 ? Store.cheatsheetKeys.join(", ") : "None yet"
+                    color: Colors.textPrimary
+                    font.family: Typography.family
+                    font.pixelSize: Typography.sizeBody
+                    elide: Text.ElideRight
+                }
+                Action {
+                    text: Store.cheatsheetKeys.length > 0 ? "Add another" : "Add a key"
+                    enabled: !Store.readOnly && Store.draft === null && !Store.busy
+                    onClicked: { Store.newCheatsheetBind(); root.close() }
+                }
+            }
+        }
+
+        Field {
             label: "Config read"
             hint: "Set \"entry\" in ~/.config/hyprkbm/settings.json to read another file."
             Text {
