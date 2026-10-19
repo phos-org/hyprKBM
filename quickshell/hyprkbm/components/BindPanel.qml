@@ -15,8 +15,21 @@ Rectangle {
     id: root
     color: Colors.bgBase
     radius: Radius.md
-    border.width: 1
-    border.color: Colors.borderSubtle
+    border.width: Store.area === "list" ? 2 : 1
+    border.color: Store.area === "list" ? Colors.accentPrimary : Colors.borderSubtle
+
+    // Scrolls only; the rows' sizes never depend on it.
+    function ensureVisible() {
+        let row = rows.itemAt(Store.listIndex)
+        if (!row) return
+        let fl = scroll.contentItem as Flickable
+        if (row.y < fl.contentY) fl.contentY = row.y
+        else if (row.y + row.height > fl.contentY + fl.height) fl.contentY = row.y + row.height - fl.height
+    }
+    Connections {
+        target: Store
+        function onListIndexChanged() { root.ensureVisible() }
+    }
 
     readonly property bool searching: !Store.parsedQuery.empty
     readonly property string keyText: Store.selectedKey === "" ? ""
@@ -43,6 +56,7 @@ Rectangle {
         }
 
         QC.ScrollView {
+            id: scroll
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
@@ -53,9 +67,12 @@ Rectangle {
                 spacing: 2
 
                 Repeater {
+                    id: rows
                     model: Store.listed
                     delegate: BindRow {
                         required property var modelData
+                        required property int index
+                        position: index
                         Layout.fillWidth: true
                         bind: modelData
                         group: modelData.allowConflict ? [] : root.conflictGroup
@@ -96,7 +113,7 @@ Rectangle {
                 Action {
                     visible: !root.searching && root.keyText !== ""
                     enabled: !Store.readOnly
-                    text: "+ Add a bind on " + root.keyText
+                    text: "+ Add a bind on " + root.keyText + " (A)"
                     onClicked: Store.newBindOnSelected()
                 }
 

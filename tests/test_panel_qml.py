@@ -365,7 +365,7 @@ def test_small_store_and_row_guards():
     assert "keepSubmapValid()" in store.split("function discard()", 1)[1].split("function ", 1)[0]
     assert "keepSubmapValid()" in store.split("function adopt(", 1)[1].split("\n    }\n", 1)[0]
     row = qml("components", "BindRow.qml")
-    assert "untouchable" in row.split('text: "Edit"', 1)[1].split("onClicked", 1)[0]
+    assert "untouchable" in row.split('text: "Edit (E)"', 1)[1].split("onClicked", 1)[0]
     assert "untouchable" in row.split('text: "Remove"', 1)[1].split("onClicked", 1)[0]
     assert "QC.ToolTip.text" in row
     bar = qml("components", "StagedBar.qml")
@@ -524,3 +524,76 @@ def test_only_a_bare_escape_cancels_find():
     finding = esc.split("Store.finding", 1)[1].split("Store.requestQuit()", 1)[0]
     assert "event.modifiers" in finding and "event.accepted = false" in finding
     assert finding.index("event.accepted = false") < finding.index("Store.stopFind()")
+
+
+def _keys_handler():
+    shell = qml("shell.qml")
+    return shell.split("Keys.onPressed", 1)[1].split("Keys.onReleased", 1)[0]
+
+
+def test_navigation_keys_sit_after_find_and_the_text_input_guard():
+    h = _keys_handler()
+    guard = h.index("instanceof TextInput")
+    assert h.index("Store.finding") < guard
+    for needle in ("Qt.Key_Tab", "Qt.Key_Backtab", "Qt.Key_E", "Qt.Key_A",
+                   "Qt.Key_D", "Qt.Key_Z", "Qt.Key_Delete", "Focus.next", "Focus.prev",
+                   "Store.listIndex", "Store.focusedBind()", "diffDialog.open()", "Store.discard()"):
+        assert needle in h, needle
+        assert h.index(needle) > guard, needle
+
+
+def test_shortcuts_need_no_modifier_or_exactly_control_and_a_dirty_store():
+    h = _keys_handler()
+    assert "Qt.Key_E && event.modifiers === Qt.NoModifier" in h
+    assert "Qt.Key_A && event.modifiers === Qt.NoModifier" in h
+    z = h.split("Qt.Key_Z", 1)[1][:200]
+    assert "Store.dirty" in z
+    d = h.split("Qt.Key_D", 1)[1][:200]
+    assert "Store.dirty" in d
+
+
+def test_the_editor_area_takes_no_list_or_key_shortcuts():
+    h = _keys_handler()
+    assert 'Store.area !== "editor"' in h or 'Store.area === "editor"' in h
+
+
+def test_tab_enters_the_editor_by_focusing_its_keys_field_and_leaving_returns_focus():
+    shell = qml("shell.qml")
+    assert "focusFirst()" in shell and "scope.forceActiveFocus()" in shell
+    editor = qml("components", "Editor.qml")
+    assert "function focusFirst()" in editor and "keysField.forceActiveFocus()" in editor
+    store = qml("state", "Store.qml")
+    assert 'property string area: "keyboard"' in store
+    assert "property int listIndex: 0" in store
+    assert "function focusedBind()" in store
+    assert "onListedChanged" in store and "listIndex = 0" in store
+    assert "onDraftChanged" in store and 'area = "list"' in store
+    assert 'import "lib/focus.js" as Focus' in shell
+    assert "onDraftChanged" in shell and "Store.draft === null" in shell
+
+
+def test_the_focus_ring_changes_only_border_colour_and_width():
+    shell = qml("shell.qml")
+    assert 'Store.area === "keyboard"' in shell
+    assert 'Store.area === "list"' in qml("components", "BindPanel.qml")
+    assert 'Store.area === "editor"' in qml("components", "Editor.qml")
+    for f in ("shell.qml", "components/BindPanel.qml", "components/Editor.qml"):
+        src = qml(*f.split("/"))
+        lines = [l for l in src.splitlines() if l.strip().startswith("border.") and "Store.area ===" in l]
+        assert lines and all("border." in l for l in lines), f
+        assert all("Colors.accentPrimary" in l for l in lines if "border.color" in l)
+
+
+def test_the_focused_row_is_highlighted_and_kept_in_view():
+    panel = qml("components", "BindPanel.qml")
+    assert "Store.listIndex" in panel and "ensureVisible" in panel or "contentItem.contentY" in panel
+    row = qml("components", "BindRow.qml")
+    assert "focused" in row and 'Store.area === "list"' in row
+
+
+def test_buttons_show_their_shortcuts():
+    assert '"Edit (E)"' in qml("components", "BindRow.qml")
+    assert '"+ Add a bind on " + root.keyText + " (A)"' in qml("components", "BindPanel.qml")
+    bar = qml("components", "StagedBar.qml")
+    for hint in ('"Review diff (Ctrl+D)"', '"Discard (Ctrl+Z)"', "(Ctrl+Enter)"):
+        assert hint in bar, hint

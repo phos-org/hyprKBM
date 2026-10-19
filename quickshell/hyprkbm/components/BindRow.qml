@@ -12,6 +12,9 @@ Rectangle {
     property var bind
     // The binds sharing this one's key, when it is listed in a conflict.
     property var group: []
+    // Where this row sits in the list, so the list's cursor can mark it.
+    property int position: -1
+    readonly property bool focused: position >= 0 && Store.area === "list" && position === Store.listIndex
     // Hand-only conflicts are real but never stop an apply, so they are not
     // drawn as errors.
     readonly property bool inConflict: root.group.length > 1 && Model.blocks(root.group)
@@ -29,9 +32,9 @@ Rectangle {
 
     implicitHeight: 36
     radius: Radius.sm
-    color: editing ? Colors.bgSurfaceAlt : hover.hovered ? Colors.bgSurface : "transparent"
-    border.width: refused ? 1 : 0
-    border.color: Colors.statusCritical
+    color: editing || focused ? Colors.bgSurfaceAlt : hover.hovered ? Colors.bgSurface : "transparent"
+    border.width: refused || focused ? 1 : 0
+    border.color: refused ? Colors.statusCritical : Colors.accentPrimary
 
     HoverHandler { id: hover }
     QC.ToolTip.visible: hover.hovered && root.untouchable
@@ -101,7 +104,7 @@ Rectangle {
             onClicked: Store.keepBoth(root.bind.uid)
         }
         Action {
-            text: "Edit"
+            text: "Edit (E)"
             enabled: !Store.readOnly && !root.untouchable && root.bind.dispatcher !== null && root.bind.dispatcher.__function === undefined
             onClicked: Store.edit(root.bind.uid)
         }

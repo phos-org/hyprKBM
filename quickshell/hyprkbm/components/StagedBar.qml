@@ -72,12 +72,12 @@ Rectangle {
             font.pixelSize: Typography.sizeSmall
         }
 
-        Action { visible: Store.dirty; text: "Review diff"; onClicked: root.reviewRequested() }
-        Action { visible: Store.dirty; text: "Discard"; enabled: !Store.busy; onClicked: Store.discard() }
+        Action { visible: Store.dirty; text: "Review diff (Ctrl+D)"; onClicked: root.reviewRequested() }
+        Action { visible: Store.dirty; text: "Discard (Ctrl+Z)"; enabled: !Store.busy; onClicked: Store.discard() }
         Action {
             visible: Store.dirty
             primary: true
-            text: Store.busy ? "Applying…" : "Apply"
+            text: Store.busy ? "Applying…" : "Apply (Ctrl+Enter)"
             enabled: !Store.busy && !Store.readOnly && Store.draft === null
             onClicked: Store.apply()
         }

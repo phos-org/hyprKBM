@@ -15,8 +15,11 @@ Rectangle {
     id: root
     color: Colors.bgBase
     radius: Radius.md
-    border.width: 1
-    border.color: Colors.borderSubtle
+    border.width: Store.area === "editor" ? 2 : 1
+    border.color: Store.area === "editor" ? Colors.accentPrimary : Colors.borderSubtle
+
+    // Tab into the editor lands on its first field.
+    function focusFirst() { keysField.forceActiveFocus() }
 
     readonly property var draft: Store.draft
     readonly property var entry: draft === null || draft.action.kind === "raw" ? null

@@ -11,6 +11,7 @@ import "../lib/layouts.js" as Layouts
 import "../lib/catalogue.js" as Catalogue
 import "../lib/quit.js" as Quit
 import "../lib/capture.js" as Capture
+import "../lib/focus.js" as Focus
 
 // The panel's single source of truth. It never writes keybinds.json or
 // keybinds.lua: edits are staged in `model` and leave only through
@@ -61,6 +62,13 @@ QtObject {
             && r.hand.combo === Keys.comboId(root.mods, root.selectedKey)
     })
     readonly property var unplaced: Keymap.unplaced(merged.binds, submap, knownKeys())
+
+    // Which part of the panel has the keys, and which bind the list points at.
+    property string area: "keyboard"
+    property int listIndex: 0
+    onListedChanged: listIndex = 0
+    // The editor closing hands the keys back to the list.
+    onDraftChanged: if (draft === null && area === "editor") area = "list"
 
     property var draft: null
     property string status: ""
@@ -251,6 +259,22 @@ QtObject {
                       action: Model.clone(b.action), description: b.description,
                       flags: Model.clone(b.flags), allowConflict: b.allowConflict }
         }
+    }
+
+    function focusedBind() {
+        var i = Focus.clampIndex(listIndex, listed.length)
+        return i < 0 ? null : listed[i]
+    }
+
+    // The keys' Edit: the Edit button's own limits apply, so a bind hyprKBM
+    // cannot read is refused rather than turned into a useless override.
+    function editBind(b) {
+        if (b === null || b === undefined) return
+        if (b.source === "hand" && b.combo === null) {
+            report("hyprKBM does not understand the keys of this bind; change it in hyprland.lua.", true)
+            return
+        }
+        edit(b.uid)
     }
 
     function newBind(keys) {

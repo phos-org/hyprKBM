@@ -8,6 +8,7 @@ import "state"
 import "lib/qtkeys.js" as QtKeys
 import "lib/capture.js" as Capture
 import "lib/layouts.js" as Layouts
+import "lib/focus.js" as Focus
 
 ShellRoot {
     // An ordinary window rather than a layer-shell panel: it is a thing you
@@ -84,6 +85,13 @@ ShellRoot {
             }
             Window.onActiveChanged: if (!Window.active) { Store.heldMods = []; Store.stopFind() }
 
+            // However the editor closes (Save, Cancel, Esc, Delete), the keys
+            // come back here; Store has already moved the area to the list.
+            Connections {
+                target: Store
+                function onDraftChanged() { if (Store.draft === null) scope.forceActiveFocus() }
+            }
+
             Keys.onPressed: function (event) {
                 // First, before even the text-input guard: while finding, every
                 // key is the answer, and find cannot start from a field.
@@ -130,6 +138,51 @@ ShellRoot {
                     if (Store.dirty && !Store.busy && !Store.readOnly && Store.draft === null)
                         Store.apply()
                     event.accepted = true
+                    return
+                }
+                if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
+                    let back = event.key === Qt.Key_Backtab || (event.modifiers & Qt.ShiftModifier)
+                    let hasEditor = Store.draft !== null
+                    Store.area = back ? Focus.prev(Store.area, hasEditor) : Focus.next(Store.area, hasEditor)
+                    if (Store.area === "editor") editor.focusFirst()
+                    event.accepted = true
+                    return
+                }
+                // The editor has the keys: nothing below is for it.
+                if (Store.area === "editor") return
+                if (event.key === Qt.Key_E && event.modifiers === Qt.NoModifier) {
+                    Store.editBind(Store.area === "list" ? Store.focusedBind()
+                                   : (Store.listed.length > 0 ? Store.listed[0] : null))
+                    event.accepted = true
+                    return
+                }
+                if (event.key === Qt.Key_A && event.modifiers === Qt.NoModifier) {
+                    Store.newBindOnSelected()
+                    event.accepted = true
+                    return
+                }
+                if (event.key === Qt.Key_D && event.modifiers === Qt.ControlModifier) {
+                    if (Store.dirty) diffDialog.open()
+                    event.accepted = true
+                    return
+                }
+                if (event.key === Qt.Key_Z && event.modifiers === Qt.ControlModifier) {
+                    if (Store.dirty && !Store.busy) Store.discard()
+                    event.accepted = true
+                    return
+                }
+                if (Store.area === "list") {
+                    if (event.key === Qt.Key_Up || event.key === Qt.Key_Down) {
+                        Store.listIndex = Focus.clampIndex(Store.listIndex + (event.key === Qt.Key_Up ? -1 : 1), Store.listed.length)
+                        event.accepted = true
+                    } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                        Store.editBind(Store.focusedBind())
+                        event.accepted = true
+                    } else if (event.key === Qt.Key_Delete) {
+                        let target = Store.focusedBind()
+                        if (target !== null) Store.deleteBind(target.uid)
+                        event.accepted = true
+                    }
                     return
                 }
                 var dirs = {}
@@ -209,8 +262,8 @@ ShellRoot {
                     implicitHeight: keyboardColumn.implicitHeight + Spacing.lg * 2
                     color: Colors.bgBase
                     radius: Radius.md
-                    border.width: 1
-                    border.color: Colors.borderSubtle
+                    border.width: Store.area === "keyboard" ? 2 : 1
+                    border.color: Store.area === "keyboard" ? Colors.accentPrimary : Colors.borderSubtle
 
                     ColumnLayout {
                         id: keyboardColumn
@@ -257,6 +310,7 @@ ShellRoot {
                     }
 
                     Editor {
+                        id: editor
                         Layout.preferredWidth: 340
                         Layout.fillHeight: true
                     }
