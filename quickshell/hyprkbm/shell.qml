@@ -130,6 +130,7 @@ ShellRoot {
                 Header {
                     id: header
                     Layout.fillWidth: true
+                    Layout.fillHeight: false
                     onLeaveSearch: scope.forceActiveFocus()
                     onBackupsRequested: backupsDialog.open()
                     onExportRequested: exportDialog.open()
@@ -137,7 +138,9 @@ ShellRoot {
                     onSettingsRequested: settingsPopup.open()
                 }
 
-                Banner { Layout.fillWidth: true }
+                // A layout inside a layout fills spare height by default; these
+                // two must not, or they open an empty band under the header.
+                Banner { Layout.fillWidth: true; Layout.fillHeight: false }
 
                 Text {
                     visible: Store.loading || Store.loadError !== ""

@@ -92,7 +92,9 @@ function keyName(layout, lowerId) {
     eachKey(layout, function (k) {
         if (k.id !== undefined && k.id.toLowerCase() === lowerId) found = k.id
     })
-    return found
+    // Letter keys are named in lower case here, but binds are written with
+    // capitals ("SUPER + Q"), so a new bind should read the same way.
+    return /^[a-z]$/.test(found) ? found.toUpperCase() : found
 }
 
 // Each key's row and horizontal centre, the navigation cluster sitting half a

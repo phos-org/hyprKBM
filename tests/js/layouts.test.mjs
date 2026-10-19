@@ -23,7 +23,7 @@ test("key ids are lower case and include the keys binds use", () => {
 
 test("keyName gives back the id as the layout writes it", () => {
   assert.equal(L.keyName(L.LAYOUTS.ansi, "return"), "Return")
-  assert.equal(L.keyName(L.LAYOUTS.ansi, "q"), "q")
+  assert.equal(L.keyName(L.LAYOUTS.ansi, "q"), "Q")
   assert.equal(L.keyName(L.LAYOUTS.ansi, "xf86audiomute"), "xf86audiomute")
 })
 
@@ -51,4 +51,10 @@ test("unitFor sizes keys from the whole row and fits it", () => {
     assert.ok(unit * L.ROW_UNITS <= width, `width ${width}: ${unit} keys overflow`)
     assert.equal(L.unitFor(width), unit, "same input, same answer")
   }
+})
+
+test("keyName writes letters in upper case, as binds usually are", () => {
+  assert.equal(L.keyName(L.LAYOUTS.ansi, "q"), "Q")
+  assert.equal(L.keyName(L.LAYOUTS.ansi, "return"), "Return")
+  assert.equal(L.keyName(L.LAYOUTS.ansi, "1"), "1")
 })

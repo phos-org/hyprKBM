@@ -409,3 +409,15 @@ def test_closing_the_window_quits_the_panel():
     window -- from its own close button or the compositor -- quits."""
     shell = qml("shell.qml")
     assert re.search(r"onClosed:\s*Qt\.quit\(\)", shell)
+
+
+def test_the_header_and_banner_do_not_take_spare_height():
+    """A layout inside a layout fills spare height by default. The Banner is a
+    ColumnLayout, so with no banners showing it still took a third of the
+    window as an empty band under the header."""
+    shell = qml("shell.qml")
+    banner = re.search(r"^\s*Banner\s*\{[^}]*\}", shell, re.M).group(0)
+    assert "Layout.fillHeight: false" in banner
+    header = shell[shell.index("Header {"):]
+    header = header[:header.index("}")]
+    assert "Layout.fillHeight: false" in header
