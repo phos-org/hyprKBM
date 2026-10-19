@@ -36,11 +36,11 @@ test("the title names the held modifiers in order", () => {
 
 // While the sheet is open Hyprland is held in its own submap, so a pressed
 // combo reaches the sheet instead of running.
-test("holdLua enters the submap only when not in it, and arms a timer for this token", () => {
+test("enterLua enters the submap unless already in it, and arms a timer for this token", () => {
   assert.equal(C.SUBMAP, "hyprkbm-cheatsheet")
   assert.equal(C.ARM_EVERY_MS, 5000)
   assert.equal(C.HOLD_MS, 15000)
-  const lua = C.holdLua(1760000000123)
+  const lua = C.enterLua(1760000000123)
   const guard = lua.indexOf('if hl.get_current_submap() ~= "hyprkbm-cheatsheet" then')
   const define = lua.indexOf('hl.define_submap("hyprkbm-cheatsheet", function()')
   const enter = lua.indexOf('hl.dispatch(hl.dsp.submap("hyprkbm-cheatsheet"))')
@@ -50,7 +50,6 @@ test("holdLua enters the submap only when not in it, and arms a timer for this t
   assert.ok(lua.includes('hl.bind("SUPER + Escape", hl.dsp.submap("reset"))'))
   // The only bind in the submap: nothing else would run.
   assert.equal(lua.split("hl.bind(").length, 2)
-  // The guard closes before the token is set, so a re-arm only re-arms.
   assert.match(lua.slice(enter, token), /\bend\n$/)
   const fire = lua.slice(timer)
   assert.ok(fire.includes('if __hyprkbm_sheet == 1760000000123 and hl.get_current_submap() == "hyprkbm-cheatsheet" then'))
@@ -58,9 +57,26 @@ test("holdLua enters the submap only when not in it, and arms a timer for this t
   assert.ok(fire.includes('{ timeout = 15000, type = "oneshot" })'))
 })
 
-test("holdLua takes integer tokens only", () => {
-  assert.throws(() => C.holdLua("1; os.exit()"))
-  assert.throws(() => C.holdLua(1.5))
+// SUPER + Escape, or the dead-man timer, ends the hold for good: a re-arm
+// must never put the user back in.
+test("rearmLua does nothing to the submap when the user has left it", () => {
+  const lua = C.rearmLua(1760000000456)
+  assert.ok(lua.startsWith('if hl.get_current_submap() == "hyprkbm-cheatsheet" then\n'), lua)
+  assert.ok(lua.endsWith("\nend"), lua)
+  assert.ok(!lua.includes("define_submap") && !lua.includes("hl.bind("))
+  assert.ok(!lua.includes('hl.dsp.submap("hyprkbm-cheatsheet")'))
+  // Inside the guard: a new token, and a timer that resets for it only.
+  const body = lua.slice(lua.indexOf("then\n"), lua.lastIndexOf("\nend"))
+  assert.ok(body.indexOf("__hyprkbm_sheet = 1760000000456\n") < body.indexOf("hl.timer(function()"))
+  assert.ok(body.includes('if __hyprkbm_sheet == 1760000000456 and hl.get_current_submap() == "hyprkbm-cheatsheet" then'))
+  assert.ok(body.includes('{ timeout = 15000, type = "oneshot" })'))
+})
+
+test("enterLua and rearmLua take integer tokens only", () => {
+  for (const f of [C.enterLua, C.rearmLua]) {
+    assert.throws(() => f("1; os.exit()"))
+    assert.throws(() => f(1.5))
+  }
 })
 
 test("leaveLua forgets the token and resets only from the sheet's submap", () => {

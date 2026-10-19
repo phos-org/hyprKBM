@@ -41,22 +41,43 @@ var SUBMAP = "hyprkbm-cheatsheet"
 var ARM_EVERY_MS = 5000
 var HOLD_MS = 15000
 
-// A submap with no binds is not registered, hence SUPER + Escape: it is also
-// the way out that works without the sheet.
-function holdLua(token) {
+function checkToken(token) {
     if (typeof token !== "number" || !Number.isSafeInteger(token)) throw new Error("bad token")
+    return String(token)
+}
+
+// Takes the hold over with a new token: the newest timer is the only one
+// that may reset.
+function armLua(token, indent) {
+    var t = checkToken(token)
+    return [
+        '__hyprkbm_sheet = ' + t,
+        'hl.timer(function()',
+        '    if __hyprkbm_sheet == ' + t + ' and hl.get_current_submap() == "' + SUBMAP + '" then',
+        '        hl.dispatch(hl.dsp.submap("reset"))',
+        '    end',
+        'end, { timeout = ' + HOLD_MS + ', type = "oneshot" })'
+    ].map(function (line) { return indent + line }).join("\n")
+}
+
+// The first hold, as the sheet is shown. A submap with no binds is not
+// registered, hence SUPER + Escape: it is also the way out that works
+// without the sheet.
+function enterLua(token) {
+    var arm = armLua(token, "")
     return 'if hl.get_current_submap() ~= "' + SUBMAP + '" then\n'
         + '    hl.define_submap("' + SUBMAP + '", function()\n'
         + '        hl.bind("SUPER + Escape", hl.dsp.submap("reset"))\n'
         + '    end)\n'
         + '    hl.dispatch(hl.dsp.submap("' + SUBMAP + '"))\n'
         + 'end\n'
-        + '__hyprkbm_sheet = ' + String(token) + '\n'
-        + 'hl.timer(function()\n'
-        + '    if __hyprkbm_sheet == ' + String(token) + ' and hl.get_current_submap() == "' + SUBMAP + '" then\n'
-        + '        hl.dispatch(hl.dsp.submap("reset"))\n'
-        + '    end\n'
-        + 'end, { timeout = ' + HOLD_MS + ', type = "oneshot" })'
+        + arm
+}
+
+// Every later hold only keeps the existing one alive: once the user left the
+// submap (SUPER + Escape) or the timer did, nothing puts them back in.
+function rearmLua(token) {
+    return 'if hl.get_current_submap() == "' + SUBMAP + '" then\n' + armLua(token, "    ") + '\nend'
 }
 
 // Guarded, so leaving never resets a submap the user entered meanwhile.

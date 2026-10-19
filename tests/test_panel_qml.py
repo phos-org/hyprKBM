@@ -834,7 +834,8 @@ def test_the_cheatsheet_is_a_read_only_overlay():
     for forbidden in ("Store.apply", "saveDraft", "newBind", "Store.edit"):
         assert forbidden not in sheet
     evals = re.findall(r'"hyprctl", "eval", ([^\]]+)\]', sheet)
-    assert evals and set(evals) <= {"Cheatsheet.holdLua(Date.now())", "Cheatsheet.leaveLua()", "lua"}, evals
+    assert evals and set(evals) <= {"sheet.held ? Cheatsheet.rearmLua(Date.now()) : Cheatsheet.enterLua(Date.now())",
+                            "Cheatsheet.leaveLua()", "lua"}, evals
     assert sheet.count("hyprctl") == len(evals)
     # Esc closes; modifiers are followed on press and release.
     assert "Qt.Key_Escape" in sheet and "Keys.onReleased" in sheet
@@ -886,7 +887,41 @@ def test_the_cheatsheet_holds_hyprlands_binds_while_open():
     arm = arm[:arm.index("}")]
     assert "interval: Cheatsheet.ARM_EVERY_MS" in arm and "repeat: true" in arm
     assert "triggeredOnStart: true" in arm and "sheet.arm()" in arm
-    assert '["hyprctl", "eval", Cheatsheet.holdLua(Date.now())]' in sheet
+    # Only the first hold enters the submap; re-arms never put the user back.
+    assert '["hyprctl", "eval", sheet.held ? Cheatsheet.rearmLua(Date.now()) : Cheatsheet.enterLua(Date.now())]' in sheet
+    done = sheet[sheet.index("id: holdProc"):]
+    done = done[:done.index("\n        }\n")]
+    # Held only once a hold succeeded.
+    assert "sheet.held = true" in done.split("if (code !== 0) {", 1)[1].split("} else {", 1)[1]
+
+
+def test_the_cheatsheet_closes_when_hyprland_leaves_its_submap():
+    sheet = qml("cheatsheet.qml")
+    ev = sheet[sheet.index("function onRawEvent(event)"):]
+    ev = ev[:ev.index("\n            }\n")]
+    # Only after our own entry landed, and not while the sheet itself leaves.
+    assert "sheet.held" in ev and "!sheet.closing" in ev
+    assert 'event.name === "submap"' in ev and "event.data !== Cheatsheet.SUBMAP" in ev
+    # Hyprland already left: nothing to send.
+    assert 'sheet.finish("")' in ev and "leaveLua" not in ev
+    flush = sheet[sheet.index("function flush()"):]
+    flush = flush[:flush.index("\n        }\n")]
+    assert 'if (lua !== "") Quickshell.execDetached(' in flush
+
+
+def test_the_cheatsheet_title_area_never_moves_the_keyboard():
+    sheet = qml("cheatsheet.qml")
+    area = sheet[sheet.index("id: titleArea"):sheet.index("id: keyRow")]
+    # A fixed height from type sizes: room for the combo, two action lines
+    # and the status, selected or not.
+    assert "Layout.preferredHeight: sheet.titleAreaHeight" in area
+    h = sheet[sheet.index("readonly property int titlePx"):]
+    h = h[:h.index("\n\n")]
+    assert "Math.round(Typography.sizeBody * 1.8)" in h
+    assert "Math.ceil(Typography.sizeBody * 1.5)" in h and "Math.ceil(sheet.titlePx * 1.5)" in h
+    assert "readonly property real titleAreaHeight" in h and "implicitHeight" not in h
+    assert "implicitHeight" not in area and "visible:" not in area
+    assert area.count("elide: Text.ElideRight") == 3 and "maximumLineCount: 2" in area
 
 
 def test_every_way_out_of_the_cheatsheet_gives_the_binds_back():
@@ -900,7 +935,7 @@ def test_every_way_out_of_the_cheatsheet_gives_the_binds_back():
     assert flush.index('Quickshell.execDetached(["hyprctl", "eval", lua])') < flush.index("quitSoon.start()")
     # Esc, a click and IPC close leave; Enter runs; nothing else finishes.
     assert sheet.count("sheet.finish(Cheatsheet.leaveLua())") == 4  # Esc, click, close(), own key
-    assert sheet.count("sheet.finish(") == 5
+    assert sheet.count("sheet.finish(") == 6  # and Hyprland leaving
     run = sheet[sheet.index("function runSelection()"):]
     run = run[:run.index("\n        }\n")]
     assert "var lua = Cheatsheet.runLua(sheet.selectedBinds)" in run

@@ -20,9 +20,10 @@ import "lib/cheatsheet.js" as Cheatsheet
 //
 // Hyprland runs a bound combo before any client sees it, so while the sheet
 // is shown Hyprland is held in a submap with no binds but SUPER + Escape
-// (lib/cheatsheet.js holdLua). The hold is a dead-man switch re-armed every
-// few seconds, so the binds come back by themselves if the sheet dies; every
-// way out gives them back at once.
+// (lib/cheatsheet.js enterLua). The hold is a dead-man switch re-armed every
+// few seconds (rearmLua), so the binds come back by themselves if the sheet
+// dies; every way out gives them back at once. When Hyprland leaves the
+// submap by itself (SUPER + Escape, or the timer), the sheet closes.
 ShellRoot {
     // The interface Quickshell lints against is uncreatable; the Wayland one it
     // loads in its place is not (RevertOverlay in hypr-displays lints the same).
@@ -49,6 +50,16 @@ ShellRoot {
         property string finalLua: ""
         property bool flushed: false
         property string holdError: ""
+        // Set once the first hold has landed: later ones only re-arm it, and
+        // from then on Hyprland leaving the submap closes the sheet.
+        property bool held: false
+
+        // Fixed, from type sizes alone, so the keyboard below never moves:
+        // the combo, two lines of actions and the status line.
+        readonly property int titlePx: Math.round(Typography.sizeBody * 1.8)
+        readonly property real titleLineHeight: Math.ceil(sheet.titlePx * 1.5)
+        readonly property real bodyLineHeight: Math.ceil(Typography.sizeBody * 1.5)
+        readonly property real titleAreaHeight: sheet.titleLineHeight + 3 * sheet.bodyLineHeight + 2 * Spacing.sm
 
         function pickOutput(force) {
             if (sheet.output !== null) return
@@ -65,12 +76,13 @@ ShellRoot {
 
         function arm() {
             if (sheet.closing || holdProc.running) return
-            holdProc.command = ["hyprctl", "eval", Cheatsheet.holdLua(Date.now())]
+            holdProc.command = ["hyprctl", "eval", sheet.held ? Cheatsheet.rearmLua(Date.now()) : Cheatsheet.enterLua(Date.now())]
             holdProc.running = true
         }
 
         // Every way out: hide, then send `lua` (a leave, or a run that leaves
-        // first) once no hold is in flight, then quit.
+        // first; "" when Hyprland has already left) once no hold is in
+        // flight, then quit.
         function finish(lua) {
             if (sheet.closing) return
             sheet.closing = true
@@ -85,7 +97,7 @@ ShellRoot {
             if (sheet.flushed) return
             sheet.flushed = true
             var lua = sheet.finalLua
-            Quickshell.execDetached(["hyprctl", "eval", lua])
+            if (lua !== "") Quickshell.execDetached(["hyprctl", "eval", lua])
             quitSoon.start()
         }
 
@@ -118,6 +130,15 @@ ShellRoot {
         Connections {
             target: Hyprland
             function onFocusedMonitorChanged() { sheet.pickOutput(false) }
+
+            // Hyprland left the submap without the sheet: SUPER + Escape, or
+            // the dead-man timer. Events before our own entry landed are not
+            // about this hold, and the sheet's own leave is already closing.
+            function onRawEvent(event) {
+                if (sheet.held && !sheet.closing && event.name === "submap"
+                        && event.data !== Cheatsheet.SUBMAP)
+                    sheet.finish("")
+            }
         }
 
         // Store selects Q whenever a load completes; the sheet outlines only
@@ -158,6 +179,7 @@ ShellRoot {
                     Quickshell.execDetached(["hyprctl", "eval", Cheatsheet.leaveLua()])
                 } else {
                     sheet.holdError = ""
+                    sheet.held = true
                 }
             }
         }
@@ -253,45 +275,64 @@ ShellRoot {
                 anchors.centerIn: parent
                 spacing: Spacing.lg
 
-                Text {
+                // One fixed height, selected or not, so the keyboard never
+                // moves; what does not fit is elided.
+                Item {
+                    id: titleArea
                     Layout.alignment: Qt.AlignHCenter
-                    text: sheet.selection === null ? Cheatsheet.title(Store.mods)
-                        : KeyNames.display(sheet.selection.mods, Layouts.keyName(Store.layout, sheet.selection.keyId))
-                    color: Colors.textPrimary
-                    font.family: Typography.family
-                    font.pixelSize: Math.round(Typography.sizeBody * 1.8)
-                }
+                    Layout.preferredWidth: sheet.width * 0.8
+                    Layout.preferredHeight: sheet.titleAreaHeight
 
-                // In full: the keys clip long actions.
-                Text {
-                    Layout.alignment: Qt.AlignHCenter
-                    Layout.maximumWidth: sheet.width * 0.8
-                    visible: sheet.selection !== null && sheet.selectedBinds.length > 0
-                    text: Cheatsheet.actions(sheet.selectedBinds)
-                    wrapMode: Text.Wrap
-                    horizontalAlignment: Text.AlignHCenter
-                    color: Colors.textPrimary
-                    font.family: Typography.family
-                    font.pixelSize: Typography.sizeBody
-                }
+                    Column {
+                        anchors.fill: parent
+                        spacing: Spacing.sm
 
-                Text {
-                    Layout.alignment: Qt.AlignHCenter
-                    visible: sheet.selection !== null
-                    text: Cheatsheet.status(sheet.selectedBinds)
-                    color: Colors.textSecondary
-                    font.family: Typography.family
-                    font.pixelSize: Typography.sizeBody
-                }
+                        Text {
+                            width: parent.width
+                            height: sheet.titleLineHeight
+                            text: sheet.selection === null ? Cheatsheet.title(Store.mods)
+                                : KeyNames.display(sheet.selection.mods, Layouts.keyName(Store.layout, sheet.selection.keyId))
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            elide: Text.ElideRight
+                            color: Colors.textPrimary
+                            font.family: Typography.family
+                            font.pixelSize: sheet.titlePx
+                        }
 
-                Text {
-                    Layout.alignment: Qt.AlignHCenter
-                    visible: Store.loading || Store.loadError !== "" || sheet.holdError !== ""
-                    text: Store.loadError !== "" ? Store.loadError
-                        : sheet.holdError !== "" ? sheet.holdError : "Loading…"
-                    color: Store.loadError !== "" || sheet.holdError !== "" ? Colors.statusCritical : Colors.textSecondary
-                    font.family: Typography.family
-                    font.pixelSize: Typography.sizeBody
+                        // In full, as far as two lines go: the keys clip long actions.
+                        Text {
+                            width: parent.width
+                            height: 2 * sheet.bodyLineHeight
+                            text: sheet.selection === null ? "" : Cheatsheet.actions(sheet.selectedBinds)
+                            wrapMode: Text.Wrap
+                            maximumLineCount: 2
+                            elide: Text.ElideRight
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            color: Colors.textPrimary
+                            font.family: Typography.family
+                            font.pixelSize: Typography.sizeBody
+                        }
+
+                        // Errors and loading take the status line, so nothing
+                        // is shown or hidden above the keyboard.
+                        Text {
+                            readonly property bool failed: Store.loadError !== "" || sheet.holdError !== ""
+                            width: parent.width
+                            height: sheet.bodyLineHeight
+                            text: Store.loadError !== "" ? Store.loadError
+                                : sheet.holdError !== "" ? sheet.holdError
+                                : Store.loading ? "Loading…"
+                                : sheet.selection === null ? "" : Cheatsheet.status(sheet.selectedBinds)
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            elide: Text.ElideRight
+                            color: failed ? Colors.statusCritical : Colors.textSecondary
+                            font.family: Typography.family
+                            font.pixelSize: Typography.sizeBody
+                        }
+                    }
                 }
 
                 RowLayout {
