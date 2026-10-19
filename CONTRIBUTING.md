@@ -26,6 +26,8 @@ someone who is using the machine.
 | `share/actions.json` | the action catalogue |
 | `bin/` | `hyprkbm`, `hyprkbm-apply` (the only writer of keybinds files), `hyprkbm-watch` |
 | `quickshell/hyprkbm/` | the panel: QML in `components/`, logic in `lib/*.js`, theme in `config/`, presets in `presets/` |
+| `quickshell/hyprkbm/lib/capture.js` | find mode: the Lua that pauses binds for one press (the `hyprkbm-capture` submap, a 10 s timer) and turns a key event into a combo; `hyprkbm-watch` resets the submap if the panel dies mid-find |
+| `quickshell/hyprkbm/lib/focus.js` | the keyboard areas' Tab order, the editor's field walk and the list cursor |
 | `tests/js/` | node tests for `quickshell/hyprkbm/lib/*.js` |
 | `systemd/` | the `hyprkbm-watch` user unit |
 | `docs/superpowers/` | the design spec and implementation plans |

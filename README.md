@@ -105,11 +105,25 @@ again focuses the open panel instead of opening a second one.
 
 - **The keyboard** is lit by what each key does under the modifiers you hold
   (or click): accent for bound, filled red for a conflict, and an accent key
-  with a red outline for an overlap (see below). Click a key, or move with
-  the arrow keys, to see every bind on it below.
+  with a red outline for an overlap (see below). A key with only an accent
+  outline and no fill is free under these modifiers but bound under others:
+  in the SUPER view, D is outlined if you have SUPER+SHIFT+D. Click a key, or
+  move with the arrow keys, to see every bind on it below.
+- **Also bound as.** Under the selected key's binds, the list shows its binds
+  under every other combination of ALT, CTRL, SHIFT and SUPER, or none. Click
+  one (or press Enter on it) to switch to those modifiers with the key still
+  selected.
+- **Find (F).** Press F (or click **Find**), then press any key combination,
+  even one Hyprland has bound: the panel selects that key under those
+  modifiers. To let a bound combination through, your binds pause for that
+  one press. They come back as soon as the panel has it, on Esc, when the
+  panel loses focus, after 10 seconds at most, or with SUPER+Escape.
 - **Submaps** are the chips in the header; **search** (`/`) narrows to binds
   matching plain words or the tags `mod:`, `key:`, `exec:`, `desc:`,
-  `submap:` and `src:` (`src:lua` is your `hyprland.lua`).
+  `submap:` and `src:` (`src:lua` is your `hyprland.lua`). Words also match
+  the action's name, so `exec` finds every bind that runs a command. A tag
+  with nothing after the colon means "has one": `exec:` runs a command,
+  `desc:` has a description, `mod:` has a modifier.
 - **Conflicts.** Two binds on one key are a *conflict* when at least one is
   hyprKBM's. The bind list's **Keep both** marks that conflict as deliberate
   (it sets `allowConflict` on the hyprKBM bind). Until then Apply refuses with
@@ -142,6 +156,31 @@ again focuses the open panel instead of opening a second one.
   `~/.config/hyprkbm/theme.json`. **⋯** switches between ANSI and ISO
   keyboards, names the config file being read, and shows the watcher's state
   with a button to start it.
+
+### Keys
+
+The panel can be driven without the mouse. It has three areas, the keyboard,
+the bind list and the editor, and the one with the keys has a thick accent
+outline. Clicking a button does not take the keys away from them.
+
+| Key | Does |
+|---|---|
+| Tab / Shift+Tab | next / previous area; in the editor, next / previous field, leaving it at either end |
+| Arrows | move the selected key (keyboard) or the cursor (list) |
+| Enter | edit the bind under the cursor, or switch to an *Also bound as* row; on the keyboard, edit the key's first bind or add one |
+| E | edit the bind under the cursor, or the selected key's first bind |
+| A | add a bind on the selected key |
+| Delete | remove the bind under the cursor (list) |
+| F | find a bind by pressing it |
+| / | search |
+| Ctrl+S | save the bind in the editor |
+| Ctrl+D | review the diff |
+| Ctrl+Z | discard the staged changes |
+| Ctrl+Enter | apply |
+| Esc | cancel find, then the edit; otherwise quit (twice with staged changes) |
+
+Letters and shortcuts do nothing while you type in a field, except Tab,
+Ctrl+S and Esc.
 
 ## Using it
 
