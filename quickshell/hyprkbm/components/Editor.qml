@@ -344,12 +344,12 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.topMargin: Spacing.sm
                 Action {
-                    text: "Save"
+                    text: "Save (Ctrl+S)"
                     primary: true
                     enabled: root.problems.length === 0 && !Store.readOnly && !Store.busy
                     onClicked: Store.saveDraft()
                 }
-                Action { text: "Cancel"; onClicked: Store.cancelEdit() }
+                Action { text: "Cancel (Esc)"; onClicked: Store.cancelEdit() }
                 Item { Layout.fillWidth: true }
                 Action {
                     visible: root.draft !== null && (root.draft.id !== null || root.draft.hand !== null)

@@ -164,6 +164,14 @@ ShellRoot {
                     event.accepted = true
                     return
                 }
+                // Save, from any field of the editor as well as from the other
+                // areas: with a modifier it never types into a field, and no
+                // field uses Ctrl+S. Cancel is Esc. Same limits as the button.
+                if (event.key === Qt.Key_S && m === Qt.ControlModifier && Store.draft !== null) {
+                    if (!event.isAutoRepeat && !Store.readOnly && !Store.busy) Store.saveDraft()
+                    event.accepted = true
+                    return
+                }
                 // Text fields leave arrows and Return unaccepted, so without
                 // this they would move the selection under the user's typing.
                 // Everything non-modifier (including "/") sits below it.

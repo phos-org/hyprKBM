@@ -223,7 +223,7 @@ def test_ctrl_enter_applies_only_from_the_keyboard_view():
     assert "Shortcut" not in shell
     handler = shell.split("Keys.onPressed", 1)[1].split("Keys.onReleased", 1)[0]
     guard = handler.index("instanceof TextInput")
-    ctrl = handler.index("Qt.ControlModifier")
+    ctrl = handler.index("(event.modifiers & Qt.ControlModifier)")
     assert guard < ctrl
     assert handler.index("Store.apply()") > ctrl
     # Before the plain-Enter branch, which would otherwise take Ctrl+Enter.
@@ -393,7 +393,7 @@ def test_nothing_is_staged_while_an_apply_runs():
                     ("newBind(keys)", "newBindOnSelected"), ("edit(uid)", "newBind(")):
         body = store.split("function " + fn, 1)[1].split("function " + nxt, 1)[0]
         assert "stagingBlocked()" in body, fn
-    assert "Store.busy" in qml("components", "Editor.qml").split('text: "Save"', 1)[1].split("onClicked", 1)[0]
+    assert "Store.busy" in qml("components", "Editor.qml").split('text: "Save (Ctrl+S)"', 1)[1].split("onClicked", 1)[0]
 
 
 def test_the_legend_has_an_overlap_entry_and_the_readme_warns_about_closing():
@@ -793,3 +793,14 @@ def test_the_scope_takes_the_keys_back_by_clearing_inner_focus():
     take = take[:take.index("\n            }\n")]
     assert "p.focus = false" in take and "scope.forceActiveFocus()" in take
     assert shell.count("scope.forceActiveFocus()") == 1
+
+
+def test_ctrl_s_saves_the_draft_from_any_field():
+    # Before the text-input guard, so it works while typing; Esc cancels.
+    shell = (PANEL / "shell.qml").read_text()
+    h = shell[shell.index("Keys.onPressed: function (event) {\n                // First"):]
+    save = h.index("event.key === Qt.Key_S && m === Qt.ControlModifier")
+    assert h.index("Store.finding") < save < h.index("instanceof TextInput")
+    assert "Store.saveDraft()" in h[save:save + 300]
+    editor = (PANEL / "components" / "Editor.qml").read_text()
+    assert 'text: "Save (Ctrl+S)"' in editor and 'text: "Cancel (Esc)"' in editor
