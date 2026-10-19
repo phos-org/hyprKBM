@@ -508,10 +508,37 @@ def test_the_menu_offers_a_cheatsheet_key():
 
 ---
 
+### Task 7: Press a combo to see it; Enter runs it
+
+The user's request after seeing the overlay (2026-10-19): "Let's say I select super+shift+d, which is discord. When I'm in cheatsheet, can we give the thing that will be ran (discord in the example) where the mods are now selected, and only let it run if I press enter?" Long labels stay clipped on the keys (the user likes how it looks); the full action is shown in the title area instead.
+
+Hyprland runs a bound combo before any client sees it, so while the sheet is open Hyprland is held in a submap, `hyprkbm-cheatsheet`, whose only bind is SUPER+Escape → reset (as find mode does with `hyprkbm-capture`). A dead-man switch, not the watcher, guarantees the binds come back if the sheet dies: the sheet re-arms a 15 s `hl.timer` every 5 s, and each timer resets only if no newer one was armed since.
+
+**Files:** `quickshell/hyprkbm/lib/cheatsheet.js`, `tests/js/cheatsheet.test.mjs`, `quickshell/hyprkbm/cheatsheet.qml`, `quickshell/hyprkbm/components/KeyBlock.qml`, `ExtraKeys.qml`, `tests/test_panel_qml.py`.
+
+**Interfaces (lib/cheatsheet.js, all pure):**
+- `SUBMAP = "hyprkbm-cheatsheet"`, `ARM_EVERY_MS = 5000`, `HOLD_MS = 15000`.
+- `holdLua(token) -> string`: defines the submap (one bind, `SUPER + Escape` → `hl.dsp.submap("reset")`) only if `hl.get_current_submap() ~= SUBMAP` is about to be entered (define + dispatch when not already in it; just re-arm when in it), sets the global `__hyprkbm_sheet = token`, and starts `hl.timer(function() if __hyprkbm_sheet == <token> and hl.get_current_submap() == SUBMAP then hl.dispatch(hl.dsp.submap("reset")) end end, { timeout = HOLD_MS, type = "oneshot" })`. `token` is an integer (the sheet passes `Date.now()`), written as a Lua number.
+- `leaveLua() -> string`: `__hyprkbm_sheet = nil` and the guarded reset (only if the current submap is SUBMAP).
+- `runnable(bind) -> string`: `""` when Enter can run it, else the reason shown to the user: `"a Lua function"` when the dispatcher has `__function` or no `dsp`/`raw`; `"a mouse bind"` when `bind.opts && bind.opts.mouse`; `"not readable"` for a null dispatcher.
+- `runLua(binds) -> string | null`: `leaveLua()` followed by one `hl.dispatch(<Catalogue.dispatcherLua(d)>)` per runnable bind (raw Lua wrapped as `hl.dispatch((\n<raw>\n))`, as catalogue.py does), in order; `null` when none is runnable. Leaving first means the action runs with the binds already back.
+- `opensSheet(binds) -> bool`: some bind in the list `isCheatsheetBind`.
+
+**Behaviour (cheatsheet.qml):**
+- [ ] On show, eval `holdLua(Date.now())` (Quickshell `Process` running `["hyprctl", "eval", lua]`; for the final leave/run use `Quickshell.execDetached` so it survives the quit), and re-eval it from a `Timer` every `ARM_EVERY_MS`. Every way the sheet closes (Esc, click, IPC `close()`, Enter) runs `leaveLua()` (or `runLua`) through `execDetached` before quitting.
+- [ ] A press of a non-modifier key (no auto-repeat, not Esc, not Enter/Return) selects a combo: `mods = QtKeys.modsFromQt(event.modifiers)`, `key = QtKeys.keysymFromQt(event.key, event.modifiers)` (see `Capture.comboFrom`), and the binds are `Keymap.bindsOn(Store.merged.binds, "", mods, Keys.keyId(key))`. If they include the cheatsheet's own bind (`opensSheet`), close the sheet instead (its key toggles it, even while binds are paused). Otherwise keep `{ mods, key, binds }` as the selection and select the key on the keyboard (`Store.selectedKey`), so it is outlined.
+- [ ] The title area shows, with a selection: the combo (`KeyNames.display(mods, Layouts.keyName(Store.layout, keyId))`) as the title, and below it the full action of each bind (`description` and `describe`, e.g. "Run a command: discord", not clipped) and the line "Enter runs it" — or "Not bound" when `binds` is empty, or "Can't run from here: <reason>" when `runLua(binds)` is null. Without a selection it shows the current title.
+- [ ] Enter/Return with a runnable selection: hide the sheet, `execDetached(["hyprctl", "eval", runLua(binds)])`, quit (via the same delayed quit as `close()`). Enter without one does nothing.
+- [ ] Holding modifiers still changes the keyboard as now; a new selection replaces the old one; Esc and a click still close.
+- [ ] The read-only keyboard shows the selection again: drop Task 4's "selection only when interactive" gating in KeyBlock/ExtraKeys, and instead have the sheet clear `Store.selectedKey` whenever a load completes (Store selects Q on load) and when it starts.
+- [ ] Footer: "Press a combo to see what it does · Enter runs it · Esc closes".
+- [ ] Node tests first for every lib function (token in the Lua, the guard, `runLua` order and leave-first, raw wrapping, mouse/function reasons, null when nothing runs, `opensSheet`). Source tests: the sheet arms on a Timer, every quit path leaves (grep each `Qt.quit`/`quitSoon` caller is preceded by a leave or run), Enter only runs `runLua` output, the footer text.
+- [ ] Commit: `feat: press a combo in the cheatsheet to see it, and Enter to run it`.
+
 ### Task 6: Docs
 
 **Files:** `README.md`, `CONTRIBUTING.md`, `docs/superpowers/specs/2026-10-07-hyprkbm-design.md` (only if the build differs from the spec).
 
-- [ ] README: a "### The cheatsheet" subsection under "The panel": `hyprkbm --cheatsheet` shows it and running it again hides it (so one key toggles); bind it from the ⋯ menu or by hand (`hl.bind("SUPER + F1", hl.dsp.exec_cmd("hyprkbm --cheatsheet"))`); it covers the focused output, follows the modifiers you hold (ones already held when it opens show from the next key press or release), shows descriptions or the action, global submap only; Esc or a click closes; it changes nothing. Add `--cheatsheet` to the command list wherever the README lists commands; remove any "not in this version yet" text.
+- [ ] (After Task 7.) README: a "### The cheatsheet" subsection under "The panel": `hyprkbm --cheatsheet` shows it and running it again hides it (so one key toggles); bind it from the ⋯ menu or by hand (`hl.bind("SUPER + F1", hl.dsp.exec_cmd("hyprkbm --cheatsheet"))`); it covers the focused output, follows the modifiers you hold (ones already held when it opens show from the next key press or release), shows descriptions or the action, global submap only; pressing a combo shows what it does and Enter runs it; your binds are paused while it is open (SUPER+Escape or 15 s after a crash brings them back); Esc or a click closes; it changes nothing on disk. Add `--cheatsheet` to the command list wherever the README lists commands; remove any "not in this version yet" text.
 - [ ] CONTRIBUTING layout table: `quickshell/hyprkbm/cheatsheet.qml` (the overlay, its own qs instance) and `lib/cheatsheet.js`.
 - [ ] Run `python3 -m pytest -q` (README assertions exist in tests). Commit — `docs: document the cheatsheet`.
