@@ -25,3 +25,17 @@ test("a short description wins", () => {
   assert.equal(L.shortLabel(b({ dsp: "exec_cmd", args: ["kitty"] }, "Term")), "Term")
   assert.equal(L.shortLabel(b({ dsp: "exec_cmd", args: ["kitty"] }, "A terminal emulator")), "kitty")
 })
+
+const sb = (o) => Object.assign({ description: "", describe: "Run a command: kitty",
+  dispatcher: { dsp: "exec_cmd", args: ["kitty"] } }, o)
+
+test("the sheet shows the description, else the action", () => {
+  assert.equal(L.sheetLabel([sb({ description: "Terminal" })]), "Terminal")
+  assert.equal(L.sheetLabel([sb({})]), "Run a command: kitty")
+  assert.equal(L.sheetLabel([sb({ describe: "" })]), "kitty")
+})
+
+test("several binds on one key show the first and a count", () => {
+  assert.equal(L.sheetLabel([sb({ description: "A" }), sb({ description: "B" })]), "A (+1)")
+  assert.equal(L.sheetLabel([]), "")
+})

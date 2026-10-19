@@ -143,6 +143,6 @@ var ROW_UNITS = 21.5
 // computed from the row, never from the keyboard's own width: that width is
 // what the extra keys leave, and the extra keys are sized in keys, so each
 // depended on the other and at some window widths the layout never settled.
-function unitFor(width) {
-    return Math.max(26, Math.min(48, Math.floor(width / ROW_UNITS)))
+function unitFor(width, max) {
+    return Math.max(26, Math.min(max === undefined ? 48 : max, Math.floor(width / ROW_UNITS)))
 }

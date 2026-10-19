@@ -58,3 +58,9 @@ test("keyName writes letters in upper case, as binds usually are", () => {
   assert.equal(L.keyName(L.LAYOUTS.ansi, "return"), "Return")
   assert.equal(L.keyName(L.LAYOUTS.ansi, "1"), "1")
 })
+
+test("unitFor takes a larger cap for the full-screen sheet", () => {
+  assert.equal(L.unitFor(10000), 48)
+  assert.equal(L.unitFor(10000, 96), 96)
+  assert.equal(L.unitFor(21.5 * 70, 96), 70)
+})

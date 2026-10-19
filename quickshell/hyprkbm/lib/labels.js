@@ -30,3 +30,12 @@ function shortLabel(bind) {
     if (d.dsp === "submap" && typeof first === "string") return clip("↪" + first)
     return clip(d.dsp.split(".").pop().replace(/_/g, " "))
 }
+
+// The full-screen cheatsheet has room for words: the user's description, or
+// the action as the bind list writes it.
+function sheetLabel(binds) {
+    if (binds.length === 0) return ""
+    var first = binds[0]
+    var text = first.description || first.describe || shortLabel(first)
+    return binds.length > 1 ? text + " (+" + (binds.length - 1) + ")" : text
+}
