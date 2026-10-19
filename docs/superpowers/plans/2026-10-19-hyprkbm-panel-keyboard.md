@@ -78,6 +78,44 @@ end, { timeout = 10000, type = "oneshot" })
 - [ ] Hints on buttons: "Edit (E)", "+ Add a bind on … (A)", "Review diff (Ctrl+D)", "Discard (Ctrl+Z)", "Apply (Ctrl+Enter)".
 - [ ] Source-level tests for the guard ordering (text-input guard before shortcuts; finding before all) and the hints. Run all checks and the smoke test (IPC only; do not press keys in the live panel). Commit: `feat: drive the bind list and the panel's actions from the keyboard`.
 
-### Task 3: Docs
+## Live-check feedback (2026-10-19)
 
-- [ ] README "The panel" section: Find (F) and how it works (your binds pause for that one press, come back on Esc, on focus loss, after 10 s at most, or with SUPER+Escape); the keyboard map (Tab areas, arrows, Enter, Delete, E, A, F, Ctrl+D, Ctrl+Z, Ctrl+Enter, Esc). CONTRIBUTING: lib/capture.js and lib/focus.js in the layout table. Commit: `docs: document finding binds and driving the panel by keyboard`.
+The user's findings from the live test of Tasks 1–2, with their choices: "exec" finds nothing; after a click, Tab walks the buttons instead of the areas (decided: Tab/Shift+Tab always move between areas, buttons never take focus from a click); the focus highlight is too subtle; and a new indicator for keys bound under other modifier combinations (decided: picking one in the list switches the modifier view to it).
+
+### Task 3: Search finds binds by what they do
+
+**Files:** `quickshell/hyprkbm/lib/search.js`, `tests/js/search.test.mjs`, `quickshell/hyprkbm/components/Header.qml` (placeholder/tooltip text only, if it lists the tags).
+
+- [ ] Plain words also match the bind's dispatcher name (`bind.dispatcher.dsp`, e.g. `exec_cmd`), so `exec` lists every bind that runs a command, `workspace` every workspace bind, and so on. A bind with no dispatcher (raw Lua) still matches on its other text.
+- [ ] A tag with nothing after the colon is no longer a word; it means "has one": `exec:` runs a command, `desc:` has a description, `mod:` has at least one modifier; `key:`, `submap:` and `src:` with no value match everything. (Change the token regex to accept an empty value; keep unknown `foo:` a word.)
+- [ ] Node tests first: `exec` and `exec:` match an exec bind and not a `killactive` bind; `exec:kit` still narrows; `desc:` / `mod:` empty cases; `foo:` stays a word; `matchingKeys` follows (it already uses `matches`).
+- [ ] Commit: `fix: find binds by their action's name, and let an empty tag mean "has one"`.
+
+### Task 4: Tab always moves between areas, and focus is easy to see
+
+**Files:** `quickshell/hyprkbm/components/Action.qml`, `shell.qml`, `components/Editor.qml`, `components/BindPanel.qml`, `components/Header.qml`, `components/ModifierBar.qml` (any clickable that can take focus), `lib/focus.js` + tests if logic is added, `tests/test_panel_qml.py`.
+
+Behaviour to reach (the mechanism is the implementer's call; check it with qmllint and the smoke test):
+- [ ] Clicking a button, a modifier toggle, a keycap or any other non-text control never leaves keyboard focus on that control: the panel's FocusScope keeps the keys, so the next Tab moves to the next area. `Action` gets `focusPolicy: Qt.TabFocus` (not focused by a click; still reachable by Tab inside dialogs and popups, which have their own focus chains). Text fields (search, editor fields) still take focus on click, as they must.
+- [ ] Tab / Shift+Tab from the search field go to the next / previous area (leaving the field), as from anywhere else in the main window.
+- [ ] Inside the editor, Tab / Shift+Tab move between the editor's own controls (fields, selects, toggles; not its buttons, which have shortcuts or are clicked); Tab from its last control goes to the next area and Shift+Tab from its first goes to the previous one. Esc still cancels the draft.
+- [ ] Dialogs and popups (diff, backups, export, submap, settings, theme) are untouched by this: Tab inside them walks their own buttons and fields.
+- [ ] Stronger focus: the focused area gets a 3 px `Colors.accentPrimary` border and a faint accent tint on its background (use `Qt.tint` with a low amount, as KeyCap's `lit()` does; never translucent over the pane). A focused `Action` (in dialogs) gets a 2 px `Colors.accentPrimary` border instead of `borderStrong`. A focused editor field / search field gets a 2 px `Colors.accentPrimary` border.
+- [ ] Source-level tests: Action has `focusPolicy: Qt.TabFocus`; the Tab handling runs before the text-input guard (so it works from the search field) but after the find branch; the editor exposes how it walks its controls; the area border width is 3.
+- [ ] Smoke test (IPC only; no key presses in the live panel). Commit: `fix: keep Tab for moving between areas, and make focus easy to see`.
+
+### Task 5: Show where a key is bound under other modifiers
+
+**Files:** `quickshell/hyprkbm/lib/keymap.js`, `tests/js/keymap.test.mjs`, `state/Store.qml`, `components/KeyCap.qml`, `components/KeyBlock.qml` / `ExtraKeys.qml` (wherever the kind is chosen), `components/ModifierBar.qml` (legend), `components/BindPanel.qml`, `components/BindRow.qml` if a variant is needed, `shell.qml` (list keys), `tests/test_panel_qml.py`.
+
+**Interfaces produced:** `Keymap.otherKeys(binds, submap, mods) -> {keyId: true}` — keys with at least one placeable bind (`combo !== null`) in `submap` whose mods differ from `mods`, and none under `mods` exactly; `Keymap.otherCombos(binds, submap, mods, keyId) -> [bind]` — the binds on `keyId` in `submap` under any other modifier set (including none), sorted by `Keys.sortMods(mods).join("+")` then by their original order; Store: `property var otherCombos` (empty while searching or with no key selected), `property var listRows` (= `listed` then `otherCombos`, the rows the list cursor walks), `function focusedRow() -> {kind: "bind"|"other", bind} | null`.
+
+- [ ] Node tests first: SUPER view, only SUPER+SHIFT+D bound → D in `otherKeys`, not in `keyStates`; a key bound under SUPER and SUPER+SHIFT → in `keyStates` only; no-modifier view and a SUPER bind → in `otherKeys`; other submaps ignored; `combo === null` ignored; `otherCombos` excludes the current mods, includes the no-modifier bind, ordering.
+- [ ] Keyboard: a new KeyCap kind `"other"`: no fill (the free key's `Colors.bgSurface`), a 2 px `lit(Colors.accentPrimary, 0.6)`-strength accent border, label in `Colors.textSecondary`. A key in `keyStates` keeps its current kind; `other` only applies to keys that are otherwise `free`. Selection still wins the border. The legend gets "other mods" with an outline-only swatch.
+- [ ] List: under the selected key's binds (after the conflict note and removed rows, before "+ Add a bind…"), a section headed "Also bound as" (same small-caps style as "Stale"/"Unplaced"), one row per `otherCombos` bind showing its full keys (e.g. `SUPER + SHIFT + D`) and its action, styled like a BindRow but without Edit/Delete buttons. Clicking a row, or Enter on it with the list cursor there, calls `Store.setMods(bind.mods)` (the key stays selected; the list now shows that bind in context). E and Delete do nothing on these rows. Hidden while searching and when there is no selected key.
+- [ ] The list cursor walks `listRows`: `Store.listIndex` is clamped against `listRows.length`; `focusedBind()` returns a bind only when the cursor is on a `listed` row (so E/Delete keep their meaning); Enter on an "other" row switches view; the focused row is highlighted and scrolled into view as BindRows are now.
+- [ ] Source-level tests for the new kind, the legend entry, the section's visibility rules and Enter's dispatch on row kind. Smoke test with IPC `select`/`submap` (IPC only). Commit: `feat: show where a key is bound under other modifiers`.
+
+### Task 6: Docs
+
+- [ ] README "The panel" section: Find (F) and how it works (your binds pause for that one press, come back on Esc, on focus loss, after 10 s at most, or with SUPER+Escape); the keyboard map (Tab / Shift+Tab areas, arrows, Enter, Delete, E, A, F, /, Ctrl+D, Ctrl+Z, Ctrl+Enter, Esc); search words and tags (including empty tags); the outline for keys bound under other modifiers and the "Also bound as" section. CONTRIBUTING: lib/capture.js and lib/focus.js in the layout table. Commit: `docs: document finding binds and driving the panel by keyboard`.
