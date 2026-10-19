@@ -98,8 +98,8 @@ def test_the_window_lays_out_the_keyboard():
 def test_a_held_modifier_is_cleared_when_focus_or_the_window_goes_away():
     # A release that lands in another window never reaches the scope.
     shell = qml("shell.qml")
-    assert re.search(r"onActiveFocusChanged:\s*if \(!activeFocus\) Store\.heldMods = \[\]", shell)
-    assert re.search(r"Window\.onActiveChanged:\s*if \(!Window\.active\) Store\.heldMods = \[\]", shell)
+    assert re.search(r"onActiveFocusChanged:\s*if \(!activeFocus\) \{\s*Store\.heldMods = \[\]", shell)
+    assert re.search(r"Window\.onActiveChanged:\s*if \(!Window\.active\) \{\s*Store\.heldMods = \[\]", shell)
 
 
 def test_the_key_handlers_ignore_auto_repeat():
@@ -408,7 +408,7 @@ def test_closing_the_window_quits_the_panel():
     running without a window blocks the next launch (qs -n), so closing the
     window -- from its own close button or the compositor -- quits."""
     shell = qml("shell.qml")
-    assert re.search(r"onClosed:\s*Qt\.quit\(\)", shell)
+    assert re.search(r"onClosed:\s*\{[^}]*Qt\.quit\(\)", shell)
 
 
 def test_the_header_and_banner_do_not_take_spare_height():
@@ -431,3 +431,36 @@ def test_recording_shows_held_modifiers_live():
     assert "QtKeys.recordingText(" in editor
     assert "Keys.onReleased" in editor
     assert re.search(r"text:\s*root\.recording\s*\?", editor)
+
+
+def test_find_mode_is_handled_first_and_always_left():
+    shell = qml("shell.qml")
+    handler = shell.split("Keys.onPressed", 1)[1]
+    assert handler.index("Store.finding") < handler.index("modifierFromQtKey")
+    assert "Store.startFind()" in handler
+    assert "Capture.comboFrom(" in handler
+    focus = shell.split("onActiveFocusChanged", 1)[1].split("Keys.onPressed", 1)[0]
+    assert "Store.stopFind()" in focus
+    assert "Window.onActiveChanged" in focus
+    closed = shell.split("onClosed", 1)[1].split("IpcHandler", 1)[0]
+    assert closed.index("Store.stopFind()") < closed.index("Qt.quit()")
+
+
+def test_find_cannot_be_started_through_ipc():
+    shell = qml("shell.qml")
+    ipc = shell.split("IpcHandler", 1)[1].split("FocusScope", 1)[0]
+    assert "startFind" not in ipc and "Store.found" not in ipc
+
+
+def test_the_header_find_action_does_not_take_focus():
+    header = qml("components", "Header.qml")
+    block = header.split("Store.startFind()", 1)[0].rsplit("Action {", 1)[1]
+    assert "focusPolicy: Qt.NoFocus" in block
+    assert "Store.stopFind()" in header
+    assert "Press a keybind" in header
+
+
+def test_the_store_enters_and_leaves_through_capture_lua():
+    store = qml("state", "Store.qml")
+    assert "Capture.enterLua()" in store and "Capture.leaveLua()" in store
+    assert "function found(" in store

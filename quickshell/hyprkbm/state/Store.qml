@@ -9,6 +9,7 @@ import "../lib/search.js" as Search
 import "../lib/layouts.js" as Layouts
 import "../lib/catalogue.js" as Catalogue
 import "../lib/quit.js" as Quit
+import "../lib/capture.js" as Capture
 
 // The panel's single source of truth. It never writes keybinds.json or
 // keybinds.lua: edits are staged in `model` and leave only through
@@ -81,6 +82,10 @@ QtObject {
     // after quits. 0 means not armed.
     property real quitArmedAt: 0
 
+    // Find mode: Hyprland is in the capture submap and the next key pressed
+    // is a combo to select, not a command. Its binds are off meanwhile.
+    property bool finding: false
+
     signal applied()
 
     Component.onCompleted: reload()
@@ -152,6 +157,34 @@ QtObject {
     function selectKey(id) {
         selectedKey = Keys.keyId(id)
         query = ""
+    }
+
+    function startFind() {
+        // Not while an apply runs or a draft is open: the pressed keys are
+        // the draft's, and an apply reloads Hyprland, which ends the submap.
+        // Not twice: the second would define the submap again.
+        if (finding || busy || draft !== null) return
+        finding = true
+        report("Press the keybind to find… (Esc cancels)", false)
+        findEnter.running = true
+    }
+
+    function stopFind() {
+        // A no-op unless finding, so a stray call can never reset a submap
+        // the user entered themselves (the Lua is guarded too).
+        if (!finding) return
+        finding = false
+        findLeave.running = true
+    }
+
+    function found(mods, key) {
+        stopFind()
+        // Held modifiers belong to the pressed combo, not to the display.
+        heldMods = []
+        setMods(mods)
+        selectKey(key)
+        query = ""
+        report("", false)
     }
 
     function moveSelection(dir) {
@@ -541,6 +574,20 @@ QtObject {
             if (code === 0) root.reload()
             else root.report((layoutErr.text || "The layout could not be saved.").trim(), true)
         }
+    }
+
+    property Process findEnter: Process {
+        command: ["hyprctl", "eval", Capture.enterLua()]
+        stderr: StdioCollector { id: findErr }
+        onExited: function (code) {
+            if (code === 0) return
+            root.finding = false
+            root.report((findErr.text || "Hyprland could not enter find mode.").trim(), true)
+        }
+    }
+
+    property Process findLeave: Process {
+        command: ["hyprctl", "eval", Capture.leaveLua()]
     }
 
     property Process watcherProc: Process {

@@ -6,6 +6,7 @@ import "config"
 import "components"
 import "state"
 import "lib/qtkeys.js" as QtKeys
+import "lib/capture.js" as Capture
 import "lib/layouts.js" as Layouts
 
 ShellRoot {
@@ -22,7 +23,11 @@ ShellRoot {
 
         // Quickshell keeps running after its last window closes; a panel left
         // running without one would make the next `hyprkbm` (qs -n) do nothing.
-        onClosed: Qt.quit()
+        onClosed: {
+            // Closing mid-find must not leave Hyprland's binds off.
+            Store.stopFind()
+            Qt.quit()
+        }
 
         // Scripted inspection, over `qs ipc -p <panel> call hyprkbm <fn>`. It
         // drives the same store the pointer does, and deliberately offers no
@@ -69,10 +74,31 @@ ShellRoot {
             // compositor bind moves focus (or the window deactivates) while a
             // modifier is down, the release goes elsewhere and the keyboard
             // would show that modifier forever, so drop them on either.
-            onActiveFocusChanged: if (!activeFocus) Store.heldMods = []
-            Window.onActiveChanged: if (!Window.active) Store.heldMods = []
+            // Find mode ends on either too: its keys only reach this scope
+            // while it has focus.
+            onActiveFocusChanged: if (!activeFocus) { Store.heldMods = []; Store.stopFind() }
+            Window.onActiveChanged: if (!Window.active) { Store.heldMods = []; Store.stopFind() }
 
             Keys.onPressed: function (event) {
+                // First, before even the text-input guard: while finding, every
+                // key is the answer, and find cannot start from a field.
+                if (Store.finding) {
+                    event.accepted = true
+                    let held = QtKeys.modifierFromQtKey(event.key)
+                    if (held !== "") {
+                        // Show the modifiers live; only a real key ends the wait.
+                        if (!event.isAutoRepeat)
+                            Store.heldMods = QtKeys.heldMods(event.key, event.modifiers, true)
+                        return
+                    }
+                    if (event.key === Qt.Key_Escape && (event.modifiers & ~Qt.KeypadModifier) === 0) {
+                        Store.stopFind()
+                        return
+                    }
+                    let c = Capture.comboFrom(event.key, event.modifiers)
+                    if (c !== null) Store.found(c.mods, c.key)
+                    return
+                }
                 var mod = QtKeys.modifierFromQtKey(event.key)
                 // Auto-repeat would re-assert a modifier that was just
                 // released; for every other key it is wanted, so a held arrow
@@ -83,6 +109,11 @@ ShellRoot {
                 // Everything non-modifier (including "/") sits below it.
                 var focused = scope.Window.activeFocusItem
                 if (focused && (focused instanceof TextInput || focused instanceof TextEdit)) return
+                if (event.key === Qt.Key_F && event.modifiers === Qt.NoModifier && Store.draft === null) {
+                    Store.startFind()
+                    event.accepted = true
+                    return
+                }
                 if (event.key === Qt.Key_Slash) {
                     header.focusSearch()
                     event.accepted = true

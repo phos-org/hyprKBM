@@ -61,6 +61,13 @@ RowLayout {
         }
     }
 
+    // No focus: a click that took it would end find mode through the focus loss.
+    Action {
+        text: Store.finding ? "Press a keybind…" : "Find (F)"
+        focusPolicy: Qt.NoFocus
+        onClicked: Store.finding ? Store.stopFind() : Store.startFind()
+    }
+
     Action {
         text: "+ submap"
         enabled: !Store.readOnly
