@@ -835,7 +835,7 @@ def test_the_cheatsheet_is_a_read_only_overlay():
         assert forbidden not in sheet
     evals = re.findall(r'"hyprctl", "eval", ([^\]]+)\]', sheet)
     assert evals and set(evals) <= {"sheet.held ? Cheatsheet.rearmLua(Date.now()) : Cheatsheet.enterLua(Date.now())",
-                            "Cheatsheet.leaveLua()", "lua"}, evals
+                            "Cheatsheet.leaveLua(Date.now())", "lua"}, evals
     assert sheet.count("hyprctl") == len(evals)
     # Esc closes; modifiers are followed on press and release.
     assert "Qt.Key_Escape" in sheet and "Keys.onReleased" in sheet
@@ -893,6 +893,13 @@ def test_the_cheatsheet_holds_hyprlands_binds_while_open():
     done = done[:done.index("\n        }\n")]
     # Held only once a hold succeeded.
     assert "sheet.held = true" in done.split("if (code !== 0) {", 1)[1].split("} else {", 1)[1]
+    # A failed re-arm means Hyprland is no longer held (rearmLua errors when
+    # the submap is gone): close, with nothing to leave. A failed first hold
+    # is reported and given back instead.
+    failed = done.split("if (code !== 0 && sheet.held) {", 1)[1].split("}", 1)[0]
+    assert 'sheet.finish("")' in failed and "return" in failed
+    assert done.index("code !== 0 && sheet.held") < done.index("if (code !== 0) {")
+    assert sheet.count('sheet.finish("")') == 2  # and the submap event
 
 
 def test_the_cheatsheet_closes_when_hyprland_leaves_its_submap():
@@ -934,15 +941,15 @@ def test_every_way_out_of_the_cheatsheet_gives_the_binds_back():
     flush = flush[:flush.index("\n        }\n")]
     assert flush.index('Quickshell.execDetached(["hyprctl", "eval", lua])') < flush.index("quitSoon.start()")
     # Esc, a click and IPC close leave; Enter runs; nothing else finishes.
-    assert sheet.count("sheet.finish(Cheatsheet.leaveLua())") == 4  # Esc, click, close(), own key
-    assert sheet.count("sheet.finish(") == 6  # and Hyprland leaving
+    assert sheet.count("sheet.finish(Cheatsheet.leaveLua(Date.now()))") == 4  # Esc, click, close(), own key
+    assert sheet.count("sheet.finish(") == 7  # and Hyprland leaving, or a failed re-arm
     run = sheet[sheet.index("function runSelection()"):]
     run = run[:run.index("\n        }\n")]
-    assert "var lua = Cheatsheet.runLua(sheet.selectedBinds)" in run
+    assert "var lua = Cheatsheet.runLua(sheet.selectedBinds, Date.now())" in run
     assert "if (lua === null) return" in run and "sheet.finish(lua)" in run
     close = sheet[sheet.index("function close()"):]
     close = close[:close.index("}")]
-    assert "sheet.finish(Cheatsheet.leaveLua())" in close
+    assert "sheet.finish(Cheatsheet.leaveLua(Date.now()))" in close
 
 
 def test_the_cheatsheet_selects_a_pressed_combo():

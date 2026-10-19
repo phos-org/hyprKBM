@@ -41,16 +41,19 @@ test("enterLua enters the submap unless already in it, and arms a timer for this
   assert.equal(C.ARM_EVERY_MS, 5000)
   assert.equal(C.HOLD_MS, 15000)
   const lua = C.enterLua(1760000000123)
+  // A hold that lands after the sheet already left does nothing at all.
+  assert.ok(lua.startsWith("if 1760000000123 > (__hyprkbm_sheet_closed or 0) then\n"), lua)
+  assert.ok(lua.endsWith("\nend"), lua)
   const guard = lua.indexOf('if hl.get_current_submap() ~= "hyprkbm-cheatsheet" then')
   const define = lua.indexOf('hl.define_submap("hyprkbm-cheatsheet", function()')
   const enter = lua.indexOf('hl.dispatch(hl.dsp.submap("hyprkbm-cheatsheet"))')
   const token = lua.indexOf("__hyprkbm_sheet = 1760000000123\n")
   const timer = lua.indexOf("hl.timer(function()")
-  assert.ok(guard === 0 && guard < define && define < enter && enter < token && token < timer, lua)
+  assert.ok(guard > 0 && guard < define && define < enter && enter < token && token < timer, lua)
   assert.ok(lua.includes('hl.bind("SUPER + Escape", hl.dsp.submap("reset"))'))
   // The only bind in the submap: nothing else would run.
   assert.equal(lua.split("hl.bind(").length, 2)
-  assert.match(lua.slice(enter, token), /\bend\n$/)
+  assert.match(lua.slice(enter, token), /\bend\n\s*$/)
   const fire = lua.slice(timer)
   assert.ok(fire.includes('if __hyprkbm_sheet == 1760000000123 and hl.get_current_submap() == "hyprkbm-cheatsheet" then'))
   assert.ok(fire.includes('hl.dispatch(hl.dsp.submap("reset"))'))
@@ -59,28 +62,29 @@ test("enterLua enters the submap unless already in it, and arms a timer for this
 
 // SUPER + Escape, or the dead-man timer, ends the hold for good: a re-arm
 // must never put the user back in.
-test("rearmLua does nothing to the submap when the user has left it", () => {
+test("rearmLua fails, touching nothing, when the user has left the submap", () => {
   const lua = C.rearmLua(1760000000456)
-  assert.ok(lua.startsWith('if hl.get_current_submap() == "hyprkbm-cheatsheet" then\n'), lua)
-  assert.ok(lua.endsWith("\nend"), lua)
+  assert.ok(lua.startsWith('if hl.get_current_submap() ~= "hyprkbm-cheatsheet" then\n'
+    + '    error("hyprkbm-cheatsheet: no longer held")\nend\n'), lua)
   assert.ok(!lua.includes("define_submap") && !lua.includes("hl.bind("))
   assert.ok(!lua.includes('hl.dsp.submap("hyprkbm-cheatsheet")'))
-  // Inside the guard: a new token, and a timer that resets for it only.
-  const body = lua.slice(lua.indexOf("then\n"), lua.lastIndexOf("\nend"))
+  // After the check: a new token, and a timer that resets for it only.
+  const body = lua.slice(lua.indexOf("\nend\n"))
   assert.ok(body.indexOf("__hyprkbm_sheet = 1760000000456\n") < body.indexOf("hl.timer(function()"))
   assert.ok(body.includes('if __hyprkbm_sheet == 1760000000456 and hl.get_current_submap() == "hyprkbm-cheatsheet" then'))
   assert.ok(body.includes('{ timeout = 15000, type = "oneshot" })'))
 })
 
 test("enterLua and rearmLua take integer tokens only", () => {
-  for (const f of [C.enterLua, C.rearmLua]) {
+  for (const f of [C.enterLua, C.rearmLua, C.leaveLua, (t) => C.runLua([], t)]) {
     assert.throws(() => f("1; os.exit()"))
     assert.throws(() => f(1.5))
   }
 })
 
-test("leaveLua forgets the token and resets only from the sheet's submap", () => {
-  assert.equal(C.leaveLua(), "__hyprkbm_sheet = nil\n"
+test("leaveLua forgets the token, closes every older hold, and resets only from the sheet's submap", () => {
+  assert.equal(C.leaveLua(1760000000999), "__hyprkbm_sheet = nil\n"
+    + "__hyprkbm_sheet_closed = 1760000000999\n"
     + 'if hl.get_current_submap() == "hyprkbm-cheatsheet" then hl.dispatch(hl.dsp.submap("reset")) end')
 })
 
@@ -104,15 +108,15 @@ test("runLua leaves first, then dispatches every runnable bind in order", () => 
     bind({ dsp: "exec_cmd", args: ["discord"] }),
     bind({ __function: "f" }),
     bind({ raw: 'hl.dsp.exec_cmd("b") -- note' }),
-  ])
-  assert.equal(lua, C.leaveLua() + "\n"
+  ], 42)
+  assert.equal(lua, C.leaveLua(42) + "\n"
     + 'hl.dispatch(hl.dsp.exec_cmd("discord"))\n'
     + 'hl.dispatch((\nhl.dsp.exec_cmd("b") -- note\n))')
 })
 
 test("runLua is null when nothing can run", () => {
-  assert.equal(C.runLua([]), null)
-  assert.equal(C.runLua([bind({ __function: "f" }), bind(null)]), null)
+  assert.equal(C.runLua([], 42), null)
+  assert.equal(C.runLua([bind({ __function: "f" }), bind(null)], 42), null)
 })
 
 test("opensSheet finds the cheatsheet's own bind", () => {

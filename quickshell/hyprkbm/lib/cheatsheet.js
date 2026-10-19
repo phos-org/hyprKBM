@@ -62,27 +62,41 @@ function armLua(token, indent) {
 
 // The first hold, as the sheet is shown. A submap with no binds is not
 // registered, hence SUPER + Escape: it is also the way out that works
-// without the sheet.
+// without the sheet. Tokens are the sheet's clock (Date.now()), so one that
+// lands after a later leave (a slow eval the sheet stopped waiting for) is
+// older than that leave and does nothing: it must not pause the binds again
+// with no sheet up.
 function enterLua(token) {
+    var t = checkToken(token)
+    return 'if ' + t + ' > (__hyprkbm_sheet_closed or 0) then\n'
+        + '    if hl.get_current_submap() ~= "' + SUBMAP + '" then\n'
+        + '        hl.define_submap("' + SUBMAP + '", function()\n'
+        + '            hl.bind("SUPER + Escape", hl.dsp.submap("reset"))\n'
+        + '        end)\n'
+        + '        hl.dispatch(hl.dsp.submap("' + SUBMAP + '"))\n'
+        + '    end\n'
+        + armLua(token, "    ") + '\n'
+        + 'end'
+}
+
+// Every later hold only keeps the existing one alive. Once the user left the
+// submap (SUPER + Escape) or the timer did, nothing puts them back in, and
+// the error (hyprctl eval exits non-zero) tells a sheet that missed the
+// leave that its combos run again.
+function rearmLua(token) {
     var arm = armLua(token, "")
     return 'if hl.get_current_submap() ~= "' + SUBMAP + '" then\n'
-        + '    hl.define_submap("' + SUBMAP + '", function()\n'
-        + '        hl.bind("SUPER + Escape", hl.dsp.submap("reset"))\n'
-        + '    end)\n'
-        + '    hl.dispatch(hl.dsp.submap("' + SUBMAP + '"))\n'
+        + '    error("hyprkbm-cheatsheet: no longer held")\n'
         + 'end\n'
         + arm
 }
 
-// Every later hold only keeps the existing one alive: once the user left the
-// submap (SUPER + Escape) or the timer did, nothing puts them back in.
-function rearmLua(token) {
-    return 'if hl.get_current_submap() == "' + SUBMAP + '" then\n' + armLua(token, "    ") + '\nend'
-}
-
 // Guarded, so leaving never resets a submap the user entered meanwhile.
-function leaveLua() {
+// `token` is the time of leaving: every hold sent before it is closed.
+function leaveLua(token) {
+    var t = checkToken(token)
     return '__hyprkbm_sheet = nil\n'
+        + '__hyprkbm_sheet_closed = ' + t + '\n'
         + 'if hl.get_current_submap() == "' + SUBMAP + '" then hl.dispatch(hl.dsp.submap("reset")) end'
 }
 
@@ -109,10 +123,11 @@ function runnable(bind) {
 }
 
 // Leaving first, so the action runs with the binds already back.
-function runLua(binds) {
+function runLua(binds, token) {
+    var leave = leaveLua(token)
     var calls = binds.filter(function (b) { return runnable(b) === "" })
                      .map(function (b) { return dispatchOf(b.dispatcher) })
-    return calls.length === 0 ? null : leaveLua() + "\n" + calls.join("\n")
+    return calls.length === 0 ? null : leave + "\n" + calls.join("\n")
 }
 
 // The sheet's own key toggles it, even while the binds are held.
@@ -129,7 +144,7 @@ function actions(binds) {
 
 function status(binds) {
     if (binds.length === 0) return "Not bound"
-    if (runLua(binds) !== null) return "Enter runs it"
+    if (binds.some(function (b) { return runnable(b) === "" })) return "Enter runs it"
     var reasons = []
     binds.forEach(function (b) {
         var r = runnable(b)

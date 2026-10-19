@@ -106,7 +106,7 @@ ShellRoot {
             var keyId = KeyNames.keyId(key)
             // The sheet's own key toggles it, even while the binds are held.
             if (Cheatsheet.opensSheet(Keymap.bindsOn(Store.merged.binds, "", mods, keyId))) {
-                sheet.finish(Cheatsheet.leaveLua())
+                sheet.finish(Cheatsheet.leaveLua(Date.now()))
                 return
             }
             sheet.selection = { mods: mods, key: key, keyId: keyId }
@@ -115,7 +115,7 @@ ShellRoot {
 
         function runSelection() {
             if (sheet.selection === null) return
-            var lua = Cheatsheet.runLua(sheet.selectedBinds)
+            var lua = Cheatsheet.runLua(sheet.selectedBinds, Date.now())
             if (lua === null) return
             sheet.finish(lua)
         }
@@ -172,11 +172,18 @@ ShellRoot {
             stdout: StdioCollector { id: holdOut }
             onExited: function (code) {
                 if (sheet.closing) { sheet.flush(); return }
-                // The Lua may have failed after it switched: give the binds back.
+                // A re-arm fails once Hyprland has left the submap (the sheet
+                // missed the event): combos run again, so the sheet goes.
+                if (code !== 0 && sheet.held) {
+                    sheet.finish("")
+                    return
+                }
+                // The first hold may have failed after it switched: give the
+                // binds back, and try again on the next tick.
                 if (code !== 0) {
                     sheet.holdError = "Binds still run: "
                         + ((holdErr.text || holdOut.text || "Hyprland did not take the hold.").trim())
-                    Quickshell.execDetached(["hyprctl", "eval", Cheatsheet.leaveLua()])
+                    Quickshell.execDetached(["hyprctl", "eval", Cheatsheet.leaveLua(Date.now())])
                 } else {
                     sheet.holdError = ""
                     sheet.held = true
@@ -213,7 +220,7 @@ ShellRoot {
             target: "cheatsheet"
 
             function close(): string {
-                sheet.finish(Cheatsheet.leaveLua())
+                sheet.finish(Cheatsheet.leaveLua(Date.now()))
                 return "closed"
             }
 
@@ -237,7 +244,7 @@ ShellRoot {
         // A click anywhere closes: the keys are disabled, so they pass it on.
         MouseArea {
             anchors.fill: parent
-            onClicked: sheet.finish(Cheatsheet.leaveLua())
+            onClicked: sheet.finish(Cheatsheet.leaveLua(Date.now()))
         }
 
         FocusScope {
@@ -248,7 +255,7 @@ ShellRoot {
             // first press or release of any key, through event.modifiers.
             Keys.onPressed: function (event) {
                 event.accepted = true
-                if (event.key === Qt.Key_Escape) { sheet.finish(Cheatsheet.leaveLua()); return }
+                if (event.key === Qt.Key_Escape) { sheet.finish(Cheatsheet.leaveLua(Date.now())); return }
                 if (event.isAutoRepeat) return
                 if (QtKeys.modifierFromQtKey(event.key) !== "") {
                     Store.heldMods = QtKeys.heldMods(event.key, event.modifiers, true)
