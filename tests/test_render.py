@@ -54,7 +54,9 @@ local function __hyprkbm_bind(...)
 end
 
 -- Submaps
-hl.define_submap("move", "escape", function() end)
+hl.define_submap("move", function()
+    __hyprkbm_bind("escape", hl.dsp.submap("reset"))
+end)
 
 -- SUPER + F: replaces binds from hyprland.lua
 hl.unbind("SUPER + F")
@@ -117,13 +119,14 @@ def test_what_is_rendered_reads_back_as_intended(paths, tmp_path):
 
     assert result.error is None
     assert [(b.submap, b.keys, b.fingerprint, b.opts) for b in result.binds] == [
+        # The submap's way out is a real bind, so it can never trap the keyboard.
+        ("move", "escape", 'submap:["reset"]', {}),
         ("resize", "SUPER + F", "window.resize:[]", {}),
         ("", "SUPER + F", 'exec_cmd:["nautilus"]', {"description": "File manager"}),
         ("", "SUPER + B", 'exec_cmd:["firefox"]', {"locked": True}),
         ("move", "right", 'window.move:[{"direction":"right"}]', {}),
     ]
     assert result.submaps[0]["name"] == "move"
-    assert result.submaps[0]["reset"] == "escape"
 
 
 @pytest.mark.parametrize("dsp", ["a b", "window.close()", "x;y", "1abc", "a..b", ""])
