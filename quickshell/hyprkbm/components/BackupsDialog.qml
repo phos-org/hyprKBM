@@ -68,71 +68,88 @@ QC.Popup {
     contentItem: RowLayout {
         spacing: Spacing.lg
 
-        ListView {
-            Layout.preferredWidth: 220
+        // The list sits on a pane of its own, ruled off from the diff, so the
+        // two never read as one column.
+        Rectangle {
+            Layout.preferredWidth: 228
             Layout.fillHeight: true
-            clip: true
-            model: root.names
-            delegate: Rectangle {
-                id: row
-                required property string modelData
-                width: ListView.view.width
-                height: 30
-                radius: Radius.sm
-                color: root.chosen === row.modelData ? Colors.bgSurfaceAlt : "transparent"
-                readonly property bool asking: root.confirming === row.modelData
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    x: Spacing.sm
-                    text: row.asking ? "Delete this backup?" : root.when(row.modelData)
-                    color: row.asking ? Colors.statusCritical : Colors.textPrimary
-                    font.family: Typography.family
-                    font.pixelSize: row.asking ? Typography.sizeSmall : Typography.sizeBody
-                }
-                // Under the buttons, so they keep their own clicks.
-                MouseArea {
-                    anchors.fill: parent
-                    enabled: !row.asking
-                    onClicked: { root.confirming = ""; root.chosen = row.modelData; Store.loadBackup(row.modelData) }
-                }
-                Row {
-                    anchors.right: parent.right
-                    anchors.rightMargin: Spacing.sm
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: Spacing.sm
+            color: Colors.bgBase
+            radius: Radius.sm
+            border.width: 1
+            border.color: Colors.borderSubtle
 
-                    RowButton {
-                        visible: !row.asking
-                        text: "×"
-                        onClicked: root.confirming = row.modelData
+            ListView {
+                anchors.fill: parent
+                anchors.margins: Spacing.xs
+                clip: true
+                model: root.names
+                delegate: Rectangle {
+                    id: row
+                    required property string modelData
+                    width: ListView.view.width
+                    height: 30
+                    radius: Radius.sm
+                    color: root.chosen === row.modelData ? Colors.bgSurfaceAlt : "transparent"
+                    readonly property bool asking: root.confirming === row.modelData
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        x: Spacing.sm
+                        text: row.asking ? "Delete this backup?" : root.when(row.modelData)
+                        color: row.asking ? Colors.statusCritical : Colors.textPrimary
+                        font.family: Typography.family
+                        font.pixelSize: row.asking ? Typography.sizeSmall : Typography.sizeBody
                     }
-                    RowButton {
-                        visible: row.asking
-                        text: "Delete"
-                        tint: Colors.statusCritical
-                        onClicked: {
-                            if (root.chosen === row.modelData) root.chosen = ""
-                            root.confirming = ""
-                            Store.deleteBackup(row.modelData)
+                    // Under the buttons, so they keep their own clicks.
+                    MouseArea {
+                        anchors.fill: parent
+                        enabled: !row.asking
+                        onClicked: { root.confirming = ""; root.chosen = row.modelData; Store.loadBackup(row.modelData) }
+                    }
+                    Row {
+                        anchors.right: parent.right
+                        anchors.rightMargin: Spacing.sm
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: Spacing.sm
+
+                        RowButton {
+                            visible: !row.asking
+                            text: "×"
+                            onClicked: root.confirming = row.modelData
+                        }
+                        RowButton {
+                            visible: row.asking
+                            text: "Delete"
+                            tint: Colors.statusCritical
+                            onClicked: {
+                                if (root.chosen === row.modelData) root.chosen = ""
+                                root.confirming = ""
+                                Store.deleteBackup(row.modelData)
+                            }
+                        }
+                        RowButton {
+                            visible: row.asking
+                            text: "Keep"
+                            hoverTint: Colors.textPrimary
+                            onClicked: root.confirming = ""
                         }
                     }
-                    RowButton {
-                        visible: row.asking
-                        text: "Keep"
-                        hoverTint: Colors.textPrimary
-                        onClicked: root.confirming = ""
-                    }
+                }
+                Text {
+                    visible: root.names.length === 0
+                    text: "No backups yet. One is made before every apply."
+                    color: Colors.textSecondary
+                    font.family: Typography.family
+                    font.pixelSize: Typography.sizeSmall
+                    wrapMode: Text.WordWrap
+                    width: parent.width
                 }
             }
-            Text {
-                visible: root.names.length === 0
-                text: "No backups yet. One is made before every apply."
-                color: Colors.textSecondary
-                font.family: Typography.family
-                font.pixelSize: Typography.sizeSmall
-                wrapMode: Text.WordWrap
-                width: parent.width
-            }
+        }
+
+        Rectangle {
+            Layout.fillHeight: true
+            implicitWidth: 1
+            color: Colors.borderStrong
         }
 
         ColumnLayout {
