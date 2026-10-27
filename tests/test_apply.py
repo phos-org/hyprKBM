@@ -319,3 +319,22 @@ def test_preview_handles_missing_lua_interpreter(paths, monkeypatch):
     assert "could not be read" in result["errors"][0]["message"]
     assert result["lua"] == ""
     assert result["current"] == ""
+
+
+def test_a_backup_can_be_deleted_and_nothing_else(paths, tmp_path):
+    folder = paths.backups / "20260101T000000000000"
+    folder.mkdir(parents=True)
+    (folder / "keybinds.json").write_text("{}")
+    outside = tmp_path / "keep"
+    outside.mkdir()
+
+    assert applying.delete_backup(paths, "20260101T000000000000") is True
+    assert not folder.exists()
+    assert applying.delete_backup(paths, "20260101T000000000000") is False
+    assert applying.delete_backup(paths, "../keep") is False
+    assert applying.delete_backup(paths, "") is False
+    assert outside.exists()
+    # A link with a backup's name is not a backup; its target is never touched.
+    (paths.backups / "20260202T000000000000").symlink_to(outside)
+    assert applying.delete_backup(paths, "20260202T000000000000") is False
+    assert outside.exists()

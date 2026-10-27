@@ -159,7 +159,8 @@ again focuses the open panel instead of opening a second one.
 - **Backups** lists the last 30 versions with what restoring each would
   change. Restore is disabled while there are staged changes, except that it
   is the way out when `keybinds.json` is broken (the panel is then read-only),
-  and a backup whose `keybinds.json` cannot be read is refused. **Export**
+  and a backup whose `keybinds.json` cannot be read is refused. The **×** on
+  a backup deletes it, after asking once more. **Export**
   writes the Markdown cheatsheet to a path you choose. **Theme** offers the
   phos presets, an accent and dark or light, saved in
   `~/.config/hyprkbm/theme.json`. **⋯** switches between ANSI and ISO
@@ -229,6 +230,7 @@ hyprkbm --status              # binds, conflicts, stale overrides, the watcher
 hyprkbm --binds               # your hand-written binds, with fingerprints
 hyprkbm --apply               # apply ~/.config/hyprkbm/keybinds.json
 hyprkbm --export md binds.md  # a Markdown cheatsheet (stdout without a file)
+hyprkbm --delete-backup NAME  # delete one backup (names: hyprkbm --state)
 ```
 
 ### keybinds.json

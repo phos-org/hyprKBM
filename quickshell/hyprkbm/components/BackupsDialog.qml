@@ -22,10 +22,33 @@ QC.Popup {
     closePolicy: QC.Popup.CloseOnEscape | QC.Popup.CloseOnPressOutside
 
     property string chosen: ""
+    // The backup whose × was pressed: deleting cannot be undone, so the row
+    // asks once more in place.
+    property string confirming: ""
     readonly property var names: Store.doc ? Store.doc.backups : []
     // Store.backup can still be an earlier pick while the chosen one loads.
     readonly property bool loaded: Store.backup !== null && Store.backup.name === chosen
     readonly property var lines: loaded ? Diff.lineDiff(Store.doc.currentLua, Store.backup.lua) : []
+
+    // A word that acts like a button, for the backup rows.
+    component RowButton: Text {
+        id: button
+        signal clicked()
+        property color tint: Colors.textSecondary
+        property color hoverTint: Colors.statusCritical
+        color: area.containsMouse ? hoverTint : tint
+        font.family: Typography.family
+        font.pixelSize: Typography.sizeSmall
+        font.weight: Typography.weightMedium
+        MouseArea {
+            id: area
+            anchors.fill: parent
+            anchors.margins: -Spacing.xs
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: button.clicked()
+        }
+    }
 
     function when(name) {
         // 20261008T173647613251 -> 2026-10-08 17:36:47
@@ -33,7 +56,7 @@ QC.Popup {
              + " " + name.slice(9, 11) + ":" + name.slice(11, 13) + ":" + name.slice(13, 15)
     }
 
-    onOpened: { chosen = ""; Store.clearBackup() }
+    onOpened: { chosen = ""; confirming = ""; Store.clearBackup() }
 
     background: Rectangle {
         color: Colors.bgSurface
@@ -57,17 +80,48 @@ QC.Popup {
                 height: 30
                 radius: Radius.sm
                 color: root.chosen === row.modelData ? Colors.bgSurfaceAlt : "transparent"
+                readonly property bool asking: root.confirming === row.modelData
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     x: Spacing.sm
-                    text: root.when(row.modelData)
-                    color: Colors.textPrimary
+                    text: row.asking ? "Delete this backup?" : root.when(row.modelData)
+                    color: row.asking ? Colors.statusCritical : Colors.textPrimary
                     font.family: Typography.family
-                    font.pixelSize: Typography.sizeBody
+                    font.pixelSize: row.asking ? Typography.sizeSmall : Typography.sizeBody
                 }
+                // Under the buttons, so they keep their own clicks.
                 MouseArea {
                     anchors.fill: parent
-                    onClicked: { root.chosen = row.modelData; Store.loadBackup(row.modelData) }
+                    enabled: !row.asking
+                    onClicked: { root.confirming = ""; root.chosen = row.modelData; Store.loadBackup(row.modelData) }
+                }
+                Row {
+                    anchors.right: parent.right
+                    anchors.rightMargin: Spacing.sm
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: Spacing.sm
+
+                    RowButton {
+                        visible: !row.asking
+                        text: "×"
+                        onClicked: root.confirming = row.modelData
+                    }
+                    RowButton {
+                        visible: row.asking
+                        text: "Delete"
+                        tint: Colors.statusCritical
+                        onClicked: {
+                            if (root.chosen === row.modelData) root.chosen = ""
+                            root.confirming = ""
+                            Store.deleteBackup(row.modelData)
+                        }
+                    }
+                    RowButton {
+                        visible: row.asking
+                        text: "Keep"
+                        hoverTint: Colors.textPrimary
+                        onClicked: root.confirming = ""
+                    }
                 }
             }
             Text {

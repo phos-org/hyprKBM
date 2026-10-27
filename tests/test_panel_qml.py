@@ -1004,3 +1004,15 @@ def test_the_panel_rereads_when_hyprland_reloads_its_config():
     assert '"configreloaded"' in raw and "!root.busy" in raw and "root.configReload.restart()" in raw
     timer = store.split("property Timer configReload", 1)[1].split("}", 1)[0]
     assert "root.reload()" in timer
+
+
+def test_a_backup_is_deleted_only_by_the_helper_after_a_second_click():
+    store = qml("state", "Store.qml")
+    body = store.split("function deleteBackup(name)", 1)[1].split("function clearBackup", 1)[0]
+    assert '"--delete-backup"' in body and 'helper("hyprkbm")' in body
+    assert "root.reload()" in store.split("property Process deleteBackupProc", 1)[1].split("property Process", 1)[0]
+    dialog = qml("components", "BackupsDialog.qml")
+    assert "onClicked: root.confirming = row.modelData" in dialog
+    delete = dialog.split('text: "Delete"', 1)[1].split("RowButton {", 1)[0]
+    assert "Store.deleteBackup(row.modelData)" in delete
+    assert [n for n, s in all_qml().items() if "Store.deleteBackup(" in s] == ["components/BackupsDialog.qml"]

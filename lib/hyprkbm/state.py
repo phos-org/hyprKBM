@@ -7,18 +7,15 @@ rather than raised: a panel that cannot open is no help in fixing a broken
 keybinds.json.
 """
 import json
-import re
 import subprocess
 
-from .apply import write_atomic
+from .apply import BACKUP_NAME, write_atomic
 from .catalogue import CATALOGUE, describe, load_catalogue
 from .model import ModelError, load_model, structure_errors
 from .reader import ReadResult, read_config
 
 UNIT = "hyprkbm-watch.service"
 LAYOUTS = ("ansi", "iso")
-# Backup directories are timestamps; anything else is not one of ours.
-BACKUP_NAME = re.compile(r"[0-9T]+\Z")
 
 
 class SettingsError(ValueError):

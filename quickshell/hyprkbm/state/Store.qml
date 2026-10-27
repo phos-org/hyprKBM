@@ -566,6 +566,14 @@ QtObject {
         root.backupProc.running = true
     }
 
+    // The helper deletes it; the re-read that follows lists what is left.
+    function deleteBackup(name) {
+        if (root.deleteBackupProc.running) return
+        if (backupWanted === name) clearBackup()
+        root.deleteBackupProc.command = [helper("hyprkbm"), "--delete-backup", name]
+        root.deleteBackupProc.running = true
+    }
+
     function clearBackup() {
         backupWanted = ""
         backup = null
@@ -705,6 +713,15 @@ QtObject {
             }
             parsed.name = got
             root.backup = parsed
+        }
+    }
+
+    property Process deleteBackupProc: Process {
+        stderr: StdioCollector { id: deleteBackupErr }
+        onExited: function (code) {
+            if (code === 0) root.report("Backup deleted.", false)
+            else root.report((deleteBackupErr.text || "The backup could not be deleted.").trim(), true)
+            root.reload()
         }
     }
 

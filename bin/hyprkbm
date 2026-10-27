@@ -9,6 +9,7 @@
   hyprkbm --binds              hand-written binds: keys, submap, where, fingerprint
   hyprkbm --state              everything the panel shows, as JSON
   hyprkbm --backup NAME        one backup's keybinds.json and keybinds.lua, as JSON
+  hyprkbm --delete-backup NAME delete one backup
   hyprkbm --set-layout NAME    the panel's keyboard layout: ansi or iso
 """
 import json
@@ -21,7 +22,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.join(
     os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "lib"))
 
-from hyprkbm.apply import apply  # noqa: E402
+from hyprkbm.apply import apply, delete_backup  # noqa: E402
 from hyprkbm.catalogue import load_catalogue  # noqa: E402
 from hyprkbm.export import export_markdown  # noqa: E402
 from hyprkbm.model import ModelError, load_model, merge, structure_errors  # noqa: E402
@@ -158,6 +159,14 @@ def cmd_backup(paths, args):
     return 0
 
 
+def cmd_delete_backup(paths, args):
+    if len(args) != 1:
+        return fail("usage: hyprkbm --delete-backup NAME", code=2)
+    if not delete_backup(paths, args[0]):
+        return fail("no backup called %s" % args[0])
+    return 0
+
+
 def cmd_set_layout(paths, args):
     if len(args) != 1:
         return fail("usage: hyprkbm --set-layout ansi|iso", code=2)
@@ -279,6 +288,8 @@ def main(argv):
         return cmd_state(paths)
     if argv[:1] == ["--backup"]:
         return cmd_backup(paths, argv[1:])
+    if argv[:1] == ["--delete-backup"]:
+        return cmd_delete_backup(paths, argv[1:])
     if argv[:1] == ["--set-layout"]:
         return cmd_set_layout(paths, argv[1:])
     if argv in (["-h"], ["--help"]):
