@@ -1316,14 +1316,52 @@ Append to `CONTRIBUTING.md`:
    back into `packaging/` in a PR, and push the PKGBUILD and `.SRCINFO` to the AUR.
 ```
 
-- [ ] **Step 5: Run everything and commit**
+- [ ] **Step 5: Bring the whole README and CONTRIBUTING up to date**
+
+Not only the sections above: read both files top to bottom against the code as it is on this branch, and fix everything that is stale, missing or wrong. At least check:
+
+- **README**
+  - Every feature since v1 is described:
+    - submaps: `[`/`]` switching, the × that removes one, the leave key and **Change**;
+    - stale edits: **Drop my edit** and **Keep mine**;
+    - the panel re-reads `hyprland.lua` on reload;
+    - backups: the × that deletes one;
+    - `keybinds.json` may be a symlink;
+    - first-run creation of `keybinds.json`;
+    - apply refuses a bind that enters a missing submap;
+    - the cheatsheet.
+  - The command list under "Using it" matches `hyprkbm --help` exactly, including `--version` and `--delete-backup`. Compare it with the docstring in `bin/hyprkbm`.
+  - The Keys table matches the key handler in `quickshell/hyprkbm/shell.qml` (including `[` / `]`).
+  - The Requirements table: Hyprland 0.55+, Lua names (including `lua54` on FreeBSD), Quickshell optional, systemd optional with the fallback.
+  - The Uninstall instructions cover packages (the package manager) as well as `install.sh --uninstall`.
+  - Every link and anchor resolves. Check `#without-systemd` and every relative file link with `grep -o '](#[^)]*)' README.md` and `grep -o '](\([^h#][^)]*\))' README.md` against the headings and files that exist.
+- **CONTRIBUTING**
+  - The file-by-file table lists every file in `lib/`, `bin/`, `quickshell/hyprkbm/` (components, lib, state, config), `packaging/`, `Makefile`, `flake.nix` and `.github/workflows/`. Compare with `git ls-files`, and add or remove rows to match. Include:
+    - `RemoveSubmapDialog.qml`;
+    - `checksums.py`;
+    - `packages.yml` and `release.yml`.
+  - How to run every test suite:
+    - pytest;
+    - `npm test`;
+    - qmllint with the `-I` form;
+    - `make install DESTDIR=…` for a local packaging check;
+    - the Docker package builds from this plan.
+  - The live-session safety rules for contributors working on a live Hyprland session:
+    - test installs only into a temporary `DESTDIR`;
+    - build packages only in containers.
+  - The QML pitfalls list still matches the code.
+  - The release steps from Step 4.
+
+Write down every change in the commit message body.
+
+- [ ] **Step 6: Run everything and commit**
 
 Run: `python -m pytest -q && npm test`
 Expected: all pass.
 
 ```bash
 git add CHANGELOG.md README.md CONTRIBUTING.md tests/test_packaging.py
-git commit -m "docs: changelog, per-distro install, and the release steps"
+git commit -m "docs: changelog, per-distro install, release steps, and bring README and CONTRIBUTING up to date"
 ```
 
 ---
