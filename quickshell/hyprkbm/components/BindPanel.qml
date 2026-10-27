@@ -150,7 +150,7 @@ Rectangle {
                 Text {
                     visible: Store.merged.stale.length > 0
                     Layout.topMargin: Spacing.md
-                    text: "Stale · edits whose hyprland.lua bind is gone"
+                    text: "Stale · edits whose hyprland.lua bind changed"
                     color: Colors.textSecondary
                     font.family: Typography.family
                     font.pixelSize: Typography.sizeSmall
@@ -161,7 +161,7 @@ Rectangle {
                     visible: Store.merged.stale.length > 0 && !!(Store.doc && Store.doc.readerError)
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
-                    text: "hyprland.lua was not read completely, so these may not be stale at all. Fix it and reload before forgetting anything."
+                    text: "hyprland.lua was not read completely, so these may not be stale at all. Fix it and reload before dropping or keeping anything."
                     color: Colors.statusCritical
                     font.family: Typography.family
                     font.pixelSize: Typography.sizeSmall
@@ -181,7 +181,18 @@ Rectangle {
                             font.family: Typography.family
                             font.pixelSize: Typography.sizeSmall
                         }
-                        Action { text: "Forget"; enabled: !Store.readOnly && !(Store.doc && Store.doc.readerError); onClicked: Store.forget(staleRow.modelData) }
+                        Action {
+                            text: "Drop my edit"
+                            enabled: !Store.readOnly && !(Store.doc && Store.doc.readerError)
+                            onClicked: Store.dropStale(staleRow.modelData)
+                        }
+                        // An unbind with nothing left to remove has nothing to keep.
+                        Action {
+                            visible: staleRow.modelData.kind === "bind" || staleRow.modelData.successor !== null
+                            text: "Keep mine"
+                            enabled: !Store.readOnly && !(Store.doc && Store.doc.readerError)
+                            onClicked: Store.keepStale(staleRow.modelData)
+                        }
                     }
                 }
 

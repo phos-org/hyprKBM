@@ -9,9 +9,11 @@ this one was ours and already handled.
 import fcntl
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
+from contextlib import contextmanager
 from datetime import datetime
 
 from . import marker
@@ -109,6 +111,11 @@ def write_atomic(path, text):
     write_files([(path, text)])
 
 
+# A backup is a folder named for when it was made; nothing else under
+# backups/ is one, so nothing else is read or deleted as one.
+BACKUP_NAME = re.compile(r"[0-9T]+\Z")
+
+
 def backup(paths, now=None):
     present = [p for p in (paths.model, paths.lua) if p.exists()]
     if not present:
@@ -164,13 +171,32 @@ def preview(model, paths, catalogue=None):
     return {"ok": True, "errors": [], "lua": render(model, hand, catalogue), "current": current}
 
 
-def apply(model, paths, catalogue=None):
+@contextmanager
+def _locked(paths):
     # Two applies at once (the panel and the CLI, say) would interleave their
-    # backups, writes and rollbacks, so only one runs at a time.
+    # backups, writes and rollbacks, so only one runs at a time; deleting a
+    # backup takes the same lock, so it never races an apply's pruning.
     paths.runtime_dir.mkdir(parents=True, exist_ok=True)
     with open(paths.runtime_dir / "apply.lock", "a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
+        yield
+
+
+def apply(model, paths, catalogue=None):
+    with _locked(paths):
         return _apply(model, paths, catalogue or load_catalogue())
+
+
+def delete_backup(paths, name):
+    """Removes one backup; False when there is no backup by that name."""
+    if not BACKUP_NAME.match(name):
+        return False
+    folder = paths.backups / name
+    with _locked(paths):
+        if folder.is_symlink() or not folder.is_dir():
+            return False
+        shutil.rmtree(folder)
+    return True
 
 
 def _apply(model, paths, catalogue):

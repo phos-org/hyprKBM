@@ -335,14 +335,16 @@ def test_overriding_a_bind_with_options_hyprkbm_cannot_keep_is_a_problem():
     assert "would drop these options" in body
 
 
-def test_stale_edits_are_listed_and_can_be_forgotten():
+def test_stale_edits_are_listed_and_can_be_dropped_or_kept():
     panel = qml("components", "BindPanel.qml")
     assert "Store.merged.stale" in panel
-    forget = panel.split('text: "Forget"', 1)[1].split("}", 1)[0]
-    assert "Store.readOnly" in forget and "Store.forget(" in forget
+    for text, call in (('text: "Drop my edit"', "Store.dropStale("), ('text: "Keep mine"', "Store.keepStale(")):
+        button = panel.split(text, 1)[1].split("}", 1)[0]
+        assert "Store.readOnly" in button and call in button, text
     store = qml("state", "Store.qml")
-    body = store.split("function forget(entry)", 1)[1].split("function addSubmap", 1)[0]
-    assert "readOnly" in body and "Model.forgetUnbind(" in body and "Model.forgetReplaces(" in body
+    assert "Model.dropStale(" in store.split("function dropStale(entry)", 1)[1].split("function keepStale", 1)[0]
+    keep = store.split("function keepStale(entry)", 1)[1].split("function addSubmap", 1)[0]
+    assert "Model.keepStale(" in keep and "Model.overrideBlocker(" in keep
 
 
 def test_overlaps_are_drawn_apart_from_conflicts_and_counted_apart():
@@ -373,23 +375,25 @@ def test_small_store_and_row_guards():
     assert "Store.draft !== null" in bar
 
 
-def test_forget_is_refused_while_hyprland_lua_is_only_partly_read():
+def test_stale_edits_are_left_alone_while_hyprland_lua_is_only_partly_read():
     store = qml("state", "Store.qml")
-    body = store.split("function forget(entry)", 1)[1].split("function addSubmap", 1)[0]
-    assert "readerError" in body and "report(" in body
+    guard = store.split("function staleBlocked()", 1)[1].split("function dropStale", 1)[0]
+    assert "readerError" in guard and "report(" in guard and "stagingBlocked()" in guard and "readOnly" in guard
+    for fn, nxt in (("dropStale(entry)", "keepStale"), ("keepStale(entry)", "addSubmap")):
+        assert "staleBlocked()" in store.split("function " + fn, 1)[1].split("function " + nxt, 1)[0], fn
     panel = qml("components", "BindPanel.qml")
-    forget = panel.split('text: "Forget"', 1)[1].split("}", 1)[0]
-    assert "readerError" in forget
+    for text in ('text: "Drop my edit"', 'text: "Keep mine"'):
+        assert "readerError" in panel.split(text, 1)[1].split("}", 1)[0], text
     assert "readerError" in panel.split('text: "Stale', 1)[0].rsplit("Text {", 1)[-1] + panel.split('text: "Stale', 1)[1].split("Repeater", 1)[0]
-    assert [n for n, s in all_qml().items() if "Store.forget(" in s] == ["components/BindPanel.qml"]
+    assert sorted(n for n, s in all_qml().items() if "Store.dropStale(" in s or "Store.keepStale(" in s) == ["components/BindPanel.qml"]
 
 
 def test_nothing_is_staged_while_an_apply_runs():
     store = qml("state", "Store.qml")
     assert "function stagingBlocked()" in store
     for fn, nxt in (("saveDraft()", "cancelEdit"), ("deleteBind(uid)", "deleteDraft"),
-                    ("restoreHand(h)", "keepBoth"), ("keepBoth(uid)", "forget("),
-                    ("forget(entry)", "addSubmap"), ("addSubmap(name, reset)", "discard"),
+                    ("restoreHand(h)", "keepBoth"), ("keepBoth(uid)", "staleBlocked("),
+                    ("staleBlocked()", "dropStale"), ("addSubmap(name, reset)", "removableSubmap"),
                     ("newBind(keys)", "newBindOnSelected"), ("edit(uid)", "newBind(")):
         body = store.split("function " + fn, 1)[1].split("function " + nxt, 1)[0]
         assert "stagingBlocked()" in body, fn
@@ -992,3 +996,23 @@ def test_the_leave_key_is_shown_and_changed_through_the_submap_dialog():
     dialog = qml("components", "SubmapDialog.qml")
     assert "Store.setSubmapReset(root.editing" in dialog
     assert "KeyNames.isModifierOnly(reset.text)" in dialog
+
+
+def test_the_panel_rereads_when_hyprland_reloads_its_config():
+    store = qml("state", "Store.qml")
+    raw = store.split("function onRawEvent(event)", 1)[1].split("property Timer findTimeout", 1)[0]
+    assert '"configreloaded"' in raw and "!root.busy" in raw and "root.configReload.restart()" in raw
+    timer = store.split("property Timer configReload", 1)[1].split("}", 1)[0]
+    assert "root.reload()" in timer
+
+
+def test_a_backup_is_deleted_only_by_the_helper_after_a_second_click():
+    store = qml("state", "Store.qml")
+    body = store.split("function deleteBackup(name)", 1)[1].split("function clearBackup", 1)[0]
+    assert '"--delete-backup"' in body and 'helper("hyprkbm")' in body
+    assert "root.reload()" in store.split("property Process deleteBackupProc", 1)[1].split("property Process", 1)[0]
+    dialog = qml("components", "BackupsDialog.qml")
+    assert "onClicked: root.confirming = row.modelData" in dialog
+    delete = dialog.split('text: "Delete"', 1)[1].split("RowButton {", 1)[0]
+    assert "Store.deleteBackup(row.modelData)" in delete
+    assert [n for n, s in all_qml().items() if "Store.deleteBackup(" in s] == ["components/BackupsDialog.qml"]

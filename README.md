@@ -138,8 +138,10 @@ again focuses the open panel instead of opening a second one.
   only your `hyprland.lua` binds are *overlaps*: they never block, and the
   panel says so. The header counts conflicts, or overlaps when none block.
 - **Stale edits.** An unbind or override whose `hyprland.lua` bind has
-  disappeared is listed under *Stale* in the bind list, with a **Forget**
-  button that removes the unbind or turns the override into an ordinary bind.
+  changed or disappeared is listed under *Stale* in the bind list.
+  **Drop my edit** deletes it, so `hyprland.lua` wins. **Keep mine** moves
+  it onto the bind `hyprland.lua` now has on those keys; with none left, an
+  override stays as an ordinary bind.
 - **Edit, Remove, + Add.** Editing one of your `hyprland.lua` binds makes an
   override; removing one makes an unbind. In the editor, **⏺ Record** takes
   the next key combination (Esc stops recording; Shift+digit records as the
@@ -157,12 +159,15 @@ again focuses the open panel instead of opening a second one.
 - **Backups** lists the last 30 versions with what restoring each would
   change. Restore is disabled while there are staged changes, except that it
   is the way out when `keybinds.json` is broken (the panel is then read-only),
-  and a backup whose `keybinds.json` cannot be read is refused. **Export**
+  and a backup whose `keybinds.json` cannot be read is refused. The **×** on
+  a backup deletes it, after asking once more. **Export**
   writes the Markdown cheatsheet to a path you choose. **Theme** offers the
   phos presets, an accent and dark or light, saved in
   `~/.config/hyprkbm/theme.json`. **⋯** switches between ANSI and ISO
   keyboards, offers a key for the cheatsheet, names the config file being
   read, and shows the watcher's state with a button to start it.
+- **Follows `hyprland.lua`.** Hyprland reloads when you save it, and the
+  open panel re-reads it then, keeping any staged edits.
 
 ### Keys
 
@@ -225,6 +230,7 @@ hyprkbm --status              # binds, conflicts, stale overrides, the watcher
 hyprkbm --binds               # your hand-written binds, with fingerprints
 hyprkbm --apply               # apply ~/.config/hyprkbm/keybinds.json
 hyprkbm --export md binds.md  # a Markdown cheatsheet (stdout without a file)
+hyprkbm --delete-backup NAME  # delete one backup (names: hyprkbm --state)
 ```
 
 ### keybinds.json
@@ -281,8 +287,10 @@ SUPER + 1		hyprland.lua:156	focus:[{"workspace":1}]
 ```
 
 Line numbers are only for you; edits elsewhere in `hyprland.lua` never
-break an override. If the bind it names disappears, `hyprkbm --status`
-lists the override as **stale**; it is then applied as an ordinary bind.
+break an override. If the bind it names changes or disappears,
+`hyprkbm --status` lists the override as **stale**; it is then applied as an
+ordinary bind, which conflicts with any new bind on those keys until you
+drop or keep it in the panel.
 
 ## How it works
 

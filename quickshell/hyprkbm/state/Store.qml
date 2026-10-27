@@ -433,19 +433,37 @@ QtObject {
         model = Model.updateBind(model, b.id, { allowConflict: true })
     }
 
-    // Drops an edit whose hyprland.lua bind has gone, so it stops lingering
-    // unseen in keybinds.json.
-    function forget(entry) {
-        if (model === null || readOnly || stagingBlocked()) return
-        // With hyprland.lua only partly read, a valid edit looks stale; keeping
-        // the forgetting would survive the reload and lose it for good.
+    // A stale edit is one whose hyprland.lua bind has changed or gone. Drop
+    // lets hyprland.lua win; Keep moves the edit onto what is there now.
+    function staleBlocked() {
+        if (model === null || readOnly || stagingBlocked()) return true
+        // With hyprland.lua only partly read, a valid edit looks stale; acting
+        // on it would survive the reload and lose it for good.
         if (doc && doc.readerError) {
             report("hyprland.lua was not read completely, so stale edits cannot be trusted. Fix it and reload first.", true)
-            return
+            return true
         }
-        model = entry.kind === "unbind" ? Model.forgetUnbind(model, entry.target)
-                                        : Model.forgetReplaces(model, entry.id)
-        report("Forgotten. Apply to save it.", false)
+        return false
+    }
+
+    function dropStale(entry) {
+        if (staleBlocked()) return
+        if (draft !== null && entry.id !== null && draft.id === entry.id) draft = null
+        model = Model.dropStale(model, entry)
+        report("Edit dropped; hyprland.lua's bind on " + entry.keys + " stays. Apply to save it.", false)
+    }
+
+    function keepStale(entry) {
+        if (staleBlocked()) return
+        if (entry.successor !== null) {
+            var blocker = Model.overrideBlocker(hand, entry.successor)
+            if (blocker !== null) {
+                report("Keeping this would re-create the bind at " + blocker + ", which runs a Lua function; change it in hyprland.lua.", true)
+                return
+            }
+        }
+        model = Model.keepStale(model, entry)
+        report("Edit kept. Apply to save it.", false)
     }
 
     function addSubmap(name, reset) {
@@ -546,6 +564,14 @@ QtObject {
         if (root.backupProc.running) return
         root.backupProc.command = [helper("hyprkbm"), "--backup", name]
         root.backupProc.running = true
+    }
+
+    // The helper deletes it; the re-read that follows lists what is left.
+    function deleteBackup(name) {
+        if (root.deleteBackupProc.running) return
+        if (backupWanted === name) clearBackup()
+        root.deleteBackupProc.command = [helper("hyprkbm"), "--delete-backup", name]
+        root.deleteBackupProc.running = true
     }
 
     function clearBackup() {
@@ -690,6 +716,15 @@ QtObject {
         }
     }
 
+    property Process deleteBackupProc: Process {
+        stderr: StdioCollector { id: deleteBackupErr }
+        onExited: function (code) {
+            if (code === 0) root.report("Backup deleted.", false)
+            else root.report((deleteBackupErr.text || "The backup could not be deleted.").trim(), true)
+            root.reload()
+        }
+    }
+
     property Process exportProc: Process {
         stderr: StdioCollector { id: exportErr }
         onExited: function (code) {
@@ -725,6 +760,12 @@ QtObject {
     property Connections hyprland: Connections {
         target: Hyprland
         function onRawEvent(event) {
+            // Hyprland reloads when hyprland.lua is saved, so the panel follows
+            // it. adopt() keeps staged edits; an apply re-reads by itself.
+            if (event.name === "configreloaded" && !root.busy) {
+                root.configReload.restart()
+                return
+            }
             if (root.finding && event.name === "submap" && event.data !== Capture.SUBMAP) {
                 root.finding = false
                 // Guarded Lua: harmless when Hyprland really left, and it ends
@@ -732,6 +773,13 @@ QtObject {
                 root.leaveNow()
             }
         }
+    }
+
+    // One read for a burst of reloads (an editor saving twice, the watcher's
+    // own eval following Hyprland's).
+    property Timer configReload: Timer {
+        interval: 300
+        onTriggered: root.reload()
     }
 
     // Backstop for a leave event that never arrives.

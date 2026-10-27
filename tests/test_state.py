@@ -158,3 +158,12 @@ def test_a_backup_whose_model_cannot_be_read_says_so(paths, stubs):
     (folder / "keybinds.json").write_text("[1, 2]")
     got = read_backup(paths, "20260103T000000000000")
     assert got["model"] is None and got["modelError"]
+
+
+def test_cli_deletes_a_backup(home_env, paths, stubs):
+    (paths.backups / "20260101T000000000000").mkdir(parents=True)
+    res = run(home_env, "--delete-backup", "20260101T000000000000")
+    assert res.returncode == 0, res.stderr
+    assert build_state(paths)["backups"] == []
+    assert run(home_env, "--delete-backup", "20260101T000000000000").returncode == 1
+    assert run(home_env, "--delete-backup").returncode == 2
