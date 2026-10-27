@@ -236,7 +236,9 @@ hyprkbm --delete-backup NAME  # delete one backup (names: hyprkbm --state)
 ### keybinds.json
 
 hyprKBM's binds, overrides and unbinds live in
-`~/.config/hyprkbm/keybinds.json`. Edit it, then run `hyprkbm --apply`:
+`~/.config/hyprkbm/keybinds.json`. It may be a symlink into your dotfiles;
+hyprKBM writes through the link and leaves it in place. Edit it, then run
+`hyprkbm --apply`:
 
 ```json
 {

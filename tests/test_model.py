@@ -143,6 +143,21 @@ def test_a_model_that_is_not_an_object_is_reported(paths):
     assert "JSON object" in errors[0]["message"]
 
 
+def test_a_bind_can_enter_only_a_submap_that_exists(paths):
+    def enter(name):
+        return {"id": "e1", "keys": "SUPER + R", "action": {"kind": "submap", "args": {"name": name}}}
+
+    h = hand(paths, 'hl.define_submap("resize", function() hl.bind("l", hl.dsp.window.resize()) end)\n')
+    own = [{"name": "move", "reset": "escape"}]
+    assert validate(model(binds=[enter("resize")], submaps=own), h, CAT) == []
+    assert validate(model(binds=[enter("move")], submaps=own), h, CAT) == []
+    # "reset" is Hyprland's name for going back to the global binds.
+    assert validate(model(binds=[enter("reset")], submaps=own), h, CAT) == []
+    errors = validate(model(binds=[enter("mvoe")], submaps=own), h, CAT)
+    assert [e["message"] for e in errors] == [
+        "SUPER + R: enters the submap 'mvoe', which does not exist, so its keys would do nothing"]
+
+
 def test_a_submap_from_hyprland_lua_cannot_be_defined_again(paths):
     h = hand(paths, 'hl.define_submap("resize", "escape", function() end)\n')
     errors = structure_errors(model(submaps=[{"name": "resize", "reset": "escape"}]), h, CAT)

@@ -236,6 +236,21 @@ def test_write_atomic_removes_its_temp_file_when_the_write_fails(tmp_path, monke
     assert list(tmp_path.iterdir()) == []
 
 
+def test_writes_go_through_a_symlink_to_the_file_it_points_at(tmp_path):
+    # Dotfile managers link keybinds.json in from a repo; the link must stay.
+    repo = tmp_path / "dotfiles"
+    repo.mkdir()
+    (repo / "keybinds.json").write_text("old")
+    link = tmp_path / "keybinds.json"
+    link.symlink_to(repo / "keybinds.json")
+
+    applying.write_files([(link, "new")])
+
+    assert link.is_symlink()
+    assert (repo / "keybinds.json").read_text() == "new"
+    assert sorted(p.name for p in repo.iterdir()) == ["keybinds.json"]
+
+
 def test_apply_takes_and_releases_the_apply_lock(paths, stubs):
     apply(GOOD, paths)
 
