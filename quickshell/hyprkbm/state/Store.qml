@@ -459,6 +459,21 @@ QtObject {
             && Model.removableSubmap(hand, doc ? doc.handSubmaps : [], model, name)
     }
 
+    // The leave key of a submap hyprKBM defines; null for global and for one
+    // only hyprland.lua defines.
+    function submapReset(name) {
+        return name === "" ? null : Model.submapReset(model || Model.emptyModel(), name)
+    }
+
+    function resetClash(name, reset) {
+        return Model.resetClash(merged.binds, name, reset)
+    }
+
+    function setSubmapReset(name, reset) {
+        if (model === null || readOnly || submapReset(name) === null || stagingBlocked()) return
+        model = Model.setSubmapReset(model, name, reset)
+    }
+
     function submapUse(name) {
         return Model.submapUse(model || Model.emptyModel(), name)
     }

@@ -7,7 +7,8 @@ import "../state"
 import "../lib/keys.js" as KeyNames
 
 // A new submap: its name and the key that leaves it. A bind enters it with
-// the "Enter submap" action.
+// the "Enter submap" action. Opened with edit(), it changes the leave key of
+// one that exists instead.
 QC.Popup {
     id: root
     parent: QC.Overlay.overlay
@@ -19,10 +20,26 @@ QC.Popup {
     padding: Spacing.lg
     closePolicy: QC.Popup.CloseOnEscape | QC.Popup.CloseOnPressOutside
 
+    // The submap whose leave key is being changed; "" for a new one.
+    property string editing: ""
+
+    function create() {
+        editing = ""
+        open()
+    }
+
+    function edit(submap) {
+        editing = submap
+        open()
+    }
+
     readonly property string problem: name.text.trim() === "" ? "Give it a name."
-        : Store.submaps.indexOf(name.text.trim()) >= 0 ? "There is already a submap called " + name.text.trim() + "."
-        : KeyNames.parse(reset.text) === null ? "The reset key must be a key, like escape."
+        : editing === "" && Store.submaps.indexOf(name.text.trim()) >= 0 ? "There is already a submap called " + name.text.trim() + "."
+        : KeyNames.parse(reset.text) === null || KeyNames.isModifierOnly(reset.text) ? "The leave key must be a key, like escape or SUPER + E."
         : ""
+    // Not a problem that blocks: Hyprland runs both binds, so the way out
+    // still works, but the other bind fires with it.
+    readonly property var clash: editing === "" ? null : Store.resetClash(editing, reset.text)
 
     // Without its own background a TextField draws the style's white box,
     // under the theme's light text.
@@ -43,7 +60,12 @@ QC.Popup {
         }
     }
 
-    onOpened: { name.text = ""; reset.text = "escape"; name.forceActiveFocus() }
+    onOpened: {
+        name.text = editing
+        reset.text = editing === "" ? "escape" : (Store.submapReset(editing) || "escape")
+        if (editing === "") name.forceActiveFocus()
+        else { reset.forceActiveFocus(); reset.selectAll() }
+    }
 
     background: Rectangle {
         color: Colors.bgSurface
@@ -57,12 +79,22 @@ QC.Popup {
 
         Field {
             label: "Name"
-            Input { id: name }
+            Input { id: name; readOnly: root.editing !== ""; opacity: readOnly ? 0.6 : 1 }
         }
 
         Field {
             label: "Key that leaves it"
             Input { id: reset }
+        }
+
+        Text {
+            visible: root.problem === "" && root.clash !== null
+            Layout.fillWidth: true
+            text: root.clash === null ? "" : root.clash.keys + " already does something in " + root.editing + "; pressing it will do that too."
+            color: Colors.statusCritical
+            font.family: Typography.family
+            font.pixelSize: Typography.sizeSmall
+            wrapMode: Text.WordWrap
         }
 
         Text {
@@ -78,10 +110,14 @@ QC.Popup {
             Item { Layout.fillWidth: true }
             Action { text: "Cancel"; onClicked: root.close() }
             Action {
-                text: "Create"
+                text: root.editing === "" ? "Create" : "Save"
                 primary: true
                 enabled: root.problem === "" && !Store.readOnly
-                onClicked: { Store.addSubmap(name.text.trim(), reset.text.trim()); root.close() }
+                onClicked: {
+                    if (root.editing === "") Store.addSubmap(name.text.trim(), reset.text.trim())
+                    else Store.setSubmapReset(root.editing, reset.text.trim())
+                    root.close()
+                }
             }
         }
     }

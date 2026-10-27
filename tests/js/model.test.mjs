@@ -111,6 +111,26 @@ test("only a submap hyprKBM alone defines can be removed", () => {
   assert.equal(M.removableSubmap(HAND, [], M.addSubmap(model, "resize", "escape"), "resize"), false)
 })
 
+test("a submap's leave key can be read and changed", () => {
+  const model = M.addSubmap(M.emptyModel(), "move", "escape")
+  assert.equal(M.submapReset(model, "move"), "escape")
+  assert.equal(M.submapReset(model, "resize"), null)
+  const after = M.setSubmapReset(model, "move", "SUPER + E")
+  assert.equal(M.submapReset(after, "move"), "SUPER + E")
+  assert.equal(M.submapReset(model, "move"), "escape")
+})
+
+test("the leave key's clash is the bind already on it in that submap", () => {
+  const binds = [
+    { submap: "move", combo: "SUPER+e", keys: "SUPER + E" },
+    { submap: "", combo: "escape", keys: "escape" }
+  ]
+  assert.equal(M.resetClash(binds, "move", "SUPER + E").keys, "SUPER + E")
+  assert.equal(M.resetClash(binds, "move", "super+e").keys, "SUPER + E")
+  assert.equal(M.resetClash(binds, "move", "escape"), null)
+  assert.equal(M.resetClash(binds, "move", "SUPER + "), null)
+})
+
 test("an override is blocked by a Lua function on the same keys", () => {
   const fn = hand(3, "SUPER + F", "SUPER+f", "x", [], { submap: "x", reproducible: false, dispatcher: { __function: "h.lua:9" }, where: "hyprland.lua:9" })
   assert.equal(M.overrideBlocker(HAND.concat([fn]), HAND[0]), "hyprland.lua:9")

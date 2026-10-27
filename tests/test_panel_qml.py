@@ -982,3 +982,13 @@ def test_submaps_are_removed_only_through_the_confirm_dialog():
     dialog = qml("components", "RemoveSubmapDialog.qml")
     assert "Store.removableSubmap(root.name)" in dialog
     assert "Store.removeSubmap(root.name)" in dialog
+
+
+def test_the_leave_key_is_shown_and_changed_through_the_submap_dialog():
+    shell = qml("shell.qml")
+    assert "Store.submapReset(Store.submap)" in shell
+    assert "submapDialog.edit(Store.submap)" in shell
+    assert "submapDialog.create()" in shell
+    dialog = qml("components", "SubmapDialog.qml")
+    assert "Store.setSubmapReset(root.editing" in dialog
+    assert "KeyNames.isModifierOnly(reset.text)" in dialog

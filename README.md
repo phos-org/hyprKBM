@@ -123,7 +123,9 @@ again focuses the open panel instead of opening a second one.
 - **Submaps** are the chips in the header: click one, or step through them
   with `[` and `]`; **global** is always the first. **+ submap** adds one,
   and the **×** on a submap hyprKBM made removes it, with its binds and the
-  binds that enter it. **Search** (`/`) narrows to binds
+  binds that enter it. In a submap hyprKBM made, the line under the
+  modifiers shows the key that leaves it, and **Change** edits it.
+  **Search** (`/`) narrows to binds
   matching plain words or the tags `mod:`, `key:`, `exec:`, `desc:`,
   `submap:` and `src:` (`src:lua` is your `hyprland.lua`). Words also match
   the action's name, so `exec` finds every bind that runs a command. A tag

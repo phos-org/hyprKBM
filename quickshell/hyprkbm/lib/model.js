@@ -245,6 +245,27 @@ function submapUse(model, name) {
     }
 }
 
+// The key that leaves a submap hyprKBM defines, or null for one it does not.
+function submapReset(model, name) {
+    var s = normalise(model).submaps.filter(function (s) { return s.name === name })[0]
+    return s === undefined ? null : s.reset
+}
+
+function setSubmapReset(model, name, reset) {
+    var m = normalise(model)
+    m.submaps = m.submaps.map(function (s) { return s.name === name ? { name: name, reset: reset } : s })
+    return m
+}
+
+// A bind already on the leave key in that submap: one of the two would win,
+// and if it is the bind, the submap has no way out.
+function resetClash(binds, name, reset) {
+    var id = Keys.idOf(reset)
+    if (id === null) return null
+    var hit = binds.filter(function (b) { return b.submap === name && b.combo === id })[0]
+    return hit === undefined ? null : hit
+}
+
 // A bind left entering a submap that is gone would trap you in an empty map,
 // so those go too.
 function removeSubmap(model, name) {
