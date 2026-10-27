@@ -996,3 +996,11 @@ def test_the_leave_key_is_shown_and_changed_through_the_submap_dialog():
     dialog = qml("components", "SubmapDialog.qml")
     assert "Store.setSubmapReset(root.editing" in dialog
     assert "KeyNames.isModifierOnly(reset.text)" in dialog
+
+
+def test_the_panel_rereads_when_hyprland_reloads_its_config():
+    store = qml("state", "Store.qml")
+    raw = store.split("function onRawEvent(event)", 1)[1].split("property Timer findTimeout", 1)[0]
+    assert '"configreloaded"' in raw and "!root.busy" in raw and "root.configReload.restart()" in raw
+    timer = store.split("property Timer configReload", 1)[1].split("}", 1)[0]
+    assert "root.reload()" in timer

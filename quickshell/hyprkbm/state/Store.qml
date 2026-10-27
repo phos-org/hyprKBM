@@ -743,6 +743,12 @@ QtObject {
     property Connections hyprland: Connections {
         target: Hyprland
         function onRawEvent(event) {
+            // Hyprland reloads when hyprland.lua is saved, so the panel follows
+            // it. adopt() keeps staged edits; an apply re-reads by itself.
+            if (event.name === "configreloaded" && !root.busy) {
+                root.configReload.restart()
+                return
+            }
             if (root.finding && event.name === "submap" && event.data !== Capture.SUBMAP) {
                 root.finding = false
                 // Guarded Lua: harmless when Hyprland really left, and it ends
@@ -750,6 +756,13 @@ QtObject {
                 root.leaveNow()
             }
         }
+    }
+
+    // One read for a burst of reloads (an editor saving twice, the watcher's
+    // own eval following Hyprland's).
+    property Timer configReload: Timer {
+        interval: 300
+        onTriggered: root.reload()
     }
 
     // Backstop for a leave event that never arrives.

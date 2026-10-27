@@ -165,6 +165,8 @@ again focuses the open panel instead of opening a second one.
   `~/.config/hyprkbm/theme.json`. **⋯** switches between ANSI and ISO
   keyboards, offers a key for the cheatsheet, names the config file being
   read, and shows the watcher's state with a button to start it.
+- **Follows `hyprland.lua`.** Hyprland reloads when you save it, and the
+  open panel re-reads it then, keeping any staged edits.
 
 ### Keys
 
