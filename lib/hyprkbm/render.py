@@ -66,9 +66,13 @@ def render(model, hand, catalogue):
     submaps = model.get("submaps", [])
     if submaps:
         lines.append("-- Submaps")
+        # The way out is a bind inside the submap: define_submap's string
+        # argument is where to go after any bind fires, not a key, and without
+        # this the submap would trap the keyboard.
         for s in submaps:
-            lines.append("hl.define_submap(%s, %s, function() end)"
-                         % (string(s["name"]), string(s["reset"])))
+            lines.append("hl.define_submap(%s, function()" % string(s["name"]))
+            lines.append(INDENT + bind_line(s["reset"], {"dsp": "submap", "args": ["reset"]}, None))
+            lines.append("end)")
         lines.append("")
 
     for combo in sorted(merged.touched):

@@ -128,6 +128,8 @@ def test_valid_models_pass(paths):
     ({"binds": [bind("b1", "SUPER + B", replaces={"keys": "SUPER + B"})]}, "replaces needs"),
     ({"unbinds": [{"keys": "SUPER + P"}]}, "unbinds[0] needs"),
     ({"submaps": [{"name": "x"}]}, "needs a reset key"),
+    ({"submaps": [{"name": "x", "reset": "FOO + e"}]}, "'FOO' is not a modifier"),
+    ({"submaps": [{"name": "x", "reset": "SUPER + "}]}, "needs a key that is not a modifier"),
     ({"submaps": [{"name": "x", "reset": "escape"}, {"name": "x", "reset": "escape"}]},
      "defined twice"),
 ])

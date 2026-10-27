@@ -224,6 +224,57 @@ function addSubmap(model, name, reset) {
     return m
 }
 
+function entersSubmap(b, name) {
+    return b.action && b.action.kind === "submap" && b.action.args && b.action.args.name === name
+}
+
+// Only a submap that exists through hyprKBM alone: one hyprland.lua defines,
+// or has binds in, is not hyprKBM's to take away.
+function removableSubmap(hand, handSubmaps, model, name) {
+    if (name === "" || !normalise(model).submaps.some(function (s) { return s.name === name })) return false
+    if ((handSubmaps || []).some(function (s) { return s.name === name })) return false
+    return !hand.some(function (h) { return h.submap === name })
+}
+
+// What removing a submap takes with it.
+function submapUse(model, name) {
+    var m = normalise(model)
+    return {
+        inside: m.binds.filter(function (b) { return b.submap === name }).length,
+        entering: m.binds.filter(function (b) { return entersSubmap(b, name) }).length
+    }
+}
+
+// The key that leaves a submap hyprKBM defines, or null for one it does not.
+function submapReset(model, name) {
+    var s = normalise(model).submaps.filter(function (s) { return s.name === name })[0]
+    return s === undefined ? null : s.reset
+}
+
+function setSubmapReset(model, name, reset) {
+    var m = normalise(model)
+    m.submaps = m.submaps.map(function (s) { return s.name === name ? { name: name, reset: reset } : s })
+    return m
+}
+
+// A bind already on the leave key in that submap: one of the two would win,
+// and if it is the bind, the submap has no way out.
+function resetClash(binds, name, reset) {
+    var id = Keys.idOf(reset)
+    if (id === null) return null
+    var hit = binds.filter(function (b) { return b.submap === name && b.combo === id })[0]
+    return hit === undefined ? null : hit
+}
+
+// A bind left entering a submap that is gone would trap you in an empty map,
+// so those go too.
+function removeSubmap(model, name) {
+    var m = normalise(model)
+    m.submaps = m.submaps.filter(function (s) { return s.name !== name })
+    m.binds = m.binds.filter(function (b) { return b.submap !== name && !entersSubmap(b, name) })
+    return m
+}
+
 function submapNames(hand, handSubmaps, model) {
     var seen = {}
     var m = normalise(model)

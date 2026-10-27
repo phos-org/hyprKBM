@@ -17,6 +17,7 @@ RowLayout {
     signal backupsRequested()
     signal exportRequested()
     signal submapRequested()
+    signal removeSubmapRequested(string name)
     signal settingsRequested()
     // The window moves focus off any text field before find starts, so its
     // keys reach the find handler.
@@ -38,28 +39,61 @@ RowLayout {
         font.weight: Typography.weightMedium
     }
 
+    // A chip picks its submap; one hyprKBM alone defines also has a × that
+    // removes it. Global is always the first chip.
     Repeater {
         model: Store.submaps
         delegate: Rectangle {
             id: chip
             required property string modelData
             readonly property bool picked: Store.submap === modelData
-            implicitWidth: chipText.implicitWidth + Spacing.lg
+            readonly property bool removable: Store.removableSubmap(modelData)
+            implicitWidth: chipRow.implicitWidth + Spacing.lg
             implicitHeight: 24
             radius: height / 2
             color: picked ? Colors.accentPrimary : Colors.bgSurfaceAlt
-            Text {
-                id: chipText
-                anchors.centerIn: parent
-                text: (chip.modelData === "" ? "global" : chip.modelData) + " · " + root.countIn(chip.modelData)
-                color: chip.picked ? Colors.bgVoid : Colors.textSecondary
-                font.family: Typography.family
-                font.pixelSize: Typography.sizeSmall
-            }
+            border.width: pick.containsMouse && !picked ? 1 : 0
+            border.color: Colors.accentPrimary
+
+            // Under the row, so the × keeps its own clicks.
             MouseArea {
+                id: pick
                 anchors.fill: parent
+                hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: Store.submap = chip.modelData
+            }
+
+            Row {
+                id: chipRow
+                anchors.centerIn: parent
+                spacing: Spacing.xs
+
+                Text {
+                    text: (chip.modelData === "" ? "global" : chip.modelData) + " · " + root.countIn(chip.modelData)
+                    color: chip.picked ? Colors.bgVoid : Colors.textSecondary
+                    font.family: Typography.family
+                    font.pixelSize: Typography.sizeSmall
+                }
+
+                Text {
+                    visible: chip.removable
+                    text: "×"
+                    color: remove.containsMouse ? Colors.statusCritical
+                         : chip.picked ? Colors.bgVoid : Colors.textSecondary
+                    font.family: Typography.family
+                    font.pixelSize: Typography.sizeSmall
+                    font.weight: Typography.weightMedium
+
+                    MouseArea {
+                        id: remove
+                        anchors.fill: parent
+                        anchors.margins: -Spacing.xs
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.removeSubmapRequested(chip.modelData)
+                    }
+                }
             }
         }
     }

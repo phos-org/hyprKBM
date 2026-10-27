@@ -215,6 +215,12 @@ ShellRoot {
                     event.accepted = true
                     return
                 }
+                // [ and ] step through the submap chips, wrapping round to global.
+                if ((event.key === Qt.Key_BracketLeft || event.key === Qt.Key_BracketRight) && m === Qt.NoModifier) {
+                    Store.cycleSubmap(event.key === Qt.Key_BracketLeft ? -1 : 1)
+                    event.accepted = true
+                    return
+                }
                 if (event.key === Qt.Key_D && m === Qt.ControlModifier) {
                     if (Store.dirty) diffDialog.open()
                     event.accepted = true
@@ -294,7 +300,8 @@ ShellRoot {
                     onLeaveSearch: scope.takeKeys()
                     onBackupsRequested: backupsDialog.open()
                     onExportRequested: exportDialog.open()
-                    onSubmapRequested: submapDialog.open()
+                    onSubmapRequested: submapDialog.create()
+                    onRemoveSubmapRequested: function (name) { removeSubmapDialog.ask(name) }
                     onSettingsRequested: settingsPopup.open()
                     onFindRequested: {
                         scope.takeKeys()
@@ -332,6 +339,36 @@ ShellRoot {
                         spacing: Spacing.sm
 
                         ModifierBar { Layout.fillWidth: true }
+
+                        // How to leave the submap on show: the bind that does it
+                        // is written from the submap, so it is not in the list.
+                        RowLayout {
+                            id: leaveRow
+                            readonly property var leave: Store.submapReset(Store.submap)
+                            visible: leave !== null
+                            Layout.fillWidth: true
+                            spacing: Spacing.sm
+
+                            Text {
+                                text: "Leave " + Store.submap + " with"
+                                color: Colors.textSecondary
+                                font.family: Typography.family
+                                font.pixelSize: Typography.sizeSmall
+                            }
+                            Text {
+                                text: leaveRow.leave || ""
+                                color: Colors.accentPrimary
+                                font.family: Typography.family
+                                font.pixelSize: Typography.sizeSmall
+                                font.weight: Typography.weightMedium
+                            }
+                            Action {
+                                text: "Change"
+                                enabled: !Store.readOnly
+                                onClicked: submapDialog.edit(Store.submap)
+                            }
+                            Item { Layout.fillWidth: true }
+                        }
 
                         RowLayout {
                             id: keyRow
@@ -393,5 +430,6 @@ ShellRoot {
         ExportDialog { id: exportDialog }
         SettingsPopup { id: settingsPopup }
         SubmapDialog { id: submapDialog }
+        RemoveSubmapDialog { id: removeSubmapDialog }
     }
 }

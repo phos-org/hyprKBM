@@ -7,7 +7,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 
 from .catalogue import action_errors, to_dispatcher
-from .keys import KeyParseError, parse
+from .keys import MODIFIERS, KeyParseError, parse
 from .reader import reproducible
 
 VERSION = 1
@@ -172,6 +172,13 @@ def structure_errors(model, hand, catalogue):
                 "without defining it again" % name)
         if not isinstance(s.get("reset"), str) or not s["reset"]:
             err("submap %r needs a reset key" % name)
+        else:
+            # Written as a bind inside the submap: a bad one leaves no way out.
+            try:
+                if parse(s["reset"]).key.upper() in MODIFIERS:
+                    err("submap %r needs a key that is not a modifier to leave it" % name)
+            except KeyParseError as exc:
+                err("submap %r: %s" % (name, exc))
         own_submaps.add(name)
     known_submaps = own_submaps | hand.submap_names | {""}
 

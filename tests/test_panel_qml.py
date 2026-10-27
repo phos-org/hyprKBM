@@ -556,7 +556,7 @@ def test_the_editor_area_takes_no_list_or_key_shortcuts():
     h = _keys_handler()
     ret = h.index('if (Store.area === "editor") return')
     assert h.index("Qt.Key_Tab") < ret
-    for needle in ("Qt.Key_E &&", "Qt.Key_A &&", "Qt.Key_D &&", "Qt.Key_Z &&", "Qt.Key_Delete",
+    for needle in ("Qt.Key_E &&", "Qt.Key_A &&", "Qt.Key_D &&", "Qt.Key_Z &&", "Qt.Key_Delete", "Qt.Key_BracketLeft",
                    "Store.listIndex", "Store.moveSelection"):
         assert h.index(needle) > ret, needle
 
@@ -971,3 +971,24 @@ def test_the_menu_offers_a_cheatsheet_key():
     popup = qml("components", "SettingsPopup.qml")
     assert "Store.cheatsheetKeys" in popup and "Store.newCheatsheetBind()" in popup
     assert "root.close()" in popup.split("Store.newCheatsheetBind()", 1)[1][:80]
+
+
+def test_submaps_are_removed_only_through_the_confirm_dialog():
+    header = qml("components", "Header.qml")
+    assert "visible: chip.removable" in header
+    assert "root.removeSubmapRequested(chip.modelData)" in header
+    assert "Store.removeSubmap" not in header
+    assert "removeSubmapDialog.ask(name)" in qml("shell.qml")
+    dialog = qml("components", "RemoveSubmapDialog.qml")
+    assert "Store.removableSubmap(root.name)" in dialog
+    assert "Store.removeSubmap(root.name)" in dialog
+
+
+def test_the_leave_key_is_shown_and_changed_through_the_submap_dialog():
+    shell = qml("shell.qml")
+    assert "Store.submapReset(Store.submap)" in shell
+    assert "submapDialog.edit(Store.submap)" in shell
+    assert "submapDialog.create()" in shell
+    dialog = qml("components", "SubmapDialog.qml")
+    assert "Store.setSubmapReset(root.editing" in dialog
+    assert "KeyNames.isModifierOnly(reset.text)" in dialog
