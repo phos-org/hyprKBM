@@ -433,19 +433,37 @@ QtObject {
         model = Model.updateBind(model, b.id, { allowConflict: true })
     }
 
-    // Drops an edit whose hyprland.lua bind has gone, so it stops lingering
-    // unseen in keybinds.json.
-    function forget(entry) {
-        if (model === null || readOnly || stagingBlocked()) return
-        // With hyprland.lua only partly read, a valid edit looks stale; keeping
-        // the forgetting would survive the reload and lose it for good.
+    // A stale edit is one whose hyprland.lua bind has changed or gone. Drop
+    // lets hyprland.lua win; Keep moves the edit onto what is there now.
+    function staleBlocked() {
+        if (model === null || readOnly || stagingBlocked()) return true
+        // With hyprland.lua only partly read, a valid edit looks stale; acting
+        // on it would survive the reload and lose it for good.
         if (doc && doc.readerError) {
             report("hyprland.lua was not read completely, so stale edits cannot be trusted. Fix it and reload first.", true)
-            return
+            return true
         }
-        model = entry.kind === "unbind" ? Model.forgetUnbind(model, entry.target)
-                                        : Model.forgetReplaces(model, entry.id)
-        report("Forgotten. Apply to save it.", false)
+        return false
+    }
+
+    function dropStale(entry) {
+        if (staleBlocked()) return
+        if (draft !== null && entry.id !== null && draft.id === entry.id) draft = null
+        model = Model.dropStale(model, entry)
+        report("Edit dropped; hyprland.lua's bind on " + entry.keys + " stays. Apply to save it.", false)
+    }
+
+    function keepStale(entry) {
+        if (staleBlocked()) return
+        if (entry.successor !== null) {
+            var blocker = Model.overrideBlocker(hand, entry.successor)
+            if (blocker !== null) {
+                report("Keeping this would re-create the bind at " + blocker + ", which runs a Lua function; change it in hyprland.lua.", true)
+                return
+            }
+        }
+        model = Model.keepStale(model, entry)
+        report("Edit kept. Apply to save it.", false)
     }
 
     function addSubmap(name, reset) {

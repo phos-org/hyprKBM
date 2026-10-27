@@ -102,8 +102,7 @@ function merge(hand, model, catalogue) {
     model.unbinds.forEach(function (u) {
         var hits = supersede(u)
         if (hits.length === 0)
-            stale.push({ kind: "unbind", id: null, keys: u.keys, target: u,
-                         message: "The bind on " + u.keys + " this removes is no longer in hyprland.lua; the unbind does nothing." })
+            stale.push({ kind: "unbind", id: null, keys: u.keys, target: u })
         hits.forEach(function (i) { removed.push({ uid: hand[i].uid, hand: hand[i] }) })
     })
 
@@ -112,16 +111,38 @@ function merge(hand, model, catalogue) {
         if (b.replaces) {
             var hits = supersede(b.replaces)
             if (hits.length > 0) replaced = hand[hits[0]]
-            else stale.push({ kind: "bind", id: b.id, keys: b.keys,
-                              message: "The hyprland.lua bind this replaced is gone; it is now an ordinary bind." })
+            else stale.push({ kind: "bind", id: b.id, keys: b.keys, target: b.replaces })
         }
         return ownBind(b, catalogue, replaced)
     })
+
+    // What hyprland.lua has on those keys now, if nothing else claims it:
+    // usually the same bind, changed, and the one "Keep mine" moves onto.
+    stale.forEach(function (e) {
+        var i = successorOf(hand, superseded, e.target)
+        e.successor = i < 0 ? null : hand[i]
+        if (i >= 0) superseded[i] = true
+        e.message = e.kind === "unbind"
+            ? (e.successor ? "hyprland.lua changed the bind on " + e.keys + " this removes."
+                           : "The bind on " + e.keys + " this removes is no longer in hyprland.lua; the unbind does nothing.")
+            : (e.successor ? "hyprland.lua changed the bind on " + e.keys + " this replaced."
+                           : "The hyprland.lua bind this replaced is gone; it is now an ordinary bind.")
+    })
+    // Claimed only to keep two stale edits off one bind; it is still bound.
+    stale.forEach(function (e) { if (e.successor) delete superseded[hand.indexOf(e.successor)] })
 
     var binds = []
     hand.forEach(function (h, i) { if (!superseded[i]) binds.push(handBind(h)) })
     binds = binds.concat(own)
     return { binds: binds, removed: removed, stale: stale, conflicts: conflicts(binds) }
+}
+
+function successorOf(hand, taken, target) {
+    var id = Keys.idOf(target.keys)
+    for (var i = 0; i < hand.length; i++)
+        if (!taken[i] && hand[i].combo !== null && hand[i].combo === id && hand[i].submap === (target.submap || ""))
+            return i
+    return -1
 }
 
 function newId(model) {
@@ -203,6 +224,24 @@ function forgetReplaces(model, id) {
         delete next.replaces
         return next
     })
+    return m
+}
+
+// A stale edit, let go: hyprland.lua's bind on those keys wins.
+function dropStale(model, entry) {
+    return entry.kind === "unbind" ? forgetUnbind(model, entry.target) : removeBind(model, entry.id)
+}
+
+// A stale edit, kept: it moves onto the bind hyprland.lua has on those keys
+// now. With none there, an unbind has nothing to do and an override goes on
+// as an ordinary bind.
+function keepStale(model, entry) {
+    if (entry.successor === null)
+        return entry.kind === "unbind" ? forgetUnbind(model, entry.target) : forgetReplaces(model, entry.id)
+    var to = targetOf(entry.successor)
+    if (entry.kind === "bind") return updateBind(model, entry.id, { replaces: to })
+    var m = forgetUnbind(model, entry.target)
+    m.unbinds.push(to)
     return m
 }
 

@@ -138,8 +138,10 @@ again focuses the open panel instead of opening a second one.
   only your `hyprland.lua` binds are *overlaps*: they never block, and the
   panel says so. The header counts conflicts, or overlaps when none block.
 - **Stale edits.** An unbind or override whose `hyprland.lua` bind has
-  disappeared is listed under *Stale* in the bind list, with a **Forget**
-  button that removes the unbind or turns the override into an ordinary bind.
+  changed or disappeared is listed under *Stale* in the bind list.
+  **Drop my edit** deletes it, so `hyprland.lua` wins. **Keep mine** moves
+  it onto the bind `hyprland.lua` now has on those keys; with none left, an
+  override stays as an ordinary bind.
 - **Edit, Remove, + Add.** Editing one of your `hyprland.lua` binds makes an
   override; removing one makes an unbind. In the editor, **⏺ Record** takes
   the next key combination (Esc stops recording; Shift+digit records as the
@@ -281,8 +283,10 @@ SUPER + 1		hyprland.lua:156	focus:[{"workspace":1}]
 ```
 
 Line numbers are only for you; edits elsewhere in `hyprland.lua` never
-break an override. If the bind it names disappears, `hyprkbm --status`
-lists the override as **stale**; it is then applied as an ordinary bind.
+break an override. If the bind it names changes or disappears,
+`hyprkbm --status` lists the override as **stale**; it is then applied as an
+ordinary bind, which conflicts with any new bind on those keys until you
+drop or keep it in the panel.
 
 ## How it works
 

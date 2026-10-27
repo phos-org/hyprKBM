@@ -190,6 +190,37 @@ test("forgetReplaces makes an override an ordinary bind", () => {
   assert.ok(m.binds[0].replaces)
 })
 
+test("a stale edit names the hyprland.lua bind now on its keys", () => {
+  const model = M.normalise({ version: 1,
+    binds: [{ id: "b1", keys: "SUPER + F", action: FILES, replaces: { keys: "SUPER + F", submap: "", fingerprint: "old" } },
+            { id: "b2", keys: "SUPER + X", action: FILES, replaces: { keys: "SUPER + X", submap: "", fingerprint: "old" } }],
+    unbinds: [{ keys: "SUPER + P", submap: "", fingerprint: "old" }] })
+  const m = plain(M.merge(HAND, model, CAT))
+  assert.deepEqual(m.stale.map(s => [s.keys, s.successor && s.successor.uid]),
+                   [["SUPER + P", "h:1"], ["SUPER + F", "h:0"], ["SUPER + X", null]])
+  assert.match(m.stale[1].message, /changed/)
+  assert.match(m.stale[2].message, /gone/)
+})
+
+test("dropping a stale edit deletes it; keeping it points it at the new bind", () => {
+  const model = M.normalise({ version: 1,
+    binds: [{ id: "b1", keys: "SUPER + F", action: FILES, replaces: { keys: "SUPER + F", submap: "", fingerprint: "old" } },
+            { id: "b2", keys: "SUPER + X", action: FILES, replaces: { keys: "SUPER + X", submap: "", fingerprint: "old" } }],
+    unbinds: [{ keys: "SUPER + P", submap: "", fingerprint: "old" }] })
+  const [unbind, changed, gone] = plain(M.merge(HAND, model, CAT)).stale
+
+  assert.deepEqual(plain(M.dropStale(model, changed)).binds.map(b => b.id), ["b2"])
+  assert.deepEqual(plain(M.dropStale(model, unbind)).unbinds, [])
+
+  const kept = M.keepStale(model, changed)
+  assert.deepEqual(plain(kept.binds[0].replaces), { keys: "SUPER + F", submap: "", fingerprint: 'exec_cmd:["dolphin"]' })
+  assert.equal(plain(M.merge(HAND, kept, CAT)).stale.length, 2)
+  // With nothing left on its keys it stays as an ordinary bind.
+  assert.equal("replaces" in plain(M.keepStale(model, gone)).binds[1], false)
+  assert.deepEqual(plain(M.keepStale(model, unbind)).unbinds, [{ keys: "SUPER + P", submap: "", fingerprint: 'window.pseudo:[]' }])
+  assert.equal(model.binds[0].replaces.fingerprint, "old")
+})
+
 test("a stale unbind carries its target so it can be forgotten", () => {
   const m = { version: 1, submaps: [], binds: [], unbinds: [{ keys: "SUPER + Z", submap: "", fingerprint: "gone" }] }
   const r = M.merge([], m, CAT)
