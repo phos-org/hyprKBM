@@ -120,7 +120,10 @@ again focuses the open panel instead of opening a second one.
   modifiers. To let a bound combination through, your binds pause for that
   one press. They come back as soon as the panel has it, on Esc, when the
   panel loses focus, after 10 seconds at most, or with SUPER+Escape.
-- **Submaps** are the chips in the header; **search** (`/`) narrows to binds
+- **Submaps** are the chips in the header: click one, or step through them
+  with `[` and `]`; **global** is always the first. **+ submap** adds one,
+  and the **×** on a submap hyprKBM made removes it, with its binds and the
+  binds that enter it. **Search** (`/`) narrows to binds
   matching plain words or the tags `mod:`, `key:`, `exec:`, `desc:`,
   `submap:` and `src:` (`src:lua` is your `hyprland.lua`). Words also match
   the action's name, so `exec` finds every bind that runs a command. A tag
@@ -172,6 +175,7 @@ outline. Clicking a button does not take the keys away from them.
 | Enter | edit the bind under the cursor, or switch to an *Also bound as* row; on the keyboard, edit the key's first bind or add one |
 | E | edit the bind under the cursor, or the selected key's first bind |
 | A | add a bind on the selected key |
+| [ / ] | previous / next submap |
 | Delete | remove the bind under the cursor (list) |
 | F | find a bind by pressing it |
 | / | search |

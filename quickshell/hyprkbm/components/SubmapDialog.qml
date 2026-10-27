@@ -24,6 +24,25 @@ QC.Popup {
         : KeyNames.parse(reset.text) === null ? "The reset key must be a key, like escape."
         : ""
 
+    // Without its own background a TextField draws the style's white box,
+    // under the theme's light text.
+    component Input: QC.TextField {
+        id: input
+        width: parent ? parent.width : implicitWidth
+        color: Colors.textPrimary
+        placeholderTextColor: Colors.textSecondary
+        selectionColor: Colors.accentPrimary
+        selectedTextColor: Colors.bgVoid
+        font.family: Typography.family
+        font.pixelSize: Typography.sizeBody
+        background: Rectangle {
+            color: Colors.bgBase
+            radius: Radius.sm
+            border.width: input.activeFocus ? 2 : 1
+            border.color: input.activeFocus ? Colors.accentPrimary : Colors.borderSubtle
+        }
+    }
+
     onOpened: { name.text = ""; reset.text = "escape"; name.forceActiveFocus() }
 
     background: Rectangle {
@@ -38,24 +57,12 @@ QC.Popup {
 
         Field {
             label: "Name"
-            QC.TextField {
-                id: name
-                width: parent.width
-                color: Colors.textPrimary
-                font.family: Typography.family
-                font.pixelSize: Typography.sizeBody
-            }
+            Input { id: name }
         }
 
         Field {
             label: "Key that leaves it"
-            QC.TextField {
-                id: reset
-                width: parent.width
-                color: Colors.textPrimary
-                font.family: Typography.family
-                font.pixelSize: Typography.sizeBody
-            }
+            Input { id: reset }
         }
 
         Text {

@@ -224,6 +224,36 @@ function addSubmap(model, name, reset) {
     return m
 }
 
+function entersSubmap(b, name) {
+    return b.action && b.action.kind === "submap" && b.action.args && b.action.args.name === name
+}
+
+// Only a submap that exists through hyprKBM alone: one hyprland.lua defines,
+// or has binds in, is not hyprKBM's to take away.
+function removableSubmap(hand, handSubmaps, model, name) {
+    if (name === "" || !normalise(model).submaps.some(function (s) { return s.name === name })) return false
+    if ((handSubmaps || []).some(function (s) { return s.name === name })) return false
+    return !hand.some(function (h) { return h.submap === name })
+}
+
+// What removing a submap takes with it.
+function submapUse(model, name) {
+    var m = normalise(model)
+    return {
+        inside: m.binds.filter(function (b) { return b.submap === name }).length,
+        entering: m.binds.filter(function (b) { return entersSubmap(b, name) }).length
+    }
+}
+
+// A bind left entering a submap that is gone would trap you in an empty map,
+// so those go too.
+function removeSubmap(model, name) {
+    var m = normalise(model)
+    m.submaps = m.submaps.filter(function (s) { return s.name !== name })
+    m.binds = m.binds.filter(function (b) { return b.submap !== name && !entersSubmap(b, name) })
+    return m
+}
+
 function submapNames(hand, handSubmaps, model) {
     var seen = {}
     var m = normalise(model)

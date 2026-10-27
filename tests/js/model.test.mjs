@@ -87,6 +87,30 @@ test("submaps", () => {
   assert.deepEqual(plain(M.submapNames(HAND, [{ name: "resize", reset: "escape" }], model)), ["", "move", "resize"])
 })
 
+test("removing a submap takes its binds and the binds that enter it", () => {
+  let model = M.addSubmap(M.emptyModel(), "move", "escape")
+  model = M.addSubmap(model, "other", "escape")
+  model = M.addBind(model, { keys: "l", submap: "move", action: FILES })
+  model = M.addBind(model, { keys: "SUPER + M", action: { kind: "submap", args: { name: "move" } } })
+  model = M.addBind(model, { keys: "SUPER + O", action: { kind: "submap", args: { name: "other" } } })
+  model = M.addBind(model, { keys: "SUPER + B", action: FILES })
+  assert.deepEqual(plain(M.submapUse(model, "move")), { inside: 1, entering: 1 })
+  const after = M.removeSubmap(model, "move")
+  assert.deepEqual(plain(after.submaps), [{ name: "other", reset: "escape" }])
+  assert.deepEqual(plain(after.binds.map(b => b.keys)), ["SUPER + O", "SUPER + B"])
+  assert.equal(model.submaps.length, 2)
+})
+
+test("only a submap hyprKBM alone defines can be removed", () => {
+  const model = M.addBind(M.addSubmap(M.emptyModel(), "move", "escape"), { keys: "l", submap: "move", action: FILES })
+  assert.equal(M.removableSubmap(HAND, [], model, "move"), true)
+  assert.equal(M.removableSubmap(HAND, [], model, ""), false)
+  assert.equal(M.removableSubmap(HAND, [], model, "nope"), false)
+  // hyprland.lua defines it, or has binds in it.
+  assert.equal(M.removableSubmap(HAND, [{ name: "move", reset: "escape" }], model, "move"), false)
+  assert.equal(M.removableSubmap(HAND, [], M.addSubmap(model, "resize", "escape"), "resize"), false)
+})
+
 test("an override is blocked by a Lua function on the same keys", () => {
   const fn = hand(3, "SUPER + F", "SUPER+f", "x", [], { submap: "x", reproducible: false, dispatcher: { __function: "h.lua:9" }, where: "hyprland.lua:9" })
   assert.equal(M.overrideBlocker(HAND.concat([fn]), HAND[0]), "hyprland.lua:9")

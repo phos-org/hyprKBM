@@ -454,6 +454,32 @@ QtObject {
         submap = name
     }
 
+    function removableSubmap(name) {
+        return model !== null && !readOnly
+            && Model.removableSubmap(hand, doc ? doc.handSubmaps : [], model, name)
+    }
+
+    function submapUse(name) {
+        return Model.submapUse(model || Model.emptyModel(), name)
+    }
+
+    function removeSubmap(name) {
+        if (!removableSubmap(name) || stagingBlocked()) return
+        // A bind open in the editor that goes with it would save it back.
+        if (draft !== null && (draft.submap === name
+                || (draft.action && draft.action.kind === "submap" && draft.action.args && draft.action.args.name === name)))
+            draft = null
+        model = Model.removeSubmap(model, name)
+        keepSubmapValid()
+        report("Submap " + name + " removed. Apply to save it.", false)
+    }
+
+    // The header's chips in order, wrapping at either end.
+    function cycleSubmap(step) {
+        var i = submaps.indexOf(submap)
+        submap = submaps[(i + step + submaps.length) % submaps.length]
+    }
+
     function discard() {
         model = Model.clone(saved)
         keepSubmapValid()

@@ -215,6 +215,12 @@ ShellRoot {
                     event.accepted = true
                     return
                 }
+                // [ and ] step through the submap chips, wrapping round to global.
+                if ((event.key === Qt.Key_BracketLeft || event.key === Qt.Key_BracketRight) && m === Qt.NoModifier) {
+                    Store.cycleSubmap(event.key === Qt.Key_BracketLeft ? -1 : 1)
+                    event.accepted = true
+                    return
+                }
                 if (event.key === Qt.Key_D && m === Qt.ControlModifier) {
                     if (Store.dirty) diffDialog.open()
                     event.accepted = true
@@ -295,6 +301,7 @@ ShellRoot {
                     onBackupsRequested: backupsDialog.open()
                     onExportRequested: exportDialog.open()
                     onSubmapRequested: submapDialog.open()
+                    onRemoveSubmapRequested: function (name) { removeSubmapDialog.ask(name) }
                     onSettingsRequested: settingsPopup.open()
                     onFindRequested: {
                         scope.takeKeys()
@@ -393,5 +400,6 @@ ShellRoot {
         ExportDialog { id: exportDialog }
         SettingsPopup { id: settingsPopup }
         SubmapDialog { id: submapDialog }
+        RemoveSubmapDialog { id: removeSubmapDialog }
     }
 }
