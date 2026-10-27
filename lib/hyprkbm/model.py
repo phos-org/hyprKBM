@@ -205,8 +205,17 @@ def structure_errors(model, hand, catalogue):
             err("%s: submap must be text" % label, bid)
         elif submap not in known_submaps:
             err("%s: no submap called %r" % (label, submap), bid)
-        for problem in action_errors(b.get("action"), catalogue):
+        problems = action_errors(b.get("action"), catalogue)
+        for problem in problems:
             err("%s: %s" % (label, problem), bid)
+        # Hyprland switches to a submap it has never heard of, and with no
+        # binds in it, nothing gets the keyboard back out.
+        action = b.get("action")
+        if not problems and action.get("kind") == "submap":
+            target = action["args"]["name"]
+            if target != "reset" and target not in known_submaps:
+                err("%s: enters the submap %r, which does not exist, so its keys would do nothing"
+                    % (label, target), bid)
         if not isinstance(b.get("description", ""), str):
             err("%s: description must be text" % label, bid)
         flags = b.get("flags", {})

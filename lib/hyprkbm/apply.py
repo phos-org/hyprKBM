@@ -15,6 +15,7 @@ import subprocess
 import tempfile
 from contextlib import contextmanager
 from datetime import datetime
+from pathlib import Path
 
 from . import marker
 from .catalogue import load_catalogue
@@ -94,6 +95,9 @@ def write_files(files):
     staged = []
     try:
         for path, text in files:
+            # Through a symlink to the file it names: renaming over the link
+            # would cut it, and a dotfile manager's copy would stop updating.
+            path = Path(os.path.realpath(path))
             staged.append((_stage(path, text), path))
         while staged:
             tmp, path = staged[0]
