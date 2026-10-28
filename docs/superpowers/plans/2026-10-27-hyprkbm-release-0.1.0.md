@@ -1118,7 +1118,7 @@ SIZE (hyprkbm-0.1.0.tar.gz) = 0
 ```
 hyprKBM shows every keybind from hyprland.lua and its own on a keyboard,
 and adds, overrides or removes binds without editing hyprland.lua. The
-panel needs Quickshell (x11-toolkits/quickshell); the command line works
+panel needs Quickshell (x11/quickshell); the command line works
 without it.
 ```
 
