@@ -27,7 +27,7 @@ VERSION := $(shell sed -n 's/^__version__ = "\(.*\)"$$/\1/p' lib/hyprkbm/__init_
 # untracked slips in; the unpacked release tarball has no .git, and only
 # tracked files to begin with. find also covers a clone git cannot read (git
 # missing, or "dubious ownership" when root builds a user's clone).
-TREE = $(shell ( (test -d .git && git ls-files lib share/actions.json quickshell 2>/dev/null | grep .) \
+TREE = $(shell ( (test -e .git && git ls-files lib share/actions.json quickshell 2>/dev/null | grep .) \
 	|| find lib share/actions.json quickshell -type f ! -path '*/__pycache__/*' ! -name '*.pyc' 2>/dev/null ) | sort)
 
 .PHONY: all install uninstall dist

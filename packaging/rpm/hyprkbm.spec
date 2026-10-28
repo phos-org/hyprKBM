@@ -29,8 +29,8 @@ user service.
 %install
 %make_install PREFIX=%{_prefix}
 
-# openSUSE's %systemd_user_post only applies the preset to units that
-# %systemd_user_pre marked, so without it the watcher is never enabled.
+# openSUSE's %%systemd_user_post only applies the preset to units that
+# %%systemd_user_pre marked, so without it the watcher is never enabled.
 %pre
 %if %{defined systemd_user_pre}
 %systemd_user_pre hyprkbm-watch.service

@@ -21,7 +21,8 @@ First development release.
   handling, backups with restore and delete, themes, ANSI and ISO layouts.
 - The cheatsheet overlay (`hyprkbm --cheatsheet`), and a Markdown export.
 - Packages built and published on the release: Arch (AUR), Debian/Ubuntu,
-  RPM (openSUSE, Mageia, OpenMandriva), Nix. Recipes only, not yet built:
-  Guix, FreeBSD, Solus, aerynOS. `make install` for anything else.
+  RPM (openSUSE, Mageia, OpenMandriva). A Nix flake, built in CI. Recipes
+  only, not yet built: Guix, FreeBSD, Solus, aerynOS. `make install` for
+  anything else.
 
 [0.1.0]: https://github.com/phos-org/hyprKBM/releases/tag/v0.1.0
