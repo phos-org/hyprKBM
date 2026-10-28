@@ -32,12 +32,21 @@ jobs:
         with: { name: tarball }
       # dpkg-buildpackage writes the .deb one level above the source folder,
       # which is the workspace.
+      # Distro mirrors sometimes refuse a download while they sync, so each
+      # install from the network gets three tries.
       - run: |
-          apt-get update -qq && apt-get install -y -qq build-essential debhelper >/dev/null
+          for i in 1 2 3; do
+            apt-get update -qq && apt-get install -y -qq build-essential debhelper >/dev/null && break
+            [ "$i" = 3 ] && exit 1; sleep 30
+          done
           tar xzf hyprkbm-*.tar.gz && cd hyprkbm-*/
           cp -r packaging/debian debian
           dpkg-buildpackage -us -uc -b
-          apt-get install -y -qq ../hyprkbm_*_all.deb >/dev/null && hyprkbm --version
+          for i in 1 2 3; do
+            apt-get install -y -qq ../hyprkbm_*_all.deb >/dev/null && break
+            [ "$i" = 3 ] && exit 1; sleep 30; apt-get update -qq
+          done
+          hyprkbm --version
       # The watcher must be enabled for every user on install, or binds made
       # in hyprKBM vanish at the next reload.
       - name: The package enables the watcher
@@ -54,7 +63,11 @@ jobs:
     runs-on: ubuntu-24.04
     container: opensuse/tumbleweed
     steps:
-      - run: zypper -q -n in rpm-build make systemd-rpm-macros systemd tar gzip
+      - run: |
+          for i in 1 2 3; do
+            zypper -q -n refresh && zypper -q -n in rpm-build make systemd-rpm-macros systemd tar gzip && break
+            [ "$i" = 3 ] && exit 1; sleep 30
+          done
       - uses: actions/download-artifact@v8
         with: { name: tarball }
       # openSUSE's rpmbuild defaults to /usr/src/packages, so name the topdir
@@ -84,7 +97,11 @@ jobs:
     runs-on: ubuntu-24.04
     container: archlinux:latest
     steps:
-      - run: pacman -Syu --noconfirm --needed base-devel
+      - run: |
+          for i in 1 2 3; do
+            pacman -Syu --noconfirm --needed base-devel && break
+            [ "$i" = 3 ] && exit 1; sleep 30
+          done
       - uses: actions/download-artifact@v8
         with: { name: tarball }
       # makepkg refuses to run as root.
