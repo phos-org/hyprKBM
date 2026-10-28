@@ -38,13 +38,36 @@ The **keyboard panel** shows every bind on an on-screen keyboard, and the
 
 | | |
 |---|---|
-| Hyprland | with Lua configuration (`hyprland.lua`). Developed against 0.56.2. |
-| Lua | a 5.4 or 5.5 interpreter: `lua` on Arch (Hyprland already pulls it in), `lua5.4` on Debian and Ubuntu. |
+| Hyprland | 0.55 or later, with Lua configuration (`hyprland.lua`). Tested on 0.56.2. |
+| Lua | a 5.4 or 5.5 interpreter, found as `lua`, `lua5.5`, `lua5.4`, `lua55` or `lua54`: `lua` on Arch (Hyprland already pulls it in), `lua5.4` on Debian and Ubuntu, `lua54` on FreeBSD. |
 | Python 3 | standard library only. Developed against 3.14; CI runs 3.12. |
-| Quickshell | 0.3 or later, for the panel (the `qs` command). The command line works without it. |
-| systemd | a user session that starts `graphical-session.target` ([uwsm](https://github.com/Vladimir-csp/uwsm) does). See [Without systemd](#without-systemd) otherwise. |
+| Quickshell | optional: 0.3 or later, for the panel and the cheatsheet (the `qs` command). The command line works without it. |
+| systemd | optional: a user session that starts `graphical-session.target` ([uwsm](https://github.com/Vladimir-csp/uwsm) does) runs the watcher as a service. Without it, see [Without systemd](#without-systemd). |
 
 ## Install
+
+| Distro | |
+|---|---|
+| Arch, Manjaro, Artix | `yay -S hyprkbm` (AUR), or the `.pkg.tar.zst` from the [release](https://github.com/phos-org/hyprKBM/releases) |
+| Debian 14 / sid / 13 backports, Ubuntu 26.10, Kali, Devuan | the `.deb` from the release: `sudo apt install ./hyprkbm_*_all.deb` |
+| openSUSE Tumbleweed, Mageia, OpenMandriva | the `.rpm` from the release: `sudo zypper in ./hyprkbm-*.noarch.rpm` (or `dnf`/`urpmi`) |
+| NixOS, Nix | `nix profile install github:phos-org/hyprKBM` |
+| Guix, FreeBSD, Solus, aerynOS | recipes in [`packaging/`](packaging/) |
+| anything else | `make install PREFIX=/usr` from the release tarball (GNU make; add `SYSTEMD=0` without systemd) |
+
+Distros whose Hyprland predates the Lua config (Fedora, Alpine, Ubuntu
+26.04) are not packaged yet.
+
+The watcher keeps your binds applied across reloads and must run. The
+Debian and RPM packages enable it for every user; elsewhere, once:
+
+```bash
+systemctl --user enable --now hyprkbm-watch
+```
+
+### From a clone
+
+For development, or to follow `main`:
 
 ```bash
 git clone https://github.com/phos-org/hyprKBM.git ~/src/hyprKBM
@@ -73,6 +96,7 @@ hyprkbm --status
 ### Without systemd
 
 If `systemctl --user is-active graphical-session.target` says `inactive`,
+or there is no systemd at all (FreeBSD, or `make install SYSTEMD=0`),
 start the watcher from `hyprland.lua` instead:
 
 ```lua
@@ -83,13 +107,19 @@ end)
 
 ### Uninstall
 
+A package comes off with the package manager that put it there
+(`sudo pacman -R hyprkbm`, `sudo apt remove hyprkbm`, `sudo zypper rm
+hyprkbm`, …), and a `make install` with `make uninstall` and the same
+`PREFIX`. Run `systemctl --user disable --now hyprkbm-watch` first where you
+enabled it yourself. A clone install comes off with:
+
 ```bash
 ~/src/hyprKBM/install.sh --uninstall
 ```
 
-This disables the watcher and removes the links. Your `keybinds.json`, the
-generated `keybinds.lua` and the backups are kept; the binds stay active
-until the next Hyprland reload.
+This disables the watcher and removes the links. Either way, your
+`keybinds.json`, the generated `keybinds.lua` and the backups are kept; the
+binds stay active until the next Hyprland reload.
 
 ## The panel
 
@@ -124,10 +154,10 @@ again focuses the open panel instead of opening a second one.
   with `[` and `]`; **global** is always the first. **+ submap** adds one,
   and the **×** on a submap hyprKBM made removes it, with its binds and the
   binds that enter it. In a submap hyprKBM made, the line under the
-  modifiers shows the key that leaves it, and **Change** edits it.
-  **Search** (`/`) narrows to binds
-  matching plain words or the tags `mod:`, `key:`, `exec:`, `desc:`,
-  `submap:` and `src:` (`src:lua` is your `hyprland.lua`). Words also match
+  modifiers shows the key that leaves it, and **Change** edits it (a real
+  key, not a modifier alone).
+- **Search** (`/`) narrows to binds matching plain words or the tags
+  `mod:`, `key:`, `exec:`, `desc:`, `submap:` and `src:` (`src:lua` is your `hyprland.lua`). Words also match
   the action's name, so `exec` finds every bind that runs a command. A tag
   with nothing after the colon means "has one": `exec:` runs a command,
   `desc:` has a description, `mod:` has a modifier.
@@ -224,21 +254,29 @@ hl.bind("SUPER + F1", hl.dsp.exec_cmd("hyprkbm --cheatsheet"))
 ## Using it
 
 ```bash
-hyprkbm                       # open the panel
-hyprkbm --cheatsheet          # show the cheatsheet, or hide it if shown
-hyprkbm --status              # binds, conflicts, stale overrides, the watcher
-hyprkbm --binds               # your hand-written binds, with fingerprints
-hyprkbm --apply               # apply ~/.config/hyprkbm/keybinds.json
-hyprkbm --export md binds.md  # a Markdown cheatsheet (stdout without a file)
-hyprkbm --delete-backup NAME  # delete one backup (names: hyprkbm --state)
+hyprkbm                       # open the keyboard panel
+hyprkbm --cheatsheet          # show the keybind cheatsheet, or hide it if shown
+hyprkbm --export md [FILE]    # write a Markdown cheatsheet (stdout without FILE)
+hyprkbm --apply [FILE]        # apply keybinds.json, or FILE, to Hyprland
+hyprkbm --status              # binds, conflicts, stale edits and the watcher
+hyprkbm --binds               # hand-written binds: keys, submap, where, fingerprint
+hyprkbm --state               # everything the panel shows, as JSON
+hyprkbm --backup NAME         # one backup's keybinds.json and keybinds.lua, as JSON
+hyprkbm --delete-backup NAME  # delete one backup
+hyprkbm --set-layout NAME     # the panel's keyboard layout: ansi or iso
+hyprkbm --version             # print the version
 ```
+
+`hyprkbm --help` prints the same list. Backup names are the folder names
+under `~/.local/state/hyprkbm/backups/`.
 
 ### keybinds.json
 
 hyprKBM's binds, overrides and unbinds live in
 `~/.config/hyprkbm/keybinds.json`. It may be a symlink into your dotfiles;
 hyprKBM writes through the link and leaves it in place. hyprKBM creates it,
-empty, the first time it runs. Edit it, then run
+empty, the first time it runs (a package cannot: it never writes into
+anyone's home). Edit it, then run
 `hyprkbm --apply`:
 
 ```json
@@ -277,7 +315,7 @@ empty, the first time it runs. Edit it, then run
 | `binds[].replaces` | Makes the bind an **override** of one of your hand-written binds. |
 | `binds[].allowConflict` | Optional. `true` keeps a deliberate conflict from blocking the apply. |
 | `unbinds[]` | Removes one of your hand-written binds. |
-| `submaps[]` | New submaps, each with the key that leaves it. Binds can be added to submaps from `hyprland.lua` without defining them again. |
+| `submaps[]` | New submaps, each with the key that leaves it (`reset`). That key must be a real key, not a modifier alone, or nothing would get you out. Binds can be added to submaps from `hyprland.lua` without defining them again. |
 
 **Overrides and unbinds** name the bind in `hyprland.lua` they act on by
 its keys, submap and **fingerprint**: what the bind does, as the dispatcher,
@@ -288,6 +326,10 @@ three for every bind you wrote:
 SUPER + F		hyprland.lua:116	exec_cmd:["dolphin"]
 SUPER + 1		hyprland.lua:156	focus:[{"workspace":1}]
 ```
+
+A bind that enters a submap (the `submap` action) must name one defined
+here or in `hyprland.lua`, or `reset`; apply refuses any other, because
+Hyprland would switch to it and no key in it would do anything.
 
 Line numbers are only for you; edits elsewhere in `hyprland.lua` never
 break an override. If the bind it names changes or disappears,
@@ -333,7 +375,8 @@ drop or keep it in the panel.
 |---|---|
 | `~/.config/hyprkbm/keybinds.json` | hyprKBM's binds. Yours to edit. |
 | `~/.config/hyprkbm/keybinds.lua` | Generated from it. Overwritten on every apply. |
-| `~/.config/hyprkbm/settings.json` | Optional. `{"entry": "~/dots/hypr/main.lua"}` reads a config that is not `~/.config/hypr/hyprland.lua`. |
+| `~/.config/hyprkbm/settings.json` | Optional. `{"entry": "~/dots/hypr/main.lua"}` reads a config that is not `~/.config/hypr/hyprland.lua`; `layout` is the panel's keyboard, `ansi` or `iso`. |
+| `~/.config/hyprkbm/theme.json` | Optional. The panel's theme, written by **Theme**; see [`presets/`](quickshell/hyprkbm/presets/README.md). |
 | `~/.local/state/hyprkbm/backups/` | The last 30 versions of the two files above. |
 
 `$XDG_CONFIG_HOME` and `$XDG_STATE_HOME` are honoured.
@@ -352,13 +395,15 @@ drop or keep it in the panel.
 - **`Hyprland rejected the new keybinds`** or **`refused the new keybinds`.**
   Nothing changed, or the previous binds were put back; the rest of the
   message is Hyprland's own error.
-- **Going back to an earlier version.** Copy `keybinds.json` from a backup
-  over `~/.config/hyprkbm/keybinds.json` and run `hyprkbm --apply`.
+- **Going back to an earlier version.** Restore it from the panel's
+  **Backups**, or copy `keybinds.json` from a backup over
+  `~/.config/hyprkbm/keybinds.json` and run `hyprkbm --apply`.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). The suite runs without a compositor
-and never touches your real config: `python3 -m pytest tests/ -q`.
+See [CONTRIBUTING.md](CONTRIBUTING.md). The suites run without a compositor
+and never touch your real config: `python3 -m pytest tests/ -q` and
+`npm test`. Changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## Licence
 

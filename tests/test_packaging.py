@@ -71,3 +71,8 @@ def test_the_freebsd_plist_is_what_make_install_writes(tmp_path):
                    if p.is_file() or p.is_symlink())
     plist = [l for l in (PKG / "freebsd/pkg-plist").read_text().splitlines() if l and not l.startswith("@")]
     assert plist == files
+
+
+def test_the_changelog_has_this_version():
+    assert re.search(r"^## \[%s\] - \d{4}-\d{2}-\d{2}$" % re.escape(__version__),
+                     (ROOT / "CHANGELOG.md").read_text(), re.M)
