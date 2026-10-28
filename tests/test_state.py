@@ -193,6 +193,19 @@ def test_first_run_never_fails_a_command(paths):
     assert ensure_config(paths) is False
 
 
+@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores the permission")
+def test_first_run_never_fails_on_an_unsearchable_config_folder(paths):
+    # Before Python 3.14, Path.exists() raises PermissionError here, which
+    # would crash-loop hyprkbm-watch under systemd.
+    parent = paths.config_dir.parent
+    parent.mkdir(parents=True, exist_ok=True)
+    parent.chmod(0)
+    try:
+        assert ensure_config(paths) is False
+    finally:
+        parent.chmod(0o755)
+
+
 def test_the_cli_creates_the_config_but_not_for_help(home_env, paths, stubs):
     assert run(home_env, "--help").returncode == 0
     assert not paths.model.exists()

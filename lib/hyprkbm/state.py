@@ -170,9 +170,11 @@ def ensure_config(paths):
     there is a real file to open and edit. A package cannot do this: it never
     writes into anyone's home. Never touches an existing file or a symlink,
     and never stops the command it runs in."""
-    if paths.model.exists() or paths.model.is_symlink():
-        return False
     try:
+        # Inside the try: before Python 3.14, exists() raises PermissionError
+        # when the folder cannot be searched.
+        if paths.model.exists() or paths.model.is_symlink():
+            return False
         paths.config_dir.mkdir(parents=True, exist_ok=True)
         write_atomic(paths.model, json.dumps(EMPTY, indent=2) + "\n")
     except OSError:
