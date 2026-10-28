@@ -10,7 +10,7 @@ depends=('hyprland>=0.55' 'python' 'lua')
 optdepends=('quickshell: the keybind panel and the cheatsheet'
             'libnotify: notifications when an apply fails')
 source=("$url/releases/download/v$pkgver/$pkgname-$pkgver.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('5a5f056ab5c6d682490de546fb7e6a7bd0af38a530e846e71e9cce9276a17f49')
 
 package() {
     cd "$pkgname-$pkgver"

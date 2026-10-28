@@ -18,7 +18,7 @@
        (method url-fetch)
        (uri (string-append "https://github.com/phos-org/hyprKBM/releases/download/v"
                            version "/hyprkbm-" version ".tar.gz"))
-       (sha256 (base32 "0000000000000000000000000000000000000000000000000000"))))
+       (sha256 (base32 "0jbzl5v95klw3vklds1hllwazl3vd9zgnip51m4q5mn6nmm0apss"))))
     (build-system gnu-build-system)
     (arguments
      (list
