@@ -51,6 +51,23 @@ def test_versions_agree():
         "packaging/arch/.SRCINFO": r"^\tpkgver = %s$" % v,
         "packaging/debian/changelog": r"^hyprkbm \(%s\) unstable;" % v,
         "packaging/rpm/hyprkbm.spec": r"^Version:\s+%s$" % v,
+        "flake.nix": r'^\s*version = "%s";$' % v,
+        "packaging/guix/hyprkbm.scm": r'^\s*\(version "%s"\)' % v,
+        "packaging/freebsd/Makefile": r"^DISTVERSION=\s+%s$" % v,
+        "packaging/solus/package.yml": r"^version\s*: %s$" % v,
+        "packaging/aerynos/stone.yaml": r"^version\s*: %s$" % v,
     }
     for name, pattern in expected.items():
         assert re.search(pattern, (ROOT / name).read_text(), re.M), name
+
+
+def test_the_freebsd_plist_is_what_make_install_writes(tmp_path):
+    import subprocess
+    res = subprocess.run(["make", "--no-print-directory", "install", "DESTDIR=%s" % tmp_path,
+                          "PREFIX=/usr/local", "SYSTEMD=0"], cwd=ROOT, capture_output=True, text=True)
+    assert res.returncode == 0, res.stderr
+    prefix = tmp_path / "usr/local"
+    files = sorted(str(p.relative_to(prefix)) for p in prefix.rglob("*")
+                   if p.is_file() or p.is_symlink())
+    plist = [l for l in (PKG / "freebsd/pkg-plist").read_text().splitlines() if l and not l.startswith("@")]
+    assert plist == files

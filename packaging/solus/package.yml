@@ -1,0 +1,18 @@
+name       : hyprkbm
+version    : 0.1.0
+release    : 1
+source     :
+    - https://github.com/phos-org/hyprKBM/releases/download/v0.1.0/hyprkbm-0.1.0.tar.gz : 0000000000000000000000000000000000000000000000000000000000000000
+homepage   : https://github.com/phos-org/hyprKBM
+license    : MIT
+component  : desktop
+summary    : Keyboard-first keybind manager for Hyprland's Lua config
+description: |
+    hyprKBM shows every keybind from hyprland.lua and its own on a keyboard, and adds, overrides or removes binds without editing hyprland.lua.
+rundeps    :
+    - hyprland
+    - lua
+    - python3
+    - quickshell
+install    : |
+    %make_install PREFIX=/usr

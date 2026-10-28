@@ -1,0 +1,13 @@
+[
+{ type: install
+  message: <<EOM
+FreeBSD has no systemd, so start hyprKBM's watcher from hyprland.lua:
+
+    hl.on("hyprland.start", function()
+        hl.exec_cmd("hyprkbm-watch")
+    end)
+
+Without it, binds made in hyprKBM are lost at the next Hyprland reload.
+EOM
+}
+]
