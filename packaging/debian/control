@@ -1,0 +1,18 @@
+Source: hyprkbm
+Section: utils
+Priority: optional
+Maintainer: knikou01 <166297224+knikou01@users.noreply.github.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.7.0
+Homepage: https://github.com/phos-org/hyprKBM
+Rules-Requires-Root: no
+
+Package: hyprkbm
+Architecture: all
+Depends: ${misc:Depends}, hyprland (>= 0.55), python3, lua5.4
+Recommends: quickshell (>= 0.3), libnotify-bin
+Description: keyboard-first keybind manager for Hyprland's Lua config
+ hyprKBM shows every keybind from hyprland.lua and its own on a keyboard,
+ and adds, overrides or removes binds without editing hyprland.lua. Binds
+ are applied to the running Hyprland and kept across reloads by a systemd
+ user service.

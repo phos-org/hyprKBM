@@ -49,6 +49,7 @@ def test_versions_agree():
     expected = {
         "packaging/arch/PKGBUILD": r"^pkgver=%s$" % v,
         "packaging/arch/.SRCINFO": r"^\tpkgver = %s$" % v,
+        "packaging/debian/changelog": r"^hyprkbm \(%s\) unstable;" % v,
     }
     for name, pattern in expected.items():
         assert re.search(pattern, (ROOT / name).read_text(), re.M), name
