@@ -60,7 +60,7 @@ docker run --rm -v /tmp/hyprkbm-dist:/dist debian:testing sh -euc '
 docker run --rm -v /tmp/hyprkbm-dist:/dist -v "$PWD/packaging/rpm":/spec:ro opensuse/tumbleweed sh -euc '
   zypper -q -n in rpm-build make systemd-rpm-macros tar gzip >/dev/null
   mkdir -p ~/rpmbuild/SOURCES && cp /dist/hyprkbm-*.tar.gz ~/rpmbuild/SOURCES/
-  rpmbuild -bb /spec/hyprkbm.spec
+  rpmbuild -bb --define "_topdir $HOME/rpmbuild" /spec/hyprkbm.spec
   rpm -qlp ~/rpmbuild/RPMS/noarch/hyprkbm-*.noarch.rpm'
 
 # Arch
@@ -147,7 +147,9 @@ FreeBSD's `pkg-plist` is what `make install` writes. See
 | `packaging/guix/`, `freebsd/`, `solus/`, `aerynos/` | the Guix, FreeBSD port, Solus and aerynOS recipes |
 | `packaging/checksums.py` | fills the release tarball's checksum into every recipe |
 | `packaging/README.md` | which recipe is for which distro, and how each is checked |
-| `.github/workflows/ci.yml` | pytest, node, ShellCheck and qmllint on every push and PR |
+| `.github/workflows/ci.yml` | pytest, node, ShellCheck, qmllint and the packages on every push and PR |
+| `.github/workflows/packages.yml` | builds the tarball, `.deb`, `.rpm`, Arch package and Nix flake; run by `ci.yml` and `release.yml` |
+| `.github/workflows/release.yml` | on a `v*` tag: checks it matches the version, builds the packages and publishes the release |
 | `tests/` | pytest suites; `tests/js/` holds the node tests for `quickshell/hyprkbm/lib/*.js` |
 | `docs/superpowers/` | the design spec and implementation plans |
 

@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Tag matches the version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - run: |
+          v=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' lib/hyprkbm/__init__.py)
+          test "v$v" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME but version $v"; exit 1; }
+
+  packages:
+    needs: check
+    uses: ./.github/workflows/packages.yml
+
+  publish:
+    name: Publish
+    needs: packages
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with: { path: out, merge-multiple: true }
+      - run: |
+          v=${GITHUB_REF_NAME#v}
+          python3 packaging/checksums.py "out/hyprkbm-$v.tar.gz" .
+          tar czf "out/hyprkbm-$v-recipes.tar.gz" packaging flake.nix flake.lock
+          (cd out && sha256sum -- * > SHA256SUMS)
+          # The section for this version, without its heading.
+          awk -v h="## [$v]" 'index($0, h) == 1 {on=1; next} on && /^## \[/ {exit} on' CHANGELOG.md > notes.md
+          pre=""; case "$v" in 0.*) pre="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" out/* --title "hyprKBM $v" --notes-file notes.md $pre
+        env:
+          GH_TOKEN: ${{ github.token }}
