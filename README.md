@@ -42,7 +42,7 @@ Search, submaps, conflicts, and apply are all in that window. Do not close the p
 
 ## The cheatsheet
 
-![SCREENSHOT PLACEHOLDER: cheatsheet window](docs/assets/cheatsheet.png)
+![The cheatsheet with SUPER held. Bound keys show their actions, including kitty and the workspace numbers.](docs/assets/cheatsheet.png)
 
 `hyprkbm --cheatsheet` toggles a full-screen keyboard of your global binds. Enter runs the combo you pressed. It writes nothing. Details are in [Show the cheatsheet](docs/usage.md#show-the-cheatsheet).
 
