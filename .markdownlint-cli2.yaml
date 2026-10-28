@@ -1,0 +1,7 @@
+globs:
+  - README.md
+  - docs/*.md
+config:
+  default: true
+  MD013: false
+  MD010: false
