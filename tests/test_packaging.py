@@ -109,6 +109,15 @@ def test_versions_agree():
     }
     for name, pattern in expected.items():
         assert re.search(pattern, (ROOT / name).read_text(), re.M), name
+    # Where a recipe spells the version out in its download URL, that URL
+    # must name this release's asset too.
+    asset = "releases/download/v%s/hyprkbm-%s.tar.gz" % (__version__, __version__)
+    for name in ("packaging/arch/.SRCINFO", "packaging/solus/package.yml",
+                 "packaging/aerynos/stone.yaml"):
+        urls = re.findall(r"https://\S+\.tar\.gz", (ROOT / name).read_text())
+        assert urls and all(u.endswith(asset) for u in urls), (name, urls)
+    distinfo = (PKG / "freebsd/distinfo").read_text()
+    assert re.findall(r"\((.*)\)", distinfo) == ["hyprkbm-%s.tar.gz" % __version__] * 2
 
 
 def test_the_freebsd_plist_is_what_make_install_writes(tmp_path):

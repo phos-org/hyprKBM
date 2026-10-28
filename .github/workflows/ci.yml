@@ -1,7 +1,10 @@
 name: CI
 
+# Pushes to main only: a pull request runs it through pull_request, and a tag
+# through the release workflow, so neither runs every job twice.
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
