@@ -29,7 +29,8 @@ from hyprkbm.export import export_markdown  # noqa: E402
 from hyprkbm.model import ModelError, load_model, merge, structure_errors  # noqa: E402
 from hyprkbm.paths import Paths  # noqa: E402
 from hyprkbm.reader import read_config  # noqa: E402
-from hyprkbm.state import SettingsError, build_state, read_backup, set_layout  # noqa: E402
+from hyprkbm.state import (  # noqa: E402
+    SettingsError, build_state, ensure_config, read_backup, set_layout)
 from hyprkbm import __version__  # noqa: E402
 
 UNIT = "hyprkbm-watch.service"
@@ -278,6 +279,13 @@ def cmd_cheatsheet():
 
 def main(argv):
     paths = Paths.from_env()
+    if argv == ["--version"]:
+        print("hyprkbm %s" % __version__)
+        return 0
+    if argv in (["-h"], ["--help"]):
+        print(__doc__.strip())
+        return 0
+    ensure_config(paths)
     if argv[:1] == ["--export"]:
         return cmd_export(paths, argv[1:])
     if argv[:1] == ["--apply"]:
@@ -294,12 +302,6 @@ def main(argv):
         return cmd_delete_backup(paths, argv[1:])
     if argv[:1] == ["--set-layout"]:
         return cmd_set_layout(paths, argv[1:])
-    if argv == ["--version"]:
-        print("hyprkbm %s" % __version__)
-        return 0
-    if argv in (["-h"], ["--help"]):
-        print(__doc__.strip())
-        return 0
     if argv == []:
         return cmd_panel(paths)
     if argv == ["--cheatsheet"]:

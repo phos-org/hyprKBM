@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from hyprkbm.state import build_state, read_backup, set_layout
+from hyprkbm.state import build_state, ensure_config, read_backup, set_layout
 
 HYPRKBM = Path(__file__).resolve().parents[1] / "bin" / "hyprkbm"
 
@@ -167,3 +167,34 @@ def test_cli_deletes_a_backup(home_env, paths, stubs):
     assert build_state(paths)["backups"] == []
     assert run(home_env, "--delete-backup", "20260101T000000000000").returncode == 1
     assert run(home_env, "--delete-backup").returncode == 2
+
+
+def test_first_run_creates_an_empty_keybinds_json(paths):
+    assert ensure_config(paths) is True
+    assert json.loads(paths.model.read_text()) == {
+        "version": 1, "submaps": [], "binds": [], "unbinds": []}
+    assert not paths.settings.exists()
+    # Second run: nothing to do, and the file is left alone.
+    paths.model.write_text('{"version": 1, "binds": []}')
+    assert ensure_config(paths) is False
+    assert paths.model.read_text() == '{"version": 1, "binds": []}'
+
+
+def test_first_run_leaves_a_symlink_alone_even_a_dangling_one(paths, tmp_path):
+    paths.config_dir.mkdir(parents=True)
+    paths.model.symlink_to(tmp_path / "dotfiles" / "keybinds.json")
+    assert ensure_config(paths) is False
+    assert paths.model.is_symlink() and not (tmp_path / "dotfiles").exists()
+
+
+def test_first_run_never_fails_a_command(paths):
+    paths.config_dir.parent.mkdir(parents=True, exist_ok=True)
+    paths.config_dir.write_text("a file where the folder should be")
+    assert ensure_config(paths) is False
+
+
+def test_the_cli_creates_the_config_but_not_for_help(home_env, paths, stubs):
+    assert run(home_env, "--help").returncode == 0
+    assert not paths.model.exists()
+    assert run(home_env, "--status").returncode == 0
+    assert paths.model.exists()
