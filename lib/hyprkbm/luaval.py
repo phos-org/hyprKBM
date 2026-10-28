@@ -66,12 +66,12 @@ def to_lua(value):
 
 
 def interpreter():
-    """The Lua that runs the reader. Arch ships `lua`; Debian and Ubuntu
-    ship only versioned names."""
+    """The Lua that runs the reader. Arch ships `lua`; Debian and Ubuntu ship
+    versioned names, FreeBSD names without the dot."""
     override = os.environ.get("HYPRKBM_LUA")
     if override:
         return override
-    for name in ("lua", "lua5.5", "lua5.4"):
+    for name in ("lua", "lua5.5", "lua5.4", "lua55", "lua54"):
         found = shutil.which(name)
         if found:
             return found

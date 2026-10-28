@@ -11,6 +11,7 @@
   hyprkbm --backup NAME        one backup's keybinds.json and keybinds.lua, as JSON
   hyprkbm --delete-backup NAME delete one backup
   hyprkbm --set-layout NAME    the panel's keyboard layout: ansi or iso
+  hyprkbm --version            print the version
 """
 import json
 import os
@@ -29,6 +30,7 @@ from hyprkbm.model import ModelError, load_model, merge, structure_errors  # noq
 from hyprkbm.paths import Paths  # noqa: E402
 from hyprkbm.reader import read_config  # noqa: E402
 from hyprkbm.state import SettingsError, build_state, read_backup, set_layout  # noqa: E402
+from hyprkbm import __version__  # noqa: E402
 
 UNIT = "hyprkbm-watch.service"
 ROOT = Path(os.path.realpath(__file__)).parents[1]
@@ -292,6 +294,9 @@ def main(argv):
         return cmd_delete_backup(paths, argv[1:])
     if argv[:1] == ["--set-layout"]:
         return cmd_set_layout(paths, argv[1:])
+    if argv == ["--version"]:
+        print("hyprkbm %s" % __version__)
+        return 0
     if argv in (["-h"], ["--help"]):
         print(__doc__.strip())
         return 0

@@ -61,3 +61,12 @@ def test_a_lua_function_cannot_be_written_back():
 def test_the_interpreter_can_be_overridden(monkeypatch):
     monkeypatch.setenv("HYPRKBM_LUA", "/opt/lua/bin/lua")
     assert interpreter() == "/opt/lua/bin/lua"
+
+
+def test_the_interpreter_is_also_found_by_freebsd_names(tmp_path, monkeypatch):
+    lua = tmp_path / "lua54"
+    lua.write_text("#!/bin/sh\n")
+    lua.chmod(0o755)
+    monkeypatch.delenv("HYPRKBM_LUA", raising=False)
+    monkeypatch.setenv("PATH", str(tmp_path))
+    assert interpreter() == str(lua)

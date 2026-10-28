@@ -231,3 +231,11 @@ def test_cheatsheet_needs_quickshell(home_env, stubs):
 
     assert res.returncode == 1
     assert "Quickshell" in res.stderr
+
+
+def test_version(home_env, stubs):
+    from hyprkbm import __version__
+    res = run(home_env, "--version")
+    assert res.returncode == 0, res.stderr
+    assert res.stdout == "hyprkbm %s\n" % __version__
+    assert __version__ == "0.1.0"
