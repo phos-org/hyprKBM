@@ -50,6 +50,7 @@ def test_versions_agree():
         "packaging/arch/PKGBUILD": r"^pkgver=%s$" % v,
         "packaging/arch/.SRCINFO": r"^\tpkgver = %s$" % v,
         "packaging/debian/changelog": r"^hyprkbm \(%s\) unstable;" % v,
+        "packaging/rpm/hyprkbm.spec": r"^Version:\s+%s$" % v,
     }
     for name, pattern in expected.items():
         assert re.search(pattern, (ROOT / name).read_text(), re.M), name
