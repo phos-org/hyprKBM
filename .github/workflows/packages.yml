@@ -1,0 +1,106 @@
+name: Packages
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  tarball:
+    name: Tarball
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: v
+        run: echo "version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' lib/hyprkbm/__init__.py)" >> "$GITHUB_OUTPUT"
+      - run: make dist
+      - uses: actions/upload-artifact@v7
+        with: { name: tarball, path: dist/*.tar.gz }
+
+  # Each package job unpacks the tarball in the workspace, so the built
+  # package lands there and the upload paths are relative to it.
+  deb:
+    name: Debian package
+    needs: tarball
+    runs-on: ubuntu-24.04
+    container: debian:testing
+    steps:
+      - uses: actions/download-artifact@v8
+        with: { name: tarball }
+      # dpkg-buildpackage writes the .deb one level above the source folder,
+      # which is the workspace.
+      - run: |
+          apt-get update -qq && apt-get install -y -qq build-essential debhelper >/dev/null
+          tar xzf hyprkbm-*.tar.gz && cd hyprkbm-*/
+          cp -r packaging/debian debian
+          dpkg-buildpackage -us -uc -b
+          apt-get install -y -qq ../hyprkbm_*_all.deb >/dev/null && hyprkbm --version
+      # The watcher must be enabled for every user on install, or binds made
+      # in hyprKBM vanish at the next reload.
+      - name: The package enables the watcher
+        run: |
+          dpkg-deb -e hyprkbm_*_all.deb ctl
+          grep -q "deb-systemd-helper --user enable 'hyprkbm-watch.service'" ctl/postinst
+          test -L /etc/systemd/user/graphical-session.target.wants/hyprkbm-watch.service
+      - uses: actions/upload-artifact@v7
+        with: { name: deb, path: hyprkbm_*_all.deb }
+
+  rpm:
+    name: RPM package
+    needs: tarball
+    runs-on: ubuntu-24.04
+    container: opensuse/tumbleweed
+    steps:
+      - run: zypper -q -n in rpm-build make systemd-rpm-macros systemd tar gzip
+      - uses: actions/download-artifact@v8
+        with: { name: tarball }
+      # openSUSE's rpmbuild defaults to /usr/src/packages, so name the topdir
+      # for SOURCES and RPMS to agree.
+      - run: |
+          top="$HOME/rpmbuild"
+          mkdir -p "$top/SOURCES" && cp hyprkbm-*.tar.gz "$top/SOURCES/"
+          tar xzf hyprkbm-*.tar.gz --wildcards '*/packaging/rpm/hyprkbm.spec' --strip-components=3
+          rpmbuild -bb --define "_topdir $top" hyprkbm.spec
+          cp "$top"/RPMS/noarch/*.rpm .
+      # %systemd_user_post presets only the units %systemd_user_pre marked, so
+      # check both are there, and that installing really enables the watcher.
+      # --nodeps: Hyprland itself is not needed to see the preset applied.
+      - name: The package enables the watcher
+        run: |
+          rpm -qp --scripts ./*.rpm > scripts
+          grep -q 'mark-install-user-units hyprkbm-watch.service' scripts
+          grep -q ' install-user-units hyprkbm-watch.service' scripts
+          rpm -i --nodeps ./*.rpm
+          test "$(systemctl --global is-enabled hyprkbm-watch.service)" = enabled
+      - uses: actions/upload-artifact@v7
+        with: { name: rpm, path: "*.rpm" }
+
+  arch:
+    name: Arch package
+    needs: tarball
+    runs-on: ubuntu-24.04
+    container: archlinux:latest
+    steps:
+      - run: pacman -Syu --noconfirm --needed base-devel
+      - uses: actions/download-artifact@v8
+        with: { name: tarball }
+      # makepkg refuses to run as root.
+      - run: |
+          useradd -m builder
+          tar xzf hyprkbm-*.tar.gz --wildcards '*/packaging/arch/PKGBUILD' --strip-components=3
+          cp hyprkbm-*.tar.gz PKGBUILD /home/builder/ && chown builder /home/builder/*
+          su builder -c 'cd ~ && makepkg --nodeps --skipchecksums --noconfirm'
+          cp /home/builder/*.pkg.tar.zst .
+      - uses: actions/upload-artifact@v7
+        with: { name: arch, path: "*.pkg.tar.zst" }
+
+  nix:
+    name: Nix flake
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: DeterminateSystems/nix-installer-action@v23
+      - run: nix build .#hyprkbm --print-build-logs && ./result/bin/hyprkbm --version

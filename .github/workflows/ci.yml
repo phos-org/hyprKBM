@@ -1,7 +1,10 @@
 name: CI
 
+# Pushes to main only: a pull request runs it through pull_request, and a tag
+# through the release workflow, so neither runs every job twice.
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
@@ -115,3 +118,6 @@ jobs:
 
           # shellcheck disable=SC2086
           find quickshell -name '*.qml' -print0 | xargs -0 -r "$qmllint" $flags
+
+  packages:
+    uses: ./.github/workflows/packages.yml

@@ -24,6 +24,7 @@ sys.path.insert(0, os.path.join(
 
 from hyprkbm import marker  # noqa: E402
 from hyprkbm.paths import Paths  # noqa: E402
+from hyprkbm.state import ensure_config  # noqa: E402
 
 RELOADED = "configreloaded"
 CAPTURE_SUBMAP = "hyprkbm-capture"
@@ -157,6 +158,7 @@ def serve(sock, command, paths):
 
 def main():
     paths = Paths.from_env()
+    ensure_config(paths)
     _lock = claim_single_instance(paths)
     command = apply_command()
     path = socket_path()

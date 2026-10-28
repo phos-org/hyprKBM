@@ -11,7 +11,7 @@ import subprocess
 
 from .apply import BACKUP_NAME, write_atomic
 from .catalogue import CATALOGUE, describe, load_catalogue
-from .model import ModelError, load_model, structure_errors
+from .model import EMPTY, ModelError, load_model, structure_errors
 from .reader import ReadResult, read_config
 
 UNIT = "hyprkbm-watch.service"
@@ -163,3 +163,20 @@ def set_layout(paths, name):
     settings = _read_settings(paths.settings)
     settings["layout"] = name
     write_atomic(paths.settings, json.dumps(settings, indent=2, ensure_ascii=False) + "\n")
+
+
+def ensure_config(paths):
+    """Creates the config folder and an empty keybinds.json on first run, so
+    there is a real file to open and edit. A package cannot do this: it never
+    writes into anyone's home. Never touches an existing file or a symlink,
+    and never stops the command it runs in."""
+    try:
+        # Inside the try: before Python 3.14, exists() raises PermissionError
+        # when the folder cannot be searched.
+        if paths.model.exists() or paths.model.is_symlink():
+            return False
+        paths.config_dir.mkdir(parents=True, exist_ok=True)
+        write_atomic(paths.model, json.dumps(EMPTY, indent=2) + "\n")
+    except OSError:
+        return False
+    return True

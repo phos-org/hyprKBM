@@ -1,0 +1,9 @@
+#!/usr/bin/make -f
+%:
+	dh $@
+
+override_dh_auto_install:
+	$(MAKE) install PREFIX=/usr DESTDIR=$(CURDIR)/debian/hyprkbm
+
+# The tests need pytest and Node; CI runs them before any package is built.
+override_dh_auto_test:
