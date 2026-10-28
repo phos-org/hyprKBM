@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="280" viewBox="0 0 1200 280" role="img" aria-label="hyprKBM">
+  <rect width="1200" height="280" fill="#0b0c16"/>
+  <rect width="8" height="280" fill="#c2718c"/>
+  <g fill="#1c1826" stroke="#241b28">
+    <rect x="860" y="78" width="52" height="52" rx="8"/>
+    <rect x="922" y="78" width="52" height="52" rx="8"/>
+    <rect x="984" y="78" width="52" height="52" rx="8"/>
+    <rect x="1046" y="78" width="52" height="52" rx="8"/>
+    <rect x="1108" y="78" width="52" height="52" rx="8"/>
+    <rect x="890" y="140" width="52" height="52" rx="8"/>
+    <rect x="952" y="140" width="52" height="52" rx="8"/>
+    <rect x="1014" y="140" width="52" height="52" rx="8"/>
+    <rect x="1076" y="140" width="52" height="52" rx="8"/>
+  </g>
+  <g fill="#c2718c">
+    <rect x="922" y="78" width="52" height="52" rx="8"/>
+    <rect x="952" y="140" width="52" height="52" rx="8"/>
+  </g>
+  <rect x="1014" y="140" width="52" height="52" rx="8" fill="none" stroke="#c2718c" stroke-width="3"/>
+  <text x="56" y="128" fill="#f3ece2" font-family="DejaVu Sans, sans-serif" font-size="68" font-weight="700">hyprKBM</text>
+  <text x="58" y="176" fill="#948da3" font-family="DejaVu Sans, sans-serif" font-size="24">A keybind manager for Hyprland's Lua configuration</text>
+</svg>
