@@ -20,7 +20,8 @@ First development release.
   bind by pressing it, conflicts, submaps with their leave key, stale-edit
   handling, backups with restore and delete, themes, ANSI and ISO layouts.
 - The cheatsheet overlay (`hyprkbm --cheatsheet`), and a Markdown export.
-- Packages: Arch (AUR), Debian/Ubuntu, openSUSE/Mageia/OpenMandriva, Nix,
-  Guix, FreeBSD, Solus, aerynOS; `make install` for anything else.
+- Packages built and published on the release: Arch (AUR), Debian/Ubuntu,
+  RPM (openSUSE, Mageia, OpenMandriva), Nix. Recipes only, not yet built:
+  Guix, FreeBSD, Solus, aerynOS. `make install` for anything else.
 
 [0.1.0]: https://github.com/phos-org/hyprKBM/releases/tag/v0.1.0

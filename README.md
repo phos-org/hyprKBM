@@ -48,22 +48,66 @@ The **keyboard panel** shows every bind on an on-screen keyboard, and the
 
 | Distro | |
 |---|---|
-| Arch, Manjaro, Artix | `yay -S hyprkbm` (AUR), or the `.pkg.tar.zst` from the [release](https://github.com/phos-org/hyprKBM/releases) |
+| Arch, Manjaro, Artix, Parabola | `yay -S hyprkbm` (AUR), or the `.pkg.tar.zst` from the [release](https://github.com/phos-org/hyprKBM/releases) |
 | Debian 14 / sid / 13 backports, Ubuntu 26.10, Kali, Devuan | the `.deb` from the release: `sudo apt install ./hyprkbm_*_all.deb` |
-| openSUSE Tumbleweed, Mageia, OpenMandriva | the `.rpm` from the release: `sudo zypper in ./hyprkbm-*.noarch.rpm` (or `dnf`/`urpmi`) |
-| NixOS, Nix | `nix profile install github:phos-org/hyprKBM` |
+| openSUSE Tumbleweed, Mageia, OpenMandriva, Rosa | the `.rpm` from the release: `sudo zypper in ./hyprkbm-*.noarch.rpm` (or `dnf`/`urpmi`). Built and tested on openSUSE Tumbleweed; Mageia, OpenMandriva and Rosa are untested |
+| NixOS, Nix | `nix profile install github:phos-org/hyprKBM` ([below](#nix)) |
 | Guix, FreeBSD, Solus, aerynOS | recipes in [`packaging/`](packaging/) |
-| anything else | `make install PREFIX=/usr` from the release tarball (GNU make; add `SYSTEMD=0` without systemd) |
+| anything else | `sudo make install PREFIX=/usr` from the release tarball (GNU make; add `SYSTEMD=0` without systemd) |
 
 Distros whose Hyprland predates the Lua config (Fedora, Alpine, Ubuntu
-26.04) are not packaged yet.
+26.04 LTS, ALT Linux) are not packaged yet.
+
+If you installed from a clone with `install.sh`, run `install.sh
+--uninstall` before installing a package. Otherwise the clone's links in
+`~/.local/bin` and its unit in `~/.config/systemd/user` come first, and
+shadow the package's.
 
 The watcher keeps your binds applied across reloads and must run. The
-Debian and RPM packages enable it for every user; elsewhere, once:
+Debian and RPM packages enable it for every user, which takes effect at your
+next login; to start it now:
+
+```bash
+systemctl --user start hyprkbm-watch
+```
+
+Elsewhere (Arch, `make install`), enable and start it once:
 
 ```bash
 systemctl --user enable --now hyprkbm-watch
 ```
+
+### Nix
+
+Nix needs flakes enabled: add `--extra-experimental-features 'nix-command
+flakes'` to each command, or set `experimental-features = nix-command
+flakes` in `nix.conf`. `github:phos-org/hyprKBM` follows `main`; to pin
+this release, use `github:phos-org/hyprKBM/v0.1.0`.
+
+`nix profile install` puts the unit in `~/.nix-profile/lib/systemd/user`,
+where systemd does not look, so link it first:
+
+```bash
+systemctl --user link ~/.nix-profile/lib/systemd/user/hyprkbm-watch.service
+systemctl --user enable --now hyprkbm-watch
+```
+
+On NixOS, take the package from the flake's `packages.${system}.hyprkbm`
+and let NixOS install the unit. With this flake as the input `hyprkbm`:
+
+```nix
+{ inputs, pkgs, ... }:
+let hyprkbm = inputs.hyprkbm.packages.${pkgs.stdenv.hostPlatform.system}.hyprkbm; in {
+  environment.systemPackages = [ hyprkbm ];
+  systemd.packages = [ hyprkbm ];
+  systemd.user.services.hyprkbm-watch.wantedBy = [ "graphical-session.target" ];
+}
+```
+
+Guix on another distro is the same: link the unit from your profile with
+`systemctl --user link ~/.guix-profile/lib/systemd/user/hyprkbm-watch.service`,
+then enable it. Without systemd, start the watcher from `hyprland.lua`
+([below](#without-systemd)).
 
 ### From a clone
 
@@ -109,9 +153,10 @@ end)
 
 A package comes off with the package manager that put it there
 (`sudo pacman -R hyprkbm`, `sudo apt remove hyprkbm`, `sudo zypper rm
-hyprkbm`, …), and a `make install` with `make uninstall` and the same
-`PREFIX`. Run `systemctl --user disable --now hyprkbm-watch` first where you
-enabled it yourself. A clone install comes off with:
+hyprkbm`, `nix profile remove hyprkbm`, …), and a `make install` with
+`sudo make uninstall` and the same `PREFIX`. Run `systemctl --user disable
+--now hyprkbm-watch` first where you enabled it yourself. A clone install
+comes off with:
 
 ```bash
 ~/src/hyprKBM/install.sh --uninstall
