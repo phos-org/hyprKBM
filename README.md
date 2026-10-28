@@ -2,6 +2,7 @@
 
 <p>
   <a href="https://github.com/phos-org/hyprKBM/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/phos-org/hyprKBM/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/phos-org/hyprKBM/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/phos-org/hyprKBM?include_prereleases&sort=semver"></a>
   <a href="https://phos.sh"><img alt="A phos project" src="https://img.shields.io/badge/phos-project-eac400"></a>
   <img alt="Hyprland" src="https://img.shields.io/badge/Hyprland-58E1FF?logo=hyprland&logoColor=000">
   <img alt="Python standard library only" src="https://img.shields.io/badge/Python-stdlib%20only-3776AB?logo=python&logoColor=fff">
