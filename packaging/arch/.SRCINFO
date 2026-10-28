@@ -1,0 +1,16 @@
+pkgbase = hyprkbm
+	pkgdesc = Keyboard-first keybind manager for Hyprland's Lua config
+	pkgver = 0.1.0
+	pkgrel = 1
+	url = https://github.com/phos-org/hyprKBM
+	arch = any
+	license = MIT
+	depends = hyprland>=0.55
+	depends = python
+	depends = lua
+	optdepends = quickshell: the keybind panel and the cheatsheet
+	optdepends = libnotify: notifications when an apply fails
+	source = https://github.com/phos-org/hyprKBM/releases/download/v0.1.0/hyprkbm-0.1.0.tar.gz
+	sha256sums = SKIP
+
+pkgname = hyprkbm

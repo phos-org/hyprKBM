@@ -42,3 +42,13 @@ def test_checksums_fill_every_recipe(tmp_path):
             assert sha in out, name
     assert "SIZE (hyprkbm-%s.tar.gz) = %d" % (__version__, len(b"not really a tarball")) \
         in (copies / "packaging/freebsd/distinfo").read_text()
+
+
+def test_versions_agree():
+    v = re.escape(__version__)
+    expected = {
+        "packaging/arch/PKGBUILD": r"^pkgver=%s$" % v,
+        "packaging/arch/.SRCINFO": r"^\tpkgver = %s$" % v,
+    }
+    for name, pattern in expected.items():
+        assert re.search(pattern, (ROOT / name).read_text(), re.M), name

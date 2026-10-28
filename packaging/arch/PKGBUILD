@@ -1,0 +1,19 @@
+# Maintainer: knikou01 <166297224+knikou01@users.noreply.github.com>
+pkgname=hyprkbm
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Keyboard-first keybind manager for Hyprland's Lua config"
+arch=('any')
+url="https://github.com/phos-org/hyprKBM"
+license=('MIT')
+depends=('hyprland>=0.55' 'python' 'lua')
+optdepends=('quickshell: the keybind panel and the cheatsheet'
+            'libnotify: notifications when an apply fails')
+source=("$url/releases/download/v$pkgver/$pkgname-$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+    cd "$pkgname-$pkgver"
+    make install PREFIX=/usr DESTDIR="$pkgdir"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
