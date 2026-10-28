@@ -5,7 +5,7 @@ Summary:        Keyboard-first keybind manager for Hyprland's Lua config
 License:        MIT
 URL:            https://github.com/phos-org/hyprKBM
 Source0:        %{url}/releases/download/v%{version}/%{name}-%{version}.tar.gz
-# sha256 of Source0: 0000000000000000000000000000000000000000000000000000000000000000
+# sha256 of Source0: 5a5f056ab5c6d682490de546fb7e6a7bd0af38a530e846e71e9cce9276a17f49
 BuildArch:      noarch
 BuildRequires:  make
 BuildRequires:  systemd-rpm-macros

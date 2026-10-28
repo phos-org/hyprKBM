@@ -3,7 +3,7 @@ version     : 0.1.0
 release     : 1
 homepage    : https://github.com/phos-org/hyprKBM
 upstreams   :
-    - https://github.com/phos-org/hyprKBM/releases/download/v0.1.0/hyprkbm-0.1.0.tar.gz : 0000000000000000000000000000000000000000000000000000000000000000
+    - https://github.com/phos-org/hyprKBM/releases/download/v0.1.0/hyprkbm-0.1.0.tar.gz : 5a5f056ab5c6d682490de546fb7e6a7bd0af38a530e846e71e9cce9276a17f49
 summary     : Keyboard-first keybind manager for Hyprland's Lua config
 description : |
     hyprKBM shows every keybind from hyprland.lua and its own on a keyboard, and adds, overrides or removes binds without editing hyprland.lua.
