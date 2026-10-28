@@ -70,3 +70,40 @@ def test_dist_holds_the_tracked_files_under_one_folder(tmp_path):
     assert all(n.startswith(top) or n == top.rstrip("/") for n in names)
     assert top + "Makefile" in names and top + "bin/hyprkbm" in names
     assert not [n for n in names if ".superpowers" in n]
+
+
+def copy_tracked(dest):
+    import shutil
+    names = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True,
+                           check=True).stdout.splitlines()
+    for name in names:
+        if (ROOT / name).is_file():
+            (dest / name).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(ROOT / name, dest / name)
+    return dest
+
+
+def check_tree_installed(src, dest):
+    res = make("install", "DESTDIR=%s" % dest, "PREFIX=/usr", cwd=src)
+    assert res.returncode == 0, res.stderr
+    for f in ("lib/hyprkbm/__init__.py", "quickshell/hyprkbm/shell.qml"):
+        assert (dest / "usr/lib/hyprkbm" / f).is_file(), f
+
+
+def test_install_from_an_unpacked_tarball_without_git(tmp_path):
+    check_tree_installed(copy_tracked(tmp_path / "src"), tmp_path / "dest")
+
+
+def test_install_falls_back_to_find_when_git_fails(tmp_path):
+    # A .git git cannot read, like a clone root builds with "dubious
+    # ownership": the tree must still come from find, not be empty.
+    src = copy_tracked(tmp_path / "src")
+    (src / ".git").mkdir()
+    check_tree_installed(src, tmp_path / "dest")
+
+
+def test_install_refuses_an_empty_tree(tmp_path):
+    res = make("install", "DESTDIR=%s" % tmp_path, "TREE=")
+    assert res.returncode != 0
+    assert "no files to install" in res.stderr
+    assert installed(tmp_path) == []

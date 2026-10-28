@@ -4,6 +4,8 @@
 #   make install PREFIX=/usr/local SYSTEMD=0     (no systemd, e.g. FreeBSD)
 #   make dist                                     (the release tarball)
 #
+# make dist archives the committed HEAD: commit first, or your changes are not in it.
+#
 # GNU make. The tree goes to $(LIBDIR)/hyprkbm as it is in the repo: the tools
 # find their files through their own real path, so the links in $(BINDIR)
 # are all they need. For a per-user install from a clone, use install.sh.
@@ -23,15 +25,17 @@ TOOLS = hyprkbm hyprkbm-apply hyprkbm-watch
 VERSION := $(shell sed -n 's/^__version__ = "\(.*\)"$$/\1/p' lib/hyprkbm/__init__.py)
 # Every file the tools need at run time: git's list in a clone, so nothing
 # untracked slips in; the unpacked release tarball has no .git, and only
-# tracked files to begin with.
-TREE = $(shell if [ -d .git ]; then git ls-files lib share/actions.json quickshell; \
-	else find lib share/actions.json quickshell -type f ! -path '*/__pycache__/*' ! -name '*.pyc'; fi | sort)
+# tracked files to begin with. find also covers a clone git cannot read (git
+# missing, or "dubious ownership" when root builds a user's clone).
+TREE = $(shell ( (test -d .git && git ls-files lib share/actions.json quickshell 2>/dev/null | grep .) \
+	|| find lib share/actions.json quickshell -type f ! -path '*/__pycache__/*' ! -name '*.pyc' 2>/dev/null ) | sort)
 
 .PHONY: all install uninstall dist
 
 all:
 
 install:
+	@if [ -z "$(strip $(TREE))" ]; then echo "make: no files to install from lib, share and quickshell" >&2; exit 1; fi
 	mkdir -p $(DESTDIR)$(APPDIR)/bin $(DESTDIR)$(BINDIR)
 	for t in $(TOOLS); do \
 		install -m 755 bin/$$t $(DESTDIR)$(APPDIR)/bin/$$t; \
