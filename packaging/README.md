@@ -15,9 +15,12 @@ Every recipe here installs hyprKBM with the top-level `Makefile`
 | `solus/package.yml` | Solus | review only |
 | `aerynos/stone.yaml` | aerynOS | review only |
 
-Checksums are placeholders (zeros, or `SKIP`) until a release exists. The
-release workflow runs `checksums.py` on the tarball and attaches the filled
-recipes to the release; copy them back here in a follow-up PR.
+The recipes start with placeholder checksums (zeros, or `SKIP`). After a
+release they hold that release's real ones: the release workflow runs
+`checksums.py` on the tarball, attaches the filled recipes to the release, and
+you copy them back here in a follow-up PR. `checksums.py` replaces whatever
+hash a recipe has, placeholder or last release's, and fails naming the recipe
+if it finds no checksum field, so a release never ships a stale one.
 
 Not yet packaged, because their Hyprland predates the Lua config (0.55):
 Fedora, Alpine, Ubuntu 26.04 LTS, ALT Linux. Add them once they catch up.

@@ -3,26 +3,39 @@
 
   python3 packaging/checksums.py dist/hyprkbm-X.Y.Z.tar.gz [ROOT]
 
-The recipes carry placeholders until a release exists: zeros, or SKIP in the
-PKGBUILD. The release workflow runs this after building the tarball and
-attaches the filled recipes to the release.
+The recipes start with placeholders (zeros, or SKIP in the PKGBUILD), and
+after a release they hold that release's hashes, copied back from the
+release. So this replaces whatever hash is there. It fails, naming the
+recipe, when a recipe has no checksum field, so a release can never ship an
+unfilled or stale checksum. The release workflow runs it after building the
+tarball and attaches the filled recipes to the release.
 """
 import hashlib
 import re
 import sys
 from pathlib import Path
 
-RECIPES = (
-    "packaging/arch/PKGBUILD",
-    "packaging/arch/.SRCINFO",
-    "packaging/rpm/hyprkbm.spec",
-    "packaging/guix/hyprkbm.scm",
-    "packaging/freebsd/distinfo",
-    "packaging/solus/package.yml",
-    "packaging/aerynos/stone.yaml",
-)
-ZEROS = "0" * 64
-NIX32_ZEROS = "0" * 52
+HEX = r"(?:[0-9a-f]{64})"
+# Where each recipe keeps its checksum, matched by the text around it rather
+# than any 64-hex string: (pattern, value). The pattern's group is the text
+# before the hash; the match after it is the hash, replaced by the value.
+FIELDS = {
+    "packaging/arch/PKGBUILD": [(r"(sha256sums=\(')(?:%s|SKIP)(?='\))" % HEX, "sha")],
+    "packaging/arch/.SRCINFO": [(r"(^\tsha256sums = )(?:%s|SKIP)$" % HEX, "sha")],
+    "packaging/rpm/hyprkbm.spec": [(r"(^# sha256 of Source0: )%s$" % HEX, "sha")],
+    "packaging/guix/hyprkbm.scm": [(r'(\(base32 ")[0-9a-z]{52}(?="\))', "nix32")],
+    "packaging/freebsd/distinfo": [(r"(^SHA256 \(.*\) = )%s$" % HEX, "sha"),
+                                   (r"(^SIZE \(.*\) = )\d+$", "size")],
+    "packaging/solus/package.yml": [(r"(\.tar\.gz : )%s$" % HEX, "sha")],
+    "packaging/aerynos/stone.yaml": [(r"(\.tar\.gz : )%s$" % HEX, "sha")],
+}
+RECIPES = tuple(FIELDS)
+
+
+class NoChecksum(Exception):
+    pass
+
+
 # Nix's base32: its own alphabet, read from the last byte backwards.
 NIX32 = "0123456789abcdfghijklmnpqrsvwxyz"
 
@@ -43,25 +56,25 @@ def nix32(digest):
 def fill(tarball, root):
     data = Path(tarball).read_bytes()
     sha = hashlib.sha256(data).hexdigest()
-    for name in RECIPES:
-        path = Path(root) / name
-        text = path.read_text(encoding="utf-8")
-        if name.endswith(".scm"):
-            text = text.replace(NIX32_ZEROS, nix32(bytes.fromhex(sha)))
-        elif name.endswith("PKGBUILD"):
-            text = re.sub(r"sha256sums=\('SKIP'\)", "sha256sums=('%s')" % sha, text)
-        elif name.endswith(".SRCINFO"):
-            text = text.replace("sha256sums = SKIP", "sha256sums = %s" % sha)
-        elif name.endswith("distinfo"):
-            text = text.replace(ZEROS, sha)
-            text = re.sub(r"SIZE \((.*)\) = \d+", r"SIZE (\1) = %d" % len(data), text)
-        else:
-            text = text.replace(ZEROS, sha)
-        path.write_text(text, encoding="utf-8")
+    values = {"sha": sha, "nix32": nix32(bytes.fromhex(sha)), "size": str(len(data))}
+    texts = {}
+    for name, fields in FIELDS.items():
+        text = (Path(root) / name).read_text(encoding="utf-8")
+        for pattern, value in fields:
+            text, n = re.subn(pattern, lambda m: m.group(1) + values[value], text, flags=re.M)
+            if n == 0:
+                raise NoChecksum("%s: no checksum field found (%s)" % (name, pattern))
+        texts[name] = text
+    # Write only once every recipe matched, so a failure leaves none half-done.
+    for name, text in texts.items():
+        (Path(root) / name).write_text(text, encoding="utf-8")
     return sha
 
 
 if __name__ == "__main__":
     if len(sys.argv) not in (2, 3):
         sys.exit(__doc__.strip())
-    print(fill(sys.argv[1], sys.argv[2] if len(sys.argv) == 3 else Path(__file__).resolve().parents[1]))
+    try:
+        print(fill(sys.argv[1], sys.argv[2] if len(sys.argv) == 3 else Path(__file__).resolve().parents[1]))
+    except NoChecksum as e:
+        sys.exit("checksums.py: %s" % e)

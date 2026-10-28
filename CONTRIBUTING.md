@@ -207,7 +207,12 @@ hyprkbm-watch` shows what the watcher did.
    (`tests/test_packaging.py` lists them and fails until they agree), and add
    a `CHANGELOG.md` section.
 2. Merge that to `main`, then tag it: `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`.
-3. The release workflow builds the tarball and packages, fills the checksums,
-   and publishes the release (a pre-release while the version is below 1.0).
+3. The release workflow runs the tests, builds the tarball and packages,
+   fills the checksums, and publishes the release (a pre-release while the
+   version is below 1.0). `checksums.py` replaces the hashes the recipes
+   already have, so they can hold the last release's; it fails if a recipe
+   has none. If publishing fails after the release was created, delete it
+   (`gh release delete vX.Y.Z --yes`) and re-run the job.
 4. Copy the filled recipes from the release's `hyprkbm-X.Y.Z-recipes.tar.gz`
    back into `packaging/` in a PR, and push the PKGBUILD and `.SRCINFO` to the AUR.
+   The repo's recipes then hold real hashes until the next release fills them again.
