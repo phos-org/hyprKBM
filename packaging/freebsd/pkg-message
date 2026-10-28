@@ -8,6 +8,10 @@ FreeBSD has no systemd, so start hyprKBM's watcher from hyprland.lua:
     end)
 
 Without it, binds made in hyprKBM are lost at the next Hyprland reload.
+
+The panel needs Quickshell: pkg install quickshell (x11/quickshell). Its
+watcher banner asks systemd, so on FreeBSD it always shows the watcher as
+unknown, even when hl.on starts it.
 EOM
 }
 ]

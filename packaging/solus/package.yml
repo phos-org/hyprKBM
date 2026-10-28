@@ -9,10 +9,10 @@ component  : desktop
 summary    : Keyboard-first keybind manager for Hyprland's Lua config
 description: |
     hyprKBM shows every keybind from hyprland.lua and its own on a keyboard, and adds, overrides or removes binds without editing hyprland.lua.
+    The panel needs Quickshell (0.3 or later); the command-line tools work without it.
 rundeps    :
     - hyprland
     - lua
     - python3
-    - quickshell
 install    : |
     %make_install PREFIX=/usr
