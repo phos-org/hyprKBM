@@ -38,6 +38,13 @@ jobs:
           cp -r packaging/debian debian
           dpkg-buildpackage -us -uc -b
           apt-get install -y -qq ../hyprkbm_*_all.deb >/dev/null && hyprkbm --version
+      # The watcher must be enabled for every user on install, or binds made
+      # in hyprKBM vanish at the next reload.
+      - name: The package enables the watcher
+        run: |
+          dpkg-deb -e hyprkbm_*_all.deb ctl
+          grep -q "deb-systemd-helper --user enable 'hyprkbm-watch.service'" ctl/postinst
+          test -L /etc/systemd/user/graphical-session.target.wants/hyprkbm-watch.service
       - uses: actions/upload-artifact@v7
         with: { name: deb, path: hyprkbm_*_all.deb }
 
@@ -47,7 +54,7 @@ jobs:
     runs-on: ubuntu-24.04
     container: opensuse/tumbleweed
     steps:
-      - run: zypper -q -n in rpm-build make systemd-rpm-macros tar gzip
+      - run: zypper -q -n in rpm-build make systemd-rpm-macros systemd tar gzip
       - uses: actions/download-artifact@v8
         with: { name: tarball }
       # openSUSE's rpmbuild defaults to /usr/src/packages, so name the topdir
@@ -58,6 +65,16 @@ jobs:
           tar xzf hyprkbm-*.tar.gz --wildcards '*/packaging/rpm/hyprkbm.spec' --strip-components=3
           rpmbuild -bb --define "_topdir $top" hyprkbm.spec
           cp "$top"/RPMS/noarch/*.rpm .
+      # %systemd_user_post presets only the units %systemd_user_pre marked, so
+      # check both are there, and that installing really enables the watcher.
+      # --nodeps: Hyprland itself is not needed to see the preset applied.
+      - name: The package enables the watcher
+        run: |
+          rpm -qp --scripts ./*.rpm > scripts
+          grep -q 'mark-install-user-units hyprkbm-watch.service' scripts
+          grep -q ' install-user-units hyprkbm-watch.service' scripts
+          rpm -i --nodeps ./*.rpm
+          test "$(systemctl --global is-enabled hyprkbm-watch.service)" = enabled
       - uses: actions/upload-artifact@v7
         with: { name: rpm, path: "*.rpm" }
 
